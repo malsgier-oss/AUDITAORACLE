@@ -1,4 +1,5 @@
 using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
 using Serilog;
 using System.Data;
 using WorkAudit.Core.Services;
@@ -114,21 +115,23 @@ public class ConfigStore : IConfigStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"INSERT INTO config_document_types (name, category, keywords, is_active, display_order, created_at, branch, section)
-                            VALUES (@name, @category, @keywords, @active, @order, @created, @branch, @section)
+                            VALUES (@name, @category, @keywords, @active, @displayOrder, @created, @branch, @section)
                             RETURNING id INTO @rid";
-        cmd.Parameters.AddWithValue("@name", docType.Name);
-        cmd.Parameters.AddWithValue("@category", docType.Category);
+        var normalizedName = RequiredOrFallback(docType.Name, "Unspecified");
+        var normalizedCategory = RequiredOrFallback(docType.Category, "General");
+        cmd.Parameters.AddWithValue("@name", normalizedName);
+        cmd.Parameters.AddWithValue("@category", normalizedCategory);
         cmd.Parameters.AddWithValue("@keywords", (object?)docType.Keywords ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@active", docType.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("@order", docType.DisplayOrder);
-        cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@displayOrder", docType.DisplayOrder);
+        cmd.Parameters.Add(new OracleParameter("created", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
         cmd.Parameters.AddWithValue("@branch", (object?)docType.Branch ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@section", (object?)docType.Section ?? DBNull.Value);
         var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
         cmd.Parameters.Add(idParam);
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        return Convert.ToInt32(idParam.Value);
+        return ToInt32(idParam.Value);
     }
 
     public bool UpdateDocumentType(ConfigDocumentType docType)
@@ -139,16 +142,18 @@ public class ConfigStore : IConfigStore
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"UPDATE config_document_types
                             SET name = @name, category = @category, keywords = @keywords,
-                                is_active = @active, display_order = @order, updated_at = @updated,
+                                is_active = @active, display_order = @displayOrder, updated_at = @updated,
                                 branch = @branch, section = @section
                             WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", docType.Id);
-        cmd.Parameters.AddWithValue("@name", docType.Name);
-        cmd.Parameters.AddWithValue("@category", docType.Category);
+        var normalizedName = RequiredOrFallback(docType.Name, "Unspecified");
+        var normalizedCategory = RequiredOrFallback(docType.Category, "General");
+        cmd.Parameters.AddWithValue("@name", normalizedName);
+        cmd.Parameters.AddWithValue("@category", normalizedCategory);
         cmd.Parameters.AddWithValue("@keywords", (object?)docType.Keywords ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@active", docType.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("@order", docType.DisplayOrder);
-        cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@displayOrder", docType.DisplayOrder);
+        cmd.Parameters.Add(new OracleParameter("updated", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
         cmd.Parameters.AddWithValue("@branch", (object?)docType.Branch ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@section", (object?)docType.Section ?? DBNull.Value);
 
@@ -197,6 +202,18 @@ public class ConfigStore : IConfigStore
         return doc;
     }
 
+    private static string RequiredOrFallback(string? value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static int ToInt32(object? value)
+    {
+        if (value is null || value == DBNull.Value)
+            return 0;
+        if (value is OracleDecimal oracleDecimal)
+            return oracleDecimal.ToInt32();
+        return Convert.ToInt32(value);
+    }
+
     #endregion
 
     #region Branches
@@ -240,18 +257,18 @@ public class ConfigStore : IConfigStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"INSERT INTO config_branches (name, code, is_active, display_order, created_at)
-                            VALUES (@name, @code, @active, @order, @created)
+                            VALUES (@name, @code, @active, @displayOrder, @created)
                             RETURNING id INTO @rid";
         cmd.Parameters.AddWithValue("@name", branch.Name);
         cmd.Parameters.AddWithValue("@code", (object?)branch.Code ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@active", branch.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("@order", branch.DisplayOrder);
-        cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@displayOrder", branch.DisplayOrder);
+        cmd.Parameters.Add(new OracleParameter("created", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
         var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
         cmd.Parameters.Add(idParam);
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        return Convert.ToInt32(idParam.Value);
+        return ToInt32(idParam.Value);
     }
 
     public bool UpdateBranch(ConfigBranch branch)
@@ -262,14 +279,14 @@ public class ConfigStore : IConfigStore
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"UPDATE config_branches
                             SET name = @name, code = @code, is_active = @active,
-                                display_order = @order, updated_at = @updated
+                                display_order = @displayOrder, updated_at = @updated
                             WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", branch.Id);
         cmd.Parameters.AddWithValue("@name", branch.Name);
         cmd.Parameters.AddWithValue("@code", (object?)branch.Code ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@active", branch.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("@order", branch.DisplayOrder);
-        cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@displayOrder", branch.DisplayOrder);
+        cmd.Parameters.Add(new OracleParameter("updated", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
 
         Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
@@ -342,18 +359,18 @@ public class ConfigStore : IConfigStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"INSERT INTO config_categories (name, description, is_active, display_order, created_at)
-                            VALUES (@name, @description, @active, @order, @created)
+                            VALUES (@name, @description, @active, @displayOrder, @created)
                             RETURNING id INTO @rid";
         cmd.Parameters.AddWithValue("@name", category.Name);
         cmd.Parameters.AddWithValue("@description", (object?)category.Description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@active", category.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("@order", category.DisplayOrder);
-        cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@displayOrder", category.DisplayOrder);
+        cmd.Parameters.Add(new OracleParameter("created", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
         var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
         cmd.Parameters.Add(idParam);
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        return Convert.ToInt32(idParam.Value);
+        return ToInt32(idParam.Value);
     }
 
     public bool UpdateCategory(ConfigCategory category)
@@ -364,14 +381,14 @@ public class ConfigStore : IConfigStore
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"UPDATE config_categories
                             SET name = @name, description = @description, is_active = @active,
-                                display_order = @order, updated_at = @updated
+                                display_order = @displayOrder, updated_at = @updated
                             WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", category.Id);
         cmd.Parameters.AddWithValue("@name", category.Name);
         cmd.Parameters.AddWithValue("@description", (object?)category.Description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@active", category.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("@order", category.DisplayOrder);
-        cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@displayOrder", category.DisplayOrder);
+        cmd.Parameters.Add(new OracleParameter("updated", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
 
         Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
@@ -484,7 +501,7 @@ public class ConfigStore : IConfigStore
               VALUES (v.key_name, v.value_txt, 'general', NULL, 'string', v.updated_at_txt, v.updated_by_txt)";
         cmd.Parameters.AddWithValue("p_key", key);
         cmd.Parameters.AddWithValue("p_value", (object?)value ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("p_updated", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.Add(new OracleParameter("p_updated", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
         cmd.Parameters.AddWithValue("p_updated_by", (object?)updatedBy ?? DBNull.Value);
         Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;

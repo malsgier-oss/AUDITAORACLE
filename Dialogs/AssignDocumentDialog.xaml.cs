@@ -109,8 +109,8 @@ public partial class AssignDocumentDialog : Window
         if (!ServiceContainer.IsInitialized) return;
         var config = ServiceContainer.GetService<IConfigStore>();
         if (config == null) return;
-        var isArabic = ReportLocalizationService.IsArabic(config);
-        FlowDirection = isArabic ? System.Windows.FlowDirection.RightToLeft : System.Windows.FlowDirection.LeftToRight;
+        // Keep shell layout fixed in LTR; language selection only changes localized strings.
+        FlowDirection = ReportLocalizationService.ShellFlowDirection;
         Title = ReportLocalizationService.GetString("AssignDocuments", config);
         if (BranchFilterLabel != null) BranchFilterLabel.Text = ReportLocalizationService.GetString("Branch", config) + ":";
         if (AssignToLabel != null) AssignToLabel.Text = ReportLocalizationService.GetString("AssignTo", config);

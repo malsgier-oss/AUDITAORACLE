@@ -21,8 +21,13 @@
                     IsEnabled="False" Click="BtnStop_Click"/>
             <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="16,0"/>
             <TextBlock Text="Mode:" Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11"/>
-            <ComboBox x:Name="CaptureModeCombo" Width="90" Margin="0,0,8,0" FontSize="11"
-                      ToolTip="Manual = Enter to capture. Auto = stability gate + cooldown."/>
+            <ComboBox x:Name="CaptureModeCombo" Width="118" Margin="0,0,6,0" FontSize="11"
+                      SelectionChanged="CaptureModeCombo_SelectionChanged"
+                      ToolTip="Manual = Enter to capture. Auto = document detect + stability. Scan Area = drag region to capture."/>
+            <CheckBox x:Name="ScanAreaAutoCaptureCheck" Content="Area auto" Margin="0,0,8,0"
+                      VerticalAlignment="Center" FontSize="11" Visibility="Collapsed"
+                      ToolTip="When Scan Area mode is on, auto-capture after the frame is steady (same cooldown as Auto)."
+                      Checked="ScanAreaAutoCaptureCheck_Changed" Unchecked="ScanAreaAutoCaptureCheck_Changed"/>
             <CheckBox x:Name="MultiPageCheck" Content="Multi-page" IsChecked="True" Margin="0,0,12,0"
                       VerticalAlignment="Center" FontSize="11" ToolTip="ON = scan multiple pages per document"/>
             <CheckBox x:Name="AutoCropCheck" Content="Auto-crop" IsChecked="True" Margin="0,0,12,0"
@@ -43,14 +48,19 @@
 
         <!-- Preview + overlay -->
         <Grid Grid.Row="2" MinHeight="200">
-            <Border x:Name="PreviewBorder" Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+            <Border x:Name="PreviewBorder" Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                    SizeChanged="PreviewBorder_SizeChanged">
                 <Grid>
-                    <Image x:Name="PreviewImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="Fant"/>
-                    <Border x:Name="CaptureFlashOverlay" Background="#6600C853" Visibility="Collapsed" IsHitTestVisible="False"/>
-                    <Canvas x:Name="OverlayCanvas" IsHitTestVisible="False"/>
+                    <Image x:Name="PreviewImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="Fant" Panel.ZIndex="0"/>
+                    <Canvas x:Name="OverlayCanvas" IsHitTestVisible="False" Panel.ZIndex="1"/>
+                    <Canvas x:Name="RoiInteractionCanvas" Background="Transparent" Panel.ZIndex="2"
+                            PreviewMouseLeftButtonDown="RoiInteractionCanvas_PreviewMouseLeftButtonDown"
+                            PreviewMouseMove="RoiInteractionCanvas_PreviewMouseMove"
+                            PreviewMouseLeftButtonUp="RoiInteractionCanvas_PreviewMouseLeftButtonUp"/>
+                    <Border x:Name="CaptureFlashOverlay" Background="#6600C853" Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="3"/>
                     <TextBlock x:Name="PlaceholderText" Text="Click Start Camera to begin"
                                Foreground="{DynamicResource SecondaryForeground}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontSize="14"/>
+                               FontSize="14" Panel.ZIndex="4" IsHitTestVisible="False"/>
                 </Grid>
             </Border>
         </Grid>

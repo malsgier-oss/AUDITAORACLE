@@ -10,7 +10,7 @@ This guide covers deploying WorkAudit for production use.
 
 - **Windows 10/11** (64-bit)
 - **.NET 8 Runtime** (Desktop)
-- **SQLite** (included via Microsoft.Data.Sqlite)
+- **Oracle Database 19c+** reachable by ODP.NET connection string
 - **Disk space:** ~500 MB for app + data + logs
 
 ---
@@ -38,9 +38,9 @@ This guide covers deploying WorkAudit for production use.
 
 ## Database
 
-- **Default location:** `%USERPROFILE%\Documents\WORKAUDIT_Docs\workaudit.db`
-- **Note:** The database is stored in the base directory configured during first-run setup. The default base directory is `Documents\WORKAUDIT_Docs`.
-- **Change location:** Run the Setup Wizard again or manually edit `%APPDATA%\WORKAUDIT\user_settings.json` (requires app restart).
+- **Connection source:** `WORKAUDIT_ORACLE_CONNECTION` (or `WORKAUDIT_ORACLE_CONN` / `ORACLE_CONNECTION_STRING`)
+- **User setting fallback:** `oracle_connection_string` in `%APPDATA%\WORKAUDIT\user_settings.json`
+- **Base directory:** still controls document files, not the Oracle database location
 - **First run:** Database and migrations run automatically.
 
 ### Migrations
@@ -59,7 +59,7 @@ This guide covers deploying WorkAudit for production use.
 
 ### Environment Variables (Optional)
 
-- `WORKAUDIT_DB_PATH:** Override database path.
+- `WORKAUDIT_ORACLE_CONNECTION`: Override Oracle connection string.
 - `WORKAUDIT_LOG_LEVEL:** Debug, Information, Warning, Error.
 
 ---
@@ -89,11 +89,34 @@ This guide covers deploying WorkAudit for production use.
 
 ## Updates
 
-1. Backup database and `%APPDATA%\WORKAUDIT\`.
+1. Backup Oracle schema (DBA export) and `%APPDATA%\WORKAUDIT\` document/settings files.
 2. Stop the app.
 3. Replace app files.
 4. Start the app (migrations run automatically).
 5. Verify in Control Panel → System.
+
+## Oracle 19c upgrade and rollback
+
+### Upgrade steps
+
+1. Stop all running instances of WorkAudit.
+2. Take an Oracle export of the WorkAudit schema (`expdp`) and copy `%APPDATA%\WORKAUDIT\` documents/settings.
+3. Install the new binaries and relaunch the app.
+4. Confirm startup completes without `Migration` errors in `%APPDATA%\WORKAUDIT\Logs\`.
+5. Run a baseline validation by checking the application `System` view:
+   - Migration version should be at or above the expected target.
+   - `Database path` should show `Oracle` connection details in logs and UI.
+6. Confirm report and assignment workflows execute once before returning to normal service.
+
+### Rollback guidance
+
+1. Keep the previous version binaries available.
+2. Stop the app.
+3. Restore the previous binaries and `WORKAUDIT_ORACLE_CONNECTION` settings if needed.
+4. If the schema migration failed partway, restore from the DB export taken in step 2 and restart.
+5. If application startup still fails, preserve logs and contact support with:
+   - `%APPDATA%\WORKAUDIT\Logs\workaudit-*.log`
+   - Oracle migration table state (`WORKAUDIT_MIGRATIONS` table content)
 
 ---
 
@@ -102,7 +125,7 @@ This guide covers deploying WorkAudit for production use.
 | Issue | Action |
 |-------|--------|
 | App won't start | Check .NET 8 Runtime installed; review logs for errors. |
-| Database locked | Ensure only one instance; check for other processes. |
+| Oracle connection fails | Validate `WORKAUDIT_ORACLE_CONNECTION` and Oracle listener/service reachability. |
 | Scheduled report not sent | Verify SMTP settings; check "Email to" and "SMTP host" are set. |
 | Reports fail | Check disk space; verify document store has data. |
 

@@ -1,4 +1,5 @@
 using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
 using Serilog;
 using System.Data;
 using WorkAudit.Core.Services;
@@ -49,7 +50,7 @@ public class ReportHistoryStore : IReportHistoryStore
         cmd.Parameters.AddWithValue("@username", entry.Username ?? "");
         cmd.Parameters.AddWithValue("@report_type", entry.ReportType);
         cmd.Parameters.AddWithValue("@file_path", entry.FilePath);
-        cmd.Parameters.AddWithValue("@generated_at", entry.GeneratedAt);
+        cmd.Parameters.Add(new OracleParameter("generated_at", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(entry.GeneratedAt) });
         cmd.Parameters.AddWithValue("@config_json", entry.ConfigJson ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@tags", entry.Tags ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@purpose", entry.Purpose ?? (object)DBNull.Value);
@@ -62,7 +63,7 @@ public class ReportHistoryStore : IReportHistoryStore
         cmd.CommandText += " RETURNING id INTO @rid";
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        entry.Id = Convert.ToInt32(idParam.Value);
+        entry.Id = ToInt32(idParam.Value);
         return entry.Id;
     }
 
@@ -78,8 +79,8 @@ public class ReportHistoryStore : IReportHistoryStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
-        if (from.HasValue) cmd.Parameters.AddWithValue("@p_from", from.Value.ToUniversalTime().ToString("O"));
-        if (to.HasValue) cmd.Parameters.AddWithValue("@p_to", to.Value.ToUniversalTime().ToString("O"));
+        if (from.HasValue) cmd.Parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value.ToUniversalTime() });
+        if (to.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = to.Value.ToUniversalTime() });
         cmd.Parameters.AddWithValue("@limit", limit);
 
         Prep(cmd); using var r = cmd.ExecuteReader();
@@ -98,7 +99,7 @@ public class ReportHistoryStore : IReportHistoryStore
             Username = r.GetString(r.GetOrdinal("username")),
             ReportType = r.GetString(r.GetOrdinal("report_type")),
             FilePath = r.GetString(r.GetOrdinal("file_path")),
-            GeneratedAt = r.GetString(r.GetOrdinal("generated_at")),
+            GeneratedAt = GetStringOrDateTimeOrNull(r, "generated_at") ?? string.Empty,
             ConfigJson = r.IsDBNull(r.GetOrdinal("config_json")) ? null : r.GetString(r.GetOrdinal("config_json")),
             Tags = GetStringOrNull(r, "tags"),
             Purpose = GetStringOrNull(r, "purpose"),
@@ -107,6 +108,28 @@ public class ReportHistoryStore : IReportHistoryStore
             ParentReportId = GetStringOrNull(r, "parent_report_id"),
             AppVersion = GetStringOrNull(r, "app_version")
         };
+    }
+
+    private static DateTime ParseDateTimeOrNow(string? value)
+    {
+        if (DateTime.TryParse(value, out var dt))
+            return dt;
+        return DateTime.UtcNow;
+    }
+
+    private static string? GetStringOrDateTimeOrNull(OracleDataReader r, string columnName)
+    {
+        var ordinal = r.GetOrdinal(columnName);
+        if (r.IsDBNull(ordinal))
+            return null;
+        try
+        {
+            return r.GetDateTime(ordinal).ToString("O");
+        }
+        catch
+        {
+            return r.GetString(ordinal);
+        }
     }
 
     private static string? GetStringOrNull(OracleDataReader r, string columnName)
@@ -133,5 +156,14 @@ public class ReportHistoryStore : IReportHistoryStore
         {
             return null; // Column doesn't exist yet (pre-migration)
         }
+    }
+
+    private static int ToInt32(object? value)
+    {
+        if (value is null || value == DBNull.Value)
+            return 0;
+        if (value is OracleDecimal oracleDecimal)
+            return oracleDecimal.ToInt32();
+        return Convert.ToInt32(value);
     }
 }

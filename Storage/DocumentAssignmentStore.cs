@@ -64,7 +64,8 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
     {
         return ExecuteDbOperation(() =>
         {
-            a.AssignedAt = DateTime.UtcNow.ToString("O");
+            var now = DateTime.UtcNow;
+            a.AssignedAt = now.ToString("O");
             a.Uuid = Guid.NewGuid().ToString();
 
             using var conn = new OracleConnection(_connectionString);
@@ -82,8 +83,8 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
         cmd.Parameters.AddWithValue("@to_username", a.AssignedToUsername);
         cmd.Parameters.AddWithValue("@by_id", a.AssignedByUserId);
         cmd.Parameters.AddWithValue("@by_username", a.AssignedByUsername);
-        cmd.Parameters.AddWithValue("@assigned_at", a.AssignedAt);
-        cmd.Parameters.AddWithValue("@due_date", a.DueDate ?? (object)DBNull.Value);
+        cmd.Parameters.Add(new OracleParameter("@assigned_at", OracleDbType.TimeStamp) { Value = now });
+        cmd.Parameters.Add(new OracleParameter("@due_date", ParseDateTimeOrNull(a.DueDate) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("@priority", a.Priority);
         cmd.Parameters.AddWithValue("@status", a.Status);
         cmd.Parameters.AddWithValue("@notes", a.Notes ?? (object)DBNull.Value);
@@ -268,14 +269,39 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             AssignedToUsername = r.GetString(r.GetOrdinal("assigned_to_username")),
             AssignedByUserId = r.GetInt32(r.GetOrdinal("assigned_by_user_id")),
             AssignedByUsername = r.GetString(r.GetOrdinal("assigned_by_username")),
-            AssignedAt = r.GetString(r.GetOrdinal("assigned_at")),
-            DueDate = r.IsDBNull(r.GetOrdinal("due_date")) ? null : r.GetString(r.GetOrdinal("due_date")),
+            AssignedAt = GetStringOrDateTimeStringOrNull(r, "assigned_at") ?? string.Empty,
+            DueDate = GetStringOrDateTimeStringOrNull(r, "due_date"),
             Priority = r.GetString(r.GetOrdinal("priority")),
             Status = r.GetString(r.GetOrdinal("status")),
             Notes = r.IsDBNull(r.GetOrdinal("notes")) ? null : r.GetString(r.GetOrdinal("notes")),
-            StartedAt = r.IsDBNull(r.GetOrdinal("started_at")) ? null : r.GetString(r.GetOrdinal("started_at")),
-            CompletedAt = r.IsDBNull(r.GetOrdinal("completed_at")) ? null : r.GetString(r.GetOrdinal("completed_at")),
+            StartedAt = GetStringOrDateTimeStringOrNull(r, "started_at"),
+            CompletedAt = GetStringOrDateTimeStringOrNull(r, "completed_at"),
             CompletionNotes = r.IsDBNull(r.GetOrdinal("completion_notes")) ? null : r.GetString(r.GetOrdinal("completion_notes"))
         };
+    }
+
+    private static string? GetStringOrDateTimeStringOrNull(OracleDataReader r, string column)
+    {
+        var ord = r.GetOrdinal(column);
+        if (r.IsDBNull(ord))
+            return null;
+
+        try
+        {
+            return r.GetDateTime(ord).ToString("O");
+        }
+        catch
+        {
+            return r.GetString(ord);
+        }
+    }
+
+    private static DateTime? ParseDateTimeOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        if (DateTime.TryParse(value, out var parsed))
+            return parsed;
+        return null;
     }
 }

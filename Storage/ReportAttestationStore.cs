@@ -162,8 +162,8 @@ public class ReportAttestationStore : IReportAttestationStore
         cmd.CommandText = sql;
         if (!string.IsNullOrEmpty(reportType)) cmd.Parameters.AddWithValue("@report_type", reportType);
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("@status", status);
-        if (from.HasValue) cmd.Parameters.AddWithValue("@p_from", from.Value.ToString("O"));
-        if (to.HasValue) cmd.Parameters.AddWithValue("@p_to", to.Value.ToString("O"));
+        if (from.HasValue) cmd.Parameters.Add(new OracleParameter("p_from", from.Value) { OracleDbType = OracleDbType.TimeStamp });
+        if (to.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", to.Value) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var list = new List<ReportAttestation>();
@@ -181,22 +181,38 @@ public class ReportAttestationStore : IReportAttestationStore
             Uuid = r.GetString(r.GetOrdinal("uuid")),
             ReportType = r.GetString(r.GetOrdinal("report_type")),
             ReportPath = r.GetString(r.GetOrdinal("report_path")),
-            DateFrom = r.GetString(r.GetOrdinal("date_from")),
-            DateTo = r.GetString(r.GetOrdinal("date_to")),
+            DateFrom = GetStringOrDateTimeStringOrNull(r, "date_from") ?? string.Empty,
+            DateTo = GetStringOrDateTimeStringOrNull(r, "date_to") ?? string.Empty,
             Branch = r.IsDBNull(r.GetOrdinal("branch")) ? null : r.GetString(r.GetOrdinal("branch")),
             Section = r.IsDBNull(r.GetOrdinal("section")) ? null : r.GetString(r.GetOrdinal("section")),
             Sha256Hash = r.GetString(r.GetOrdinal("sha256_hash")),
             Status = r.GetString(r.GetOrdinal("status")),
-            GeneratedAt = r.GetString(r.GetOrdinal("generated_at")),
+            GeneratedAt = GetStringOrDateTimeStringOrNull(r, "generated_at") ?? string.Empty,
             GeneratedByUserId = r.IsDBNull(r.GetOrdinal("generated_by_user_id")) ? null : r.GetString(r.GetOrdinal("generated_by_user_id")),
             GeneratedByUsername = r.IsDBNull(r.GetOrdinal("generated_by_username")) ? null : r.GetString(r.GetOrdinal("generated_by_username")),
-            ReviewedAt = r.IsDBNull(r.GetOrdinal("reviewed_at")) ? null : r.GetString(r.GetOrdinal("reviewed_at")),
+            ReviewedAt = GetStringOrDateTimeStringOrNull(r, "reviewed_at"),
             ReviewedByUserId = r.IsDBNull(r.GetOrdinal("reviewed_by_user_id")) ? null : r.GetString(r.GetOrdinal("reviewed_by_user_id")),
             ReviewedByUsername = r.IsDBNull(r.GetOrdinal("reviewed_by_username")) ? null : r.GetString(r.GetOrdinal("reviewed_by_username")),
-            ApprovedAt = r.IsDBNull(r.GetOrdinal("approved_at")) ? null : r.GetString(r.GetOrdinal("approved_at")),
+            ApprovedAt = GetStringOrDateTimeStringOrNull(r, "approved_at"),
             ApprovedByUserId = r.IsDBNull(r.GetOrdinal("approved_by_user_id")) ? null : r.GetString(r.GetOrdinal("approved_by_user_id")),
             ApprovedByUsername = r.IsDBNull(r.GetOrdinal("approved_by_username")) ? null : r.GetString(r.GetOrdinal("approved_by_username")),
             Notes = r.IsDBNull(r.GetOrdinal("notes")) ? null : r.GetString(r.GetOrdinal("notes"))
         };
+    }
+
+    private static string? GetStringOrDateTimeStringOrNull(OracleDataReader r, string column)
+    {
+        var ord = r.GetOrdinal(column);
+        if (r.IsDBNull(ord))
+            return null;
+
+        try
+        {
+            return r.GetDateTime(ord).ToString("O");
+        }
+        catch
+        {
+            return r.GetString(ord);
+        }
     }
 }

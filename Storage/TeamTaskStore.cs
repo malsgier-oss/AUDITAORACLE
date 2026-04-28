@@ -63,10 +63,10 @@ public class TeamTaskStore : ITeamTaskStore
     {
         return ExecuteDbOperation(() =>
         {
-            var now = DateTime.UtcNow.ToString("O");
+            var now = DateTime.UtcNow;
             t.Uuid = string.IsNullOrEmpty(t.Uuid) ? Guid.NewGuid().ToString() : t.Uuid;
-            t.CreatedAt = now;
-            t.UpdatedAt = now;
+            t.CreatedAt = now.ToString("O");
+            t.UpdatedAt = now.ToString("O");
 
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
@@ -86,8 +86,8 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@start", t.StartDate);
             cmd.Parameters.AddWithValue("@end", t.EndDate ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@active", t.IsActive ? 1 : 0);
-            cmd.Parameters.AddWithValue("@created", t.CreatedAt);
-            cmd.Parameters.AddWithValue("@updated", t.UpdatedAt);
+            cmd.Parameters.Add(new OracleParameter("@created", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.CreatedAt) });
+            cmd.Parameters.Add(new OracleParameter("@updated", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.UpdatedAt) });
             var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
             cmd.Parameters.Add(idParam);
             cmd.CommandText += " RETURNING id INTO @rid";
@@ -119,7 +119,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@start", t.StartDate);
             cmd.Parameters.AddWithValue("@end", t.EndDate ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@active", t.IsActive ? 1 : 0);
-            cmd.Parameters.AddWithValue("@updated", t.UpdatedAt);
+            cmd.Parameters.Add(new OracleParameter("@updated", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.UpdatedAt) });
             Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(Update), false);
@@ -233,7 +233,7 @@ public class TeamTaskStore : ITeamTaskStore
     {
         return ExecuteDbOperation(() =>
         {
-            var now = DateTime.UtcNow.ToString("O");
+            var now = DateTime.UtcNow;
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
@@ -241,7 +241,7 @@ public class TeamTaskStore : ITeamTaskStore
                 "INSERT INTO team_task_completions (team_task_id, period_key, completed_at) VALUES (@tid, @pk, @at)";
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
-            cmd.Parameters.AddWithValue("@at", now);
+            cmd.Parameters.Add(new OracleParameter("@at", OracleDbType.TimeStamp) { Value = now });
             Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(InsertCompletion), false);
@@ -334,7 +334,7 @@ public class TeamTaskStore : ITeamTaskStore
             var trimmed = noteText.Trim();
             if (trimmed.Length > 8000)
                 trimmed = trimmed[..8000];
-            var now = DateTime.UtcNow.ToString("O");
+            var now = DateTime.UtcNow;
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 MERGE INTO team_task_notes t
@@ -349,7 +349,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@p_uid", userId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
             cmd.Parameters.AddWithValue("@txt", trimmed);
-            cmd.Parameters.AddWithValue("@ua", now);
+            cmd.Parameters.Add(new OracleParameter("@ua", OracleDbType.TimeStamp) { Value = now });
             Prep(cmd);
             cmd.ExecuteNonQuery();
             return true;
@@ -369,11 +369,35 @@ public class TeamTaskStore : ITeamTaskStore
             AssignedByUserId = r.GetInt32(r.GetOrdinal("assigned_by_user_id")),
             AssignedByUsername = r.GetString(r.GetOrdinal("assigned_by_username")),
             Recurrence = r.GetString(r.GetOrdinal("recurrence")),
-            StartDate = r.GetString(r.GetOrdinal("start_date")),
+            StartDate = GetStringOrDateTimeStringOrNull(r, "start_date") ?? string.Empty,
             EndDate = r.IsDBNull(r.GetOrdinal("end_date")) ? null : r.GetString(r.GetOrdinal("end_date")),
             IsActive = r.GetInt32(r.GetOrdinal("is_active")) != 0,
-            CreatedAt = r.GetString(r.GetOrdinal("created_at")),
-            UpdatedAt = r.GetString(r.GetOrdinal("updated_at"))
+            CreatedAt = GetStringOrDateTimeStringOrNull(r, "created_at") ?? string.Empty,
+            UpdatedAt = GetStringOrDateTimeStringOrNull(r, "updated_at") ?? string.Empty
         };
+    }
+
+    private static DateTime? ParseDateTimeOrNow(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        if (DateTime.TryParse(value, out var parsed))
+            return parsed;
+        return null;
+    }
+
+    private static string? GetStringOrDateTimeStringOrNull(OracleDataReader r, string column)
+    {
+        var ord = r.GetOrdinal(column);
+        if (r.IsDBNull(ord))
+            return null;
+        try
+        {
+            return r.GetDateTime(ord).ToString("O");
+        }
+        catch
+        {
+            return r.GetString(ord);
+        }
     }
 }

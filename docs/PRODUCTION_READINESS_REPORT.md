@@ -115,7 +115,7 @@
 
 4. **Environment Variable Configuration**:
    - `WORKAUDIT_BASE_DIR` - Custom data directory
-   - `WORKAUDIT_DATABASE_PATH` - Custom database path
+- `WORKAUDIT_ORACLE_CONNECTION` - Oracle 19c connection string
    - `WORKAUDIT_ADMIN_USERNAME` - Configurable admin username
    - `WORKAUDIT_ADMIN_EMAIL` - Configurable admin email
    - `WORKAUDIT_ADMIN_BRANCH` - Branch-specific admin

@@ -25,7 +25,7 @@ This allowed documents with partial updates to proceed to file rename, creating 
 When files were successfully moved but database updates failed, there was no mechanism to roll back the file move. This left files in new locations with database records pointing to old paths.
 
 ### 4. Insufficient Retry Logic
-Only 4 retries with 75ms fixed delay was insufficient for handling SQLite busy conditions under load.
+Only 4 retries with 75ms fixed delay was insufficient for handling Oracle lock/busy conditions under load.
 
 ### 5. No Pre-flight Validation
 The system attempted file operations without checking:
@@ -44,10 +44,10 @@ Users were not informed when operations failed, leading to silent data corruptio
 **Added transaction-aware database methods:**
 
 ```csharp
-public bool UpdateDocumentType(int id, string documentType, SqliteTransaction? transaction = null)
-public bool UpdateDocumentSection(int id, string section, SqliteTransaction? transaction = null)  
-public bool UpdateDocumentFilePath(int id, string filePath, SqliteTransaction? transaction = null)
-public SqliteConnection CreateConnection()
+public bool UpdateDocumentType(int id, string documentType, OracleTransaction? transaction = null)
+public bool UpdateDocumentSection(int id, string section, OracleTransaction? transaction = null)
+public bool UpdateDocumentFilePath(int id, string filePath, OracleTransaction? transaction = null)
+public OracleConnection CreateConnection()
 ```
 
 **Impact:** Enables atomic database operations across multiple updates.
@@ -145,7 +145,7 @@ private static bool TryUpdateWithRetries(Func<bool> attempt, int maxAttempts = 6
 }
 ```
 
-**Impact:** Better handling of SQLite busy conditions under load. Total retry time increased from 225ms to 3150ms.
+**Impact:** Better handling of Oracle lock/busy conditions under load. Total retry time increased from 225ms to 3150ms.
 
 **Files changed:**
 - `Views/ProcessingView.xaml.cs` (lines 1173-1186)
@@ -333,7 +333,7 @@ Result: Consistent state, full transparency
 |-------|--------|-------|
 | Partial updates | ✗ Allowed | ✓ Blocked by fail-fast |
 | File/DB desync | ✗ Permanent | ✓ Auto-rolled back |
-| SQLite busy errors | ✗ Often failed | ✓ Better retry logic |
+| Oracle lock/busy errors | ✗ Often failed | ✓ Better retry logic |
 | File locks | ✗ Discovered too late | ✓ Pre-flight check |
 | User notification | ✗ Silent failures | ✓ Detailed errors |
 | Disk space issues | ✗ Runtime failure | ✓ Pre-validated |

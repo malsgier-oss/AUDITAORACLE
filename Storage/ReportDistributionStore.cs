@@ -37,15 +37,15 @@ public class ReportDistributionStore : IReportDistributionStore
         conn.Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            INSERT INTO report_distributions (uuid, report_path, report_type, event_type, user_id, username, timestamp, details)
-            VALUES (@uuid, @report_path, @report_type, @event_type, @user_id, @username, @timestamp, @details)";
+            INSERT INTO report_distributions (uuid, report_path, report_type, event_type, user_id, username, event_time, details)
+            VALUES (@uuid, @report_path, @report_type, @event_type, @user_id, @username, @event_time, @details)";
         cmd.Parameters.AddWithValue("@uuid", Guid.NewGuid().ToString("N"));
         cmd.Parameters.AddWithValue("@report_path", reportPath);
         cmd.Parameters.AddWithValue("@report_type", reportType);
         cmd.Parameters.AddWithValue("@event_type", eventType);
         cmd.Parameters.AddWithValue("@user_id", userId);
         cmd.Parameters.AddWithValue("@username", username);
-        cmd.Parameters.AddWithValue("@timestamp", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.Add(new OracleParameter("event_time", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
         cmd.Parameters.AddWithValue("@details", details ?? (object)DBNull.Value);
         var idParam = new OracleParameter("rid", OracleDbType.Int64, ParameterDirection.Output);
         cmd.Parameters.Add(idParam);
@@ -62,16 +62,16 @@ public class ReportDistributionStore : IReportDistributionStore
         var sql = "SELECT * FROM report_distributions WHERE 1=1";
         if (!string.IsNullOrEmpty(reportPath)) sql += " AND report_path = @report_path";
         if (!string.IsNullOrEmpty(userId)) sql += " AND user_id = @user_id";
-        if (from.HasValue) sql += " AND timestamp >= @p_from";
-        if (to.HasValue) sql += " AND timestamp <= @p_to";
+        if (from.HasValue) sql += " AND event_time >= @p_from";
+        if (to.HasValue) sql += " AND event_time <= @p_to";
         sql += " ORDER BY id DESC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         if (!string.IsNullOrEmpty(reportPath)) cmd.Parameters.AddWithValue("@report_path", reportPath);
         if (!string.IsNullOrEmpty(userId)) cmd.Parameters.AddWithValue("@user_id", userId);
-        if (from.HasValue) cmd.Parameters.AddWithValue("@p_from", from.Value.ToString("O"));
-        if (to.HasValue) cmd.Parameters.AddWithValue("@p_to", to.Value.ToString("O"));
+        if (from.HasValue) cmd.Parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value });
+        if (to.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = to.Value });
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var list = new List<ReportDistribution>();
@@ -92,7 +92,7 @@ public class ReportDistributionStore : IReportDistributionStore
             EventType = r.GetString(r.GetOrdinal("event_type")),
             UserId = r.GetString(r.GetOrdinal("user_id")),
             Username = r.GetString(r.GetOrdinal("username")),
-            Timestamp = r.GetString(r.GetOrdinal("timestamp")),
+            Timestamp = r.GetDateTime(r.GetOrdinal("event_time")).ToString("O"),
             Details = r.IsDBNull(r.GetOrdinal("details")) ? null : r.GetString(r.GetOrdinal("details"))
         };
     }

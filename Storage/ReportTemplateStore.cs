@@ -47,7 +47,7 @@ public class ReportTemplateStore : IReportTemplateStore
         cmd.Parameters.AddWithValue("@description", (object?)template.Description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@reportType", template.ReportType);
         cmd.Parameters.AddWithValue("@createdBy", template.CreatedBy);
-        cmd.Parameters.AddWithValue("@createdAt", template.CreatedAt.ToString("O"));
+        cmd.Parameters.Add(new OracleParameter("@createdAt", OracleDbType.TimeStamp) { Value = template.CreatedAt });
         cmd.Parameters.AddWithValue("@isShared", template.IsShared ? 1 : 0);
         cmd.Parameters.AddWithValue("@fieldsJson", JsonSerializer.Serialize(template.Fields, _jsonOptions));
         cmd.Parameters.AddWithValue("@filtersJson", JsonSerializer.Serialize(template.Filters, _jsonOptions));
@@ -188,7 +188,7 @@ public class ReportTemplateStore : IReportTemplateStore
         cmd.Parameters.AddWithValue("@name", template.Name);
         cmd.Parameters.AddWithValue("@description", (object?)template.Description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@reportType", template.ReportType);
-        cmd.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.Add(new OracleParameter("@updatedAt", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
         cmd.Parameters.AddWithValue("@isShared", template.IsShared ? 1 : 0);
         cmd.Parameters.AddWithValue("@fieldsJson", JsonSerializer.Serialize(template.Fields, _jsonOptions));
         cmd.Parameters.AddWithValue("@filtersJson", JsonSerializer.Serialize(template.Filters, _jsonOptions));

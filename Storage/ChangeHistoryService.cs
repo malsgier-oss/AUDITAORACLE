@@ -61,7 +61,7 @@ public class ChangeHistoryService : IChangeHistoryService
             cmd.Parameters.AddWithValue("@field", fieldName);
             cmd.Parameters.AddWithValue("@old", oldValue ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@new", newValue ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@at", DateTime.UtcNow.ToString("O"));
+            cmd.Parameters.Add(new OracleParameter("@at", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
             cmd.Parameters.AddWithValue("@by", changedBy);
             Prep(cmd);
             cmd.ExecuteNonQuery();
@@ -82,7 +82,7 @@ public class ChangeHistoryService : IChangeHistoryService
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT field_name, old_value, new_value, changed_at, changed_by FROM document_change_history WHERE document_uuid = @uuid ORDER BY changed_at DESC FETCH FIRST @limit ROWS ONLY";
             cmd.Parameters.AddWithValue("@uuid", documentUuid);
-            cmd.Parameters.AddWithValue("@limit", limit);
+            cmd.Parameters.Add(new OracleParameter("limit", OracleDbType.Int32) { Value = limit });
             Prep(cmd); using var r = cmd.ExecuteReader();
             while (r.Read())
             {

@@ -82,14 +82,17 @@ public class AuditLogStore : IAuditLogStore
         conn.Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            INSERT INTO audit_log (uuid, timestamp, user_id, username, user_role, action, category,
+            INSERT INTO audit_log (uuid, event_time, user_id, username, user_role, action, category,
                 entity_type, entity_id, entity_name, old_value, new_value, ip_address, details, success, error_message)
-            VALUES (@uuid, @timestamp, @user_id, @username, @user_role, @action, @category,
+            VALUES (@uuid, @event_time, @user_id, @username, @user_role, @action, @category,
                 @entity_type, @entity_id, @entity_name, @old_value, @new_value, @ip_address, @details, @success, @error_message)
             RETURNING id INTO :rid";
 
         cmd.Parameters.AddWithValue("uuid", entry.Uuid);
-        cmd.Parameters.AddWithValue("timestamp", entry.Timestamp);
+        var eventTime = DateTime.TryParse(entry.Timestamp, out var parsedEventTime)
+            ? parsedEventTime
+            : DateTime.UtcNow;
+        cmd.Parameters.Add(new OracleParameter("event_time", OracleDbType.TimeStamp) { Value = eventTime });
         cmd.Parameters.AddWithValue("user_id", entry.UserId);
         cmd.Parameters.AddWithValue("username", entry.Username);
         cmd.Parameters.AddWithValue("user_role", entry.UserRole);
@@ -139,14 +142,14 @@ public class AuditLogStore : IAuditLogStore
 
         if (from.HasValue)
         {
-            sql += " AND timestamp >= @p_from";
-            parameters.Add(new OracleParameter("p_from", from.Value.ToString("O")));
+            sql += " AND event_time >= @p_from";
+            parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value });
         }
 
         if (to.HasValue)
         {
-            sql += " AND timestamp <= @p_to";
-            parameters.Add(new OracleParameter("p_to", to.Value.ToString("O")));
+            sql += " AND event_time <= @p_to";
+            parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = to.Value });
         }
 
         if (!string.IsNullOrEmpty(userId))
@@ -172,7 +175,7 @@ public class AuditLogStore : IAuditLogStore
             sql += " AND action IN ('DocumentArchived','LegalHoldApplied','LegalHoldReleased','ArchiveExported','HashVerificationFailed')";
         }
 
-        sql += " ORDER BY timestamp DESC OFFSET @p_offset ROWS FETCH NEXT @p_limit ROWS ONLY";
+        sql += " ORDER BY event_time DESC OFFSET @p_offset ROWS FETCH NEXT @p_limit ROWS ONLY";
         parameters.Add(new OracleParameter("p_limit", limit));
         parameters.Add(new OracleParameter("p_offset", offset));
 
@@ -201,7 +204,7 @@ public class AuditLogStore : IAuditLogStore
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM audit_log WHERE entity_type = @p_type AND entity_id = @id ORDER BY timestamp DESC";
+            cmd.CommandText = "SELECT * FROM audit_log WHERE entity_type = @p_type AND entity_id = @id ORDER BY event_time DESC";
             cmd.Parameters.AddWithValue("p_type", entityType);
             cmd.Parameters.AddWithValue("id", entityId);
             Prep(cmd); using var reader = cmd.ExecuteReader();
@@ -226,14 +229,14 @@ public class AuditLogStore : IAuditLogStore
 
             if (from.HasValue)
             {
-                sql += " AND timestamp >= @p_from";
-                cmd.Parameters.AddWithValue("p_from", from.Value.ToString("O"));
+                sql += " AND event_time >= @p_from";
+                cmd.Parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value });
             }
 
             if (to.HasValue)
             {
-                sql += " AND timestamp <= @p_to";
-                cmd.Parameters.AddWithValue("p_to", to.Value.ToString("O"));
+                sql += " AND event_time <= @p_to";
+                cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = to.Value });
             }
 
             cmd.CommandText = sql;
@@ -248,8 +251,8 @@ public class AuditLogStore : IAuditLogStore
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "DELETE FROM audit_log WHERE timestamp < @date";
-            cmd.Parameters.AddWithValue("date", olderThan.ToString("O"));
+            cmd.CommandText = "DELETE FROM audit_log WHERE event_time < @date";
+            cmd.Parameters.Add(new OracleParameter("date", OracleDbType.TimeStamp) { Value = olderThan });
             Prep(cmd); var deleted = cmd.ExecuteNonQuery();
             _log.Information("Cleaned up {Count} old audit log entries", deleted);
         }, nameof(Cleanup));
@@ -261,7 +264,7 @@ public class AuditLogStore : IAuditLogStore
         {
             Id = r.GetInt64(r.GetOrdinal("id")),
             Uuid = r.GetString(r.GetOrdinal("uuid")),
-            Timestamp = r.GetString(r.GetOrdinal("timestamp")),
+            Timestamp = r.GetDateTime(r.GetOrdinal("event_time")).ToString("O"),
             UserId = r.GetString(r.GetOrdinal("user_id")),
             Username = r.GetString(r.GetOrdinal("username")),
             UserRole = r.GetString(r.GetOrdinal("user_role")),

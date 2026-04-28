@@ -7,6 +7,18 @@ public static class OracleParameterCollectionExtensions
 {
     public static void AddWithValue(this OracleParameterCollection parameters, string name, object? value)
     {
-        parameters.Add(new OracleParameter(name, value ?? DBNull.Value));
+        var normalizedName = NormalizeName(name);
+        parameters.Add(new OracleParameter(normalizedName, value ?? DBNull.Value));
+    }
+
+    private static string NormalizeName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return name;
+
+        var n = name.Trim();
+        if (n.StartsWith("@", StringComparison.Ordinal) || n.StartsWith(":", StringComparison.Ordinal))
+            return n[1..];
+        return n;
     }
 }

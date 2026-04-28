@@ -168,7 +168,7 @@ notepad "$env:APPDATA\WORKAUDIT\Logs\workaudit-$(Get-Date -Format yyyyMMdd).log"
 | Item | Path |
 |------|------|
 | **Application** | `C:\Program Files\WorkAudit\` |
-| **Database** | `%APPDATA%\WORKAUDIT\workaudit.db` |
+| **Database** | Oracle 19c via `WORKAUDIT_ORACLE_CONNECTION` |
 | **Logs** | `%APPDATA%\WORKAUDIT\Logs\` |
 | **Attachments** | `%APPDATA%\WORKAUDIT\attachments\` |
 | **Backups** | `[Network share or local path]` |

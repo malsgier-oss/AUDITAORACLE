@@ -48,7 +48,7 @@ Changed from allowing partial success to stopping immediately if EITHER type OR 
 
 Improved retry logic from 4 retries @ 75ms to 6 retries with exponential backoff (50ms, 100ms, 200ms, 400ms, 800ms, 1600ms).
 
-**Impact:** Much better handling of SQLite busy conditions under load.
+**Impact:** Much better handling of Oracle lock/busy conditions under load.
 
 #### ✅ Fix #5: Pre-flight Validation
 **File:** `Core/Import/ClassificationPathHelper.cs`

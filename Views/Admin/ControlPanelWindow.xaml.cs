@@ -133,8 +133,8 @@ public partial class ControlPanelWindow : Window
     private void ApplyLocalization()
     {
         if (_configStore == null) return;
-        var isArabic = ReportLocalizationService.IsArabic(_configStore);
-        FlowDirection = isArabic ? System.Windows.FlowDirection.RightToLeft : System.Windows.FlowDirection.LeftToRight;
+        // Keep shell layout fixed in LTR; language selection only changes localized strings.
+        FlowDirection = ReportLocalizationService.ShellFlowDirection;
         if (_isFullControlPanel)
         {
             Title = ReportLocalizationService.GetString("ControlPanelTitle", _configStore) + " - " +
@@ -367,6 +367,8 @@ public partial class ControlPanelWindow : Window
         EnableAutoCaptureCheck.IsChecked = _configStore.GetSettingBool("enable_auto_capture", false);
         ShowAutoCaptureTimerCheck.IsChecked = _configStore.GetSettingBool("enable_auto_capture_cooldown_timer", true);
         AutoCaptureCooldownSecondsBox.Text = _configStore.GetSettingInt("auto_capture_cooldown_seconds", 8).ToString();
+        DefaultScanAreaModeCheck.IsChecked = _configStore.GetSettingBool("webcam_default_scan_area_mode", false);
+        ScanAreaAutoDefaultCheck.IsChecked = _configStore.GetSettingBool("webcam_scan_area_auto_capture", false);
         LoadKpiTargets();
         LoadScheduledReportSettings();
     }
@@ -545,6 +547,8 @@ public partial class ControlPanelWindow : Window
         _configStore.SetSettingBool("rename_file_on_classify", RenameFileOnClassifyCheck.IsChecked == true, user);
         _configStore.SetSettingBool("enable_auto_capture", EnableAutoCaptureCheck.IsChecked == true, user);
         _configStore.SetSettingBool("enable_auto_capture_cooldown_timer", ShowAutoCaptureTimerCheck.IsChecked == true, user);
+        _configStore.SetSettingBool("webcam_default_scan_area_mode", DefaultScanAreaModeCheck.IsChecked == true, user);
+        _configStore.SetSettingBool("webcam_scan_area_auto_capture", ScanAreaAutoDefaultCheck.IsChecked == true, user);
         if (int.TryParse(AutoCaptureCooldownSecondsBox.Text, out var cooldownSeconds))
         {
             cooldownSeconds = Math.Clamp(cooldownSeconds, 1, 30);

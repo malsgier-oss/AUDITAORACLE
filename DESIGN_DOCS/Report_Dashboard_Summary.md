@@ -73,7 +73,7 @@ Complete 10-week implementation plan including:
 
 **Phase 1: Data Layer (Week 1-2)**
 - AuditNote domain model
-- AuditNoteStore with SQLite schema
+- AuditNoteStore with Oracle schema
 - Note aggregation service with performance optimization
 
 **Phase 2: Bilingual Layout Engine (Week 3)**
@@ -134,7 +134,7 @@ Complete 10-week implementation plan including:
 ### 4. High Performance
 **Requirement:** Handle 10,000+ notes efficiently
 **Solution:**
-- SQLite indexes on AuditNotes table (FileId, CreatedAt, Type, Severity)
+- Oracle indexes on AuditNotes table (FileId, CreatedAt, Type, Severity)
 - Single-query aggregation (no N+1 problems)
 - Lazy-loading of attachments
 - Caching in NoteAggregationService
@@ -297,7 +297,7 @@ CREATE INDEX idx_noteattachments_noteid ON NoteAttachments(NoteId);
 
 **Required:**
 - `QuestPDF` - PDF generation with RTL support
-- `Microsoft.EntityFrameworkCore.Sqlite` - Already in project
+- `Oracle.ManagedDataAccess.Core` - Already in project
 - `Newtonsoft.Json` - Already in project
 - `OxyPlot.Wpf` - Already in project (for charts)
 
@@ -414,8 +414,8 @@ To begin implementation:
 
 2. **Week 1-2: Data Layer**
    - [ ] Create IAuditNoteStore interface
-   - [ ] Implement AuditNoteStore (SQLite)
-   - [ ] Write SQLite migration script
+   - [ ] Implement AuditNoteStore (Oracle)
+   - [ ] Write Oracle migration script
    - [ ] Test CRUD operations
    - [ ] Implement NoteAggregationService
 

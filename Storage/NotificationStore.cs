@@ -20,7 +20,8 @@ public class NotificationStore : INotificationStore
 
     public void Create(Notification n)
     {
-        n.CreatedAt = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
+        n.CreatedAt = now.ToString("O");
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
@@ -33,7 +34,7 @@ public class NotificationStore : INotificationStore
         cmd.Parameters.AddWithValue("@msg", n.Message ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@et", n.EntityType ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@eid", n.EntityId ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@created", n.CreatedAt);
+        cmd.Parameters.Add(new OracleParameter("@created", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("@priority", "Normal");
         Prep(cmd);
         cmd.ExecuteNonQuery();
@@ -66,7 +67,7 @@ public class NotificationStore : INotificationStore
 
     public void MarkRead(int id)
     {
-        var now = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
@@ -79,7 +80,7 @@ public class NotificationStore : INotificationStore
 
     public void MarkAllRead(int userId)
     {
-        var now = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
@@ -102,8 +103,24 @@ public class NotificationStore : INotificationStore
             EntityType = r.IsDBNull(r.GetOrdinal("entity_type")) ? null : r.GetString(r.GetOrdinal("entity_type")),
             EntityId = r.IsDBNull(r.GetOrdinal("entity_id")) ? null : r.GetInt32(r.GetOrdinal("entity_id")),
             IsRead = r.GetInt32(r.GetOrdinal("is_read")) == 1,
-            CreatedAt = r.GetString(r.GetOrdinal("created_at")),
-            ReadAt = r.IsDBNull(r.GetOrdinal("read_at")) ? null : r.GetString(r.GetOrdinal("read_at"))
+            CreatedAt = GetStringOrDateTimeStringOrNull(r, "created_at") ?? string.Empty,
+            ReadAt = GetStringOrDateTimeStringOrNull(r, "read_at")
         };
+    }
+
+    private static string? GetStringOrDateTimeStringOrNull(OracleDataReader r, string column)
+    {
+        var ord = r.GetOrdinal(column);
+        if (r.IsDBNull(ord))
+            return null;
+
+        try
+        {
+            return r.GetDateTime(ord).ToString("O");
+        }
+        catch
+        {
+            return r.GetString(ord);
+        }
     }
 }

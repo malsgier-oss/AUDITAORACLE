@@ -1,5 +1,7 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <!-- Legacy draft WiX v3 manifest. Kept for reference only; not compiled in this project.
+         Build now uses Package.wxs directly via installer/WorkAudit.Installer.wixproj. -->
     <Fragment>
         <DirectoryRef Id="INSTALLFOLDER">
             <Component Id="cmpA235D2A411F180AC6DE76D0ADC7260C3" Guid="{4B57E5F4-E209-4792-A565-89DB0990A32B}">
@@ -22,9 +24,6 @@
             </Component>
             <Component Id="cmpE50CB1899026788E655B8FBE40976C86" Guid="{F91E6B2B-0493-41C6-A0AE-A021B1D30BA3}">
                 <File Id="fil54442D10719E7F8528C90E1D569D6642" KeyPath="yes" Source="$(var.SourceDir)\ExcelNumberFormat.dll" />
-            </Component>
-            <Component Id="cmpB14CC8B154928EA6225F174BDE107F6B" Guid="{513B994E-9C2C-49EF-8D88-84EFB7BD348B}">
-                <File Id="filB459F36ECC4A67FE3864BCBC2F0D640D" KeyPath="yes" Source="$(var.SourceDir)\Microsoft.Data.Sqlite.dll" />
             </Component>
             <Component Id="cmpDC19BA21EFF423B27F8787A2AB8F2B3C" Guid="{67FD1A72-AF54-4E9E-8782-134BCAFB0CEF}">
                 <File Id="filF6767F9D22B6D46DD3A2FC798B5F23DE" KeyPath="yes" Source="$(var.SourceDir)\Microsoft.Extensions.Configuration.Abstractions.dll" />
@@ -179,15 +178,6 @@
             <Component Id="cmp9143FBEDB0909CDF06ED8DF33E7A8A5E" Guid="{EED2DCD0-91A8-4AAF-B010-BC03946D9E81}">
                 <File Id="fil25B3F878ECBF570C2E9C747E6B044290" KeyPath="yes" Source="$(var.SourceDir)\SkiaSharp.dll" />
             </Component>
-            <Component Id="cmp64C05AA1C43E0D9DBAD9C14A66C00F23" Guid="{CA4276F8-7057-4FF7-94D7-DB57D45BEE83}">
-                <File Id="fil5AAF8D55B9964F995719180C0C280633" KeyPath="yes" Source="$(var.SourceDir)\SQLitePCLRaw.batteries_v2.dll" />
-            </Component>
-            <Component Id="cmp9E349E891D154ADBFB83038532027A46" Guid="{94E89319-3205-44D8-92B3-BB6494B32D6C}">
-                <File Id="fil64FA3FA0141690B101C8E041EB30B810" KeyPath="yes" Source="$(var.SourceDir)\SQLitePCLRaw.core.dll" />
-            </Component>
-            <Component Id="cmpBF8809ED33815FD076E06377CDD76FBC" Guid="{30BD8A20-F980-4A42-A100-300036B23AC7}">
-                <File Id="fil56DF007369EFF5DF7AED8BD5CD383E2A" KeyPath="yes" Source="$(var.SourceDir)\SQLitePCLRaw.provider.e_sqlite3.dll" />
-            </Component>
             <Component Id="cmpE722E076AB8486E4A4F24B01268787A2" Guid="{4DD338E1-CF91-497F-BEFD-39BBF2C11556}">
                 <File Id="fil92FE767CE7126933F4E9DEEEBAAE9354" KeyPath="yes" Source="$(var.SourceDir)\System.Diagnostics.DiagnosticSource.dll" />
             </Component>
@@ -324,7 +314,6 @@
                     <Directory Id="dirD515A5531794D80BFE72E434C05D6382" Name="nativeassets">
                         <Directory Id="dir3F4A748245980BFD2A720282BA1D4F75" Name="net8.0">
                             <Component Id="cmp043055CD631A35181FD8CF2684887368" Guid="{7556A04F-3AF3-47B7-8CD0-A9F63BF92789}">
-                                <File Id="fil6D1DD1B1E8D9CB462F6387F90DEAB5ED" KeyPath="yes" Source="$(var.SourceDir)\runtimes\browser-wasm\nativeassets\net8.0\e_sqlite3.a" />
                             </Component>
                         </Directory>
                     </Directory>
@@ -332,7 +321,6 @@
                 <Directory Id="dir6F75383DB633D8F130457F52F58EA410" Name="linux-arm">
                     <Directory Id="dirDE2B6474A7AE43169B31CD69645DD47A" Name="native">
                         <Component Id="cmpB7009B0474FB9B6971F5B3DEF75E92BD" Guid="{CD472374-E272-42EC-B5EB-3918F7974C84}">
-                            <File Id="filE002D3CB3B23B1868787E964E241BFD7" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-arm\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmpAD632F0EF4E807272F8C8E168454A48D" Guid="{FA1927E5-FD31-4D69-808C-D9E7E2CBFB67}">
                             <File Id="fil7564DA6EA9B2DB150737D7FDF121CEFB" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-arm\native\libpdfium.so" />
@@ -345,7 +333,6 @@
                 <Directory Id="dir4368456DE80A31A0FABEF422CF868A74" Name="linux-arm64">
                     <Directory Id="dirD4D406B0649E8BA45C0D436FC1C3D7B7" Name="native">
                         <Component Id="cmp9610396A30E278178332CAFB8008E496" Guid="{04193B43-3D28-4497-88F2-53218DFB8D42}">
-                            <File Id="filB3B8AB9E39F4DDB1DC995E05E88ECBB8" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-arm64\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmpE83D589710F16811D722A01474B1DB22" Guid="{97B73501-934B-46FC-968F-105522FD7A15}">
                             <File Id="fil33C948E317CC4396CCD0E9B0A9588495" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-arm64\native\libpdfium.so" />
@@ -364,7 +351,6 @@
                 <Directory Id="dir5A82E1B4CD9A0049E60DF9F72B629F26" Name="linux-armel">
                     <Directory Id="dirD74A970094F17ABF99BEB555E46D909F" Name="native">
                         <Component Id="cmp27A87AA75E3F85D47A0A4270EC26C4AA" Guid="{A361F070-4F25-433B-9D73-1E2DC4532125}">
-                            <File Id="fil0228161978605FB6B8CF025A0DB592C8" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-armel\native\libe_sqlite3.so" />
                         </Component>
                     </Directory>
                 </Directory>
@@ -378,14 +364,12 @@
                 <Directory Id="dir08F1499A5EC08F149FEC7D1452B8E871" Name="linux-mips64">
                     <Directory Id="dir5CA2FC65245C76AFE89CF82A52205E7C" Name="native">
                         <Component Id="cmp5DF8A80689066A55576FEB424E592FB3" Guid="{1BA42827-BA0B-4ADC-866D-57DC24916530}">
-                            <File Id="filE213347E4D10110E7F638EF6CFABACFC" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-mips64\native\libe_sqlite3.so" />
                         </Component>
                     </Directory>
                 </Directory>
                 <Directory Id="dirA428313306DAC7804456AE497823A13C" Name="linux-musl-arm">
                     <Directory Id="dirD76ACF565EA9B10D70DB2C8FF98995D4" Name="native">
                         <Component Id="cmp99D95B65524BFC849377CD605BC2D914" Guid="{458B766D-F38D-42ED-B64C-3E89E9055A19}">
-                            <File Id="fil49319ADF4C48D5E28D0E63C77E24A1A4" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-arm\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmp0672B0B0068A86F9140D3BD4A419795F" Guid="{9F956885-E8B6-45A7-93B0-3BED26C4D03D}">
                             <File Id="fil352F2E084CD341001D888530E107B2CD" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-arm\native\libSkiaSharp.so" />
@@ -395,7 +379,6 @@
                 <Directory Id="dirBFEF8EBA4AB9946902F3931E45A1DAAC" Name="linux-musl-arm64">
                     <Directory Id="dir6063A5EA4028D1C926F2099FA576EEF6" Name="native">
                         <Component Id="cmp6714E4DD9F6931DCC2D424E087860C40" Guid="{C09F9151-D71C-4DC4-ACF9-1EB41DF7E8B3}">
-                            <File Id="fil79BD8821DCE84481D985A01E23B3E2A3" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-arm64\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmp9A3F2FD10E0BCC0A074AA5E08CA56EDE" Guid="{9131EE80-1C36-4061-A212-BA1DDFFFEE49}">
                             <File Id="fil5F542C9DB677D8A089450640F1F8DFFA" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-arm64\native\libpdfium.so" />
@@ -415,7 +398,6 @@
                 <Directory Id="dirB20C473CB3638D835DD59255072FC0B8" Name="linux-musl-riscv64">
                     <Directory Id="dirEF649F1DB1CE948EAAC8F3C7030C1039" Name="native">
                         <Component Id="cmp2B90134B331ABE02ACEE2C4FAAE7B632" Guid="{65E05B62-1D24-44AF-9D75-3B991D3E3517}">
-                            <File Id="fil0724E85ECC753545B61FE7D6F3EE79D5" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-riscv64\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmp68692495E075AF9AB64C98573F2951EE" Guid="{3AFBC1D5-7C22-474A-9DE6-E5965BB102C2}">
                             <File Id="fil61954EE462E9A947E218626B05D6C0B4" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-riscv64\native\libSkiaSharp.so" />
@@ -425,14 +407,12 @@
                 <Directory Id="dir935E11F584F779AC1699B3DA3E731742" Name="linux-musl-s390x">
                     <Directory Id="dirE9A84D503931B39AEB65E2658B23C423" Name="native">
                         <Component Id="cmp6E13B3947D27E15374C24CD4DC61788D" Guid="{D29830F4-6AE2-4FC6-8DAD-6F26D95335B9}">
-                            <File Id="filE153DA2743E4031DDCB52CD40F5D647C" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-s390x\native\libe_sqlite3.so" />
                         </Component>
                     </Directory>
                 </Directory>
                 <Directory Id="dir43C41CC727670B5306674FCA0856E156" Name="linux-musl-x64">
                     <Directory Id="dir45A4D9035B4FF6D574E71B5F5E92BDDF" Name="native">
                         <Component Id="cmp9E9BD460222227BAE2178BA20D0D2CE9" Guid="{453255A9-E0D2-4D08-888B-6A515EFFE991}">
-                            <File Id="filC6026E8CF197D9CFC854B38E9F032BF7" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-x64\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmp1AE180913409467B172D425229E60F1A" Guid="{7296F519-0128-4136-856A-43BEFFD5FB50}">
                             <File Id="filB6A5841661FB85C1359197F93A6BA116" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-musl-x64\native\libpdfium.so" />
@@ -458,14 +438,12 @@
                 <Directory Id="dirECD0BBC95AFFC9DBA9C9F962A35DEFFF" Name="linux-ppc64le">
                     <Directory Id="dir2BD906521C675BFD60DA65D8F7B02C24" Name="native">
                         <Component Id="cmpAF2D42B950338A16DF27953B0FE03907" Guid="{1C33B2C7-56C2-4703-BFEB-656DEEDE2AC9}">
-                            <File Id="filB9AB18D292FF21526BC67CC08D9C17C7" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-ppc64le\native\libe_sqlite3.so" />
                         </Component>
                     </Directory>
                 </Directory>
                 <Directory Id="dir5BE37EC4232A57C0854704140E5534C8" Name="linux-riscv64">
                     <Directory Id="dirC81FB208002940C19E7DE796A3583C31" Name="native">
                         <Component Id="cmpF4ADB532F2A52C48BAE2D20ED244106B" Guid="{C5C45E03-EC1C-4E11-B421-87598B9E2D5A}">
-                            <File Id="fil371C00E1EDDBC6391554898B2A49E114" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-riscv64\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmp28EF6D1FBEE5C156D35BD394DF5CEC14" Guid="{BD29BD3F-98FF-4E17-974A-4D251F3A69D2}">
                             <File Id="fil700CA53A06A817693BCAA7D4A107A53E" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-riscv64\native\libSkiaSharp.so" />
@@ -475,14 +453,12 @@
                 <Directory Id="dir230A8FA1033089CAF6EBAA0538709AEF" Name="linux-s390x">
                     <Directory Id="dirE478170B124CF86212F900385E32E859" Name="native">
                         <Component Id="cmp8D93181EDC8201D278538F0C157D2537" Guid="{E9F6E2F2-CAB1-4E84-9B01-F343712343E4}">
-                            <File Id="filF4FBDD3EAEB685D1D12B1AEF46B0B62E" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-s390x\native\libe_sqlite3.so" />
                         </Component>
                     </Directory>
                 </Directory>
                 <Directory Id="dir986BEF73997BE02DCDBC34E856C19B36" Name="linux-x64">
                     <Directory Id="dirE1E651EB5B4F1522E5E10B81FEA70677" Name="native">
                         <Component Id="cmp8F4BDFEEE9AF85C20F40DD34017FCEFE" Guid="{59B64FF3-49AB-4387-82E4-739EE865F68C}">
-                            <File Id="fil65C9A12BB9BC4C6DD2573C55B28F7A47" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-x64\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmp2A8D6B0CE30D8C503A8DE0910AED09B4" Guid="{9FAB503C-BAA2-4485-B2CD-F0DF742B050D}">
                             <File Id="fil8D9050BE5E4091A407B8B058FF9F0F68" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-x64\native\libpdfium.so" />
@@ -501,7 +477,6 @@
                 <Directory Id="dirC0CA974BC478884507E349436F81698C" Name="linux-x86">
                     <Directory Id="dir0EDA4459BC820EC0980B27A47C7CF5AA" Name="native">
                         <Component Id="cmp327A6E270479B6EF4FC84584F0E57DD4" Guid="{CA852495-E4B7-4180-B008-79875AB623AD}">
-                            <File Id="filFCBC96ECC71CDC910BD5EC6E35F1FF8B" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-x86\native\libe_sqlite3.so" />
                         </Component>
                         <Component Id="cmpB6D4D4146EB401018B9E9148FE32F209" Guid="{E562202A-1335-4F67-9777-FD696DCE620D}">
                             <File Id="filCEB8EB6854D94D578261DB3886CFDF87" KeyPath="yes" Source="$(var.SourceDir)\runtimes\linux-x86\native\libpdfium.so" />
@@ -514,14 +489,12 @@
                 <Directory Id="dirD99FDB93EE0FF8EBF475D423F347AC92" Name="maccatalyst-arm64">
                     <Directory Id="dir061EED55DBD8BA28EE353FBFFD24DFCA" Name="native">
                         <Component Id="cmpD4529B527F857C189B1AE07EDE9F6D19" Guid="{A4125B4E-FE2D-4061-8D21-C8577048E089}">
-                            <File Id="filFD599462758D66ACD77B9F3C158F8A83" KeyPath="yes" Source="$(var.SourceDir)\runtimes\maccatalyst-arm64\native\libe_sqlite3.dylib" />
                         </Component>
                     </Directory>
                 </Directory>
                 <Directory Id="dir725C710B19977C76374038BEBFE449A4" Name="maccatalyst-x64">
                     <Directory Id="dir316CE79B45BEC2BDBCE1198C353C9208" Name="native">
                         <Component Id="cmpD7662722970A0AE7E0B5E29D4A7D8274" Guid="{092982DB-39AD-4A22-B5F7-91BE23AFF2B5}">
-                            <File Id="fil873E529DBBE2B1DB5E2800DF8C613505" KeyPath="yes" Source="$(var.SourceDir)\runtimes\maccatalyst-x64\native\libe_sqlite3.dylib" />
                         </Component>
                     </Directory>
                 </Directory>
@@ -535,7 +508,6 @@
                 <Directory Id="dir2F16A789372805F097C242E23779E164" Name="osx-arm64">
                     <Directory Id="dir2A5033986A8D1FF1B6E317B1A9949571" Name="native">
                         <Component Id="cmp4B0E6F097DBB16CADE5367A2D01712F0" Guid="{73BD3878-5945-4AD7-8C76-20C8FD4E0081}">
-                            <File Id="fil9E86824B3127083357CEA2CADD124C06" KeyPath="yes" Source="$(var.SourceDir)\runtimes\osx-arm64\native\libe_sqlite3.dylib" />
                         </Component>
                         <Component Id="cmpFC10528C5CCE173575DEC2258B76DE4A" Guid="{7CEDDF5C-07ED-4C48-8223-4EEA9B89D5F9}">
                             <File Id="fil684423F5F74F849DACA02722C6661DB5" KeyPath="yes" Source="$(var.SourceDir)\runtimes\osx-arm64\native\libpdfium.dylib" />
@@ -551,7 +523,6 @@
                 <Directory Id="dir42B901FB10752B2744AE05D46EAF35EC" Name="osx-x64">
                     <Directory Id="dir71D0D403061D4DE071C64AEB774E16CF" Name="native">
                         <Component Id="cmpD30EB815E1BB7C781EBC4B2C74DFD3A4" Guid="{7F207055-D9EB-495D-8BF7-7C1584C78D06}">
-                            <File Id="fil28FF9350DD7649A23360C4913868DFA7" KeyPath="yes" Source="$(var.SourceDir)\runtimes\osx-x64\native\libe_sqlite3.dylib" />
                         </Component>
                         <Component Id="cmpB8978FDB22ACAFBE2E95F25742D7FDE4" Guid="{5FE02C7B-C4DE-4256-8F76-7F3EDE82D411}">
                             <File Id="fil17E2E4BD77A12FA193C5C4195B8DC412" KeyPath="yes" Source="$(var.SourceDir)\runtimes\osx-x64\native\libpdfium.dylib" />
@@ -582,14 +553,12 @@
                 <Directory Id="dir9FF0F9C1A7463CA0B24689AA89D869B5" Name="win-arm">
                     <Directory Id="dir46754318AAFE7C2D3BBAC065B627290B" Name="native">
                         <Component Id="cmpDF76CDFA0F073AE6CAE38BE68141B800" Guid="{BA337F22-7EFF-4EE5-BA68-8E87A836814D}">
-                            <File Id="fil20F2F59E480B8E7CFE29DFCE5820F38B" KeyPath="yes" Source="$(var.SourceDir)\runtimes\win-arm\native\e_sqlite3.dll" />
                         </Component>
                     </Directory>
                 </Directory>
                 <Directory Id="dirFF6AADC4B618984E1542CDA5FCBD7BB1" Name="win-arm64">
                     <Directory Id="dir65EC979D52EB501E3A656AA03EE4F2F5" Name="native">
                         <Component Id="cmp5B80613EDA6D1987B36876340787DE50" Guid="{D6CE4741-799C-425B-8052-D12DDAB8D4AE}">
-                            <File Id="filA441D8B3B8F271B05C97169A28079BFE" KeyPath="yes" Source="$(var.SourceDir)\runtimes\win-arm64\native\e_sqlite3.dll" />
                         </Component>
                         <Component Id="cmp639DCD8A02385D886E71B7C782C873B1" Guid="{B3455AB2-CCB3-4E90-B6FA-CC54CC1FE94B}">
                             <File Id="fil22AEDA0A16AEA94EEBA54926A3CCA709" KeyPath="yes" Source="$(var.SourceDir)\runtimes\win-arm64\native\libSkiaSharp.dll" />
@@ -605,7 +574,6 @@
                 <Directory Id="dirB9C75524282911E40C3C964A8836A714" Name="win-x64">
                     <Directory Id="dir1F9DF9DD2FB29AE2942604FAC206D5C4" Name="native">
                         <Component Id="cmpA9FE95CFE68BB3A9037D1155AED6FAD7" Guid="{9F6CEFD7-6ABE-44D1-82F3-38BE20CDBAF9}">
-                            <File Id="fil0B331E0491A1A27C58D92DDCDB266DC2" KeyPath="yes" Source="$(var.SourceDir)\runtimes\win-x64\native\e_sqlite3.dll" />
                         </Component>
                         <Component Id="cmp6A20883B36FAF1CD1BE38E4ED410FFD7" Guid="{F651B928-BD05-47B8-9646-E858DFB97D76}">
                             <File Id="fil1452950875CB74592863066C7BD1E8B4" KeyPath="yes" Source="$(var.SourceDir)\runtimes\win-x64\native\libgcc_s_seh-1.dll" />
@@ -645,7 +613,6 @@
                 <Directory Id="dir92F336DAA82E5A629052407A3F87EF27" Name="win-x86">
                     <Directory Id="dir2B43AAE918D399CEF13EC6CBA2D3D5EA" Name="native">
                         <Component Id="cmp33D08136382ADFFC5979284E4701D9C6" Guid="{F86A8DA1-CFCD-40F9-B267-4BA5DF8C64CE}">
-                            <File Id="fil7A70FE8106C6D5315BF2EBA10C487BF2" KeyPath="yes" Source="$(var.SourceDir)\runtimes\win-x86\native\e_sqlite3.dll" />
                         </Component>
                         <Component Id="cmp015D33EDF18612FA605FB3824F6143FC" Guid="{4B0D09A6-EFB8-4DC2-A313-79A63BBDF2BC}">
                             <File Id="fil255EAF94067B51EFC761DB71835A50C6" KeyPath="yes" Source="$(var.SourceDir)\runtimes\win-x86\native\libgcc_s_dw2-1.dll" />
@@ -706,7 +673,6 @@
                     <File Id="filEF864712FE6811D03496D2A450C2AC2E" KeyPath="yes" Source="$(var.SourceDir)\win-x64\ExcelNumberFormat.dll" />
                 </Component>
                 <Component Id="cmp654B0D7E3319A7EAF4848FC92F144B66" Guid="{E1E4BB83-85FE-43F4-9448-7350E666F525}">
-                    <File Id="fil53F600D09D13AA0B86629FDFDE9568BF" KeyPath="yes" Source="$(var.SourceDir)\win-x64\e_sqlite3.dll" />
                 </Component>
                 <Component Id="cmp44168AFE7A48ED6153C2BE9EBE79B37F" Guid="{08028AE6-B615-498C-B9EB-07A2900C2739}">
                     <File Id="fil37C22A573C9447DF1151A8478B1694F7" KeyPath="yes" Source="$(var.SourceDir)\win-x64\libgcc_s_seh-1.dll" />
@@ -721,7 +687,6 @@
                     <File Id="fil75BBAF79D39AFC38255E4F1BE23D991E" KeyPath="yes" Source="$(var.SourceDir)\win-x64\libwinpthread-1.dll" />
                 </Component>
                 <Component Id="cmp4C7DE4841CEF0D7D1DF4D5F771634D0B" Guid="{DB4B2C45-E3FB-4084-B6F4-7BE445FDFB21}">
-                    <File Id="fil12D50BB02CB005D1BBEEF16AE5D0C54B" KeyPath="yes" Source="$(var.SourceDir)\win-x64\Microsoft.Data.Sqlite.dll" />
                 </Component>
                 <Component Id="cmp345CCA525A1EBAB8B17FC0981C8C4C69" Guid="{1EAD81FE-A7B2-4573-A93A-2E0A9EF9B115}">
                     <File Id="fil6E2AF9F6D5615C075753CB0DE1D8B0E5" KeyPath="yes" Source="$(var.SourceDir)\win-x64\Microsoft.Extensions.Configuration.Abstractions.dll" />
@@ -892,13 +857,10 @@
                     <File Id="fil6955CD0719712E80621AE91850749C95" KeyPath="yes" Source="$(var.SourceDir)\win-x64\SkiaSharp.dll" />
                 </Component>
                 <Component Id="cmpB0F985424E2DC72517D34DEBC9E3EAC4" Guid="{62E1E75C-1552-42E4-A8C2-CB8B2621A66D}">
-                    <File Id="filA23852354A5A05B7EBC923F443ABA19B" KeyPath="yes" Source="$(var.SourceDir)\win-x64\SQLitePCLRaw.batteries_v2.dll" />
                 </Component>
                 <Component Id="cmp2ABBCDD8E039342AB269C19CCEB1F012" Guid="{2DC5D4D4-3B99-4021-B1A3-FD525EF87281}">
-                    <File Id="filDE54915F99EA6E729F85A72C7824994B" KeyPath="yes" Source="$(var.SourceDir)\win-x64\SQLitePCLRaw.core.dll" />
                 </Component>
                 <Component Id="cmpF9C3FA8F8E96EE742E4FD5B388E1CD5D" Guid="{9F6FBC5B-7271-477E-866A-A12957323F57}">
-                    <File Id="fil95BD23364D702F1E42350CB9D353707D" KeyPath="yes" Source="$(var.SourceDir)\win-x64\SQLitePCLRaw.provider.e_sqlite3.dll" />
                 </Component>
                 <Component Id="cmpD648F1B162604CA5A2413870B84A1C38" Guid="{FBAB3989-91AE-4FA8-ACB8-D75558AA20F3}">
                     <File Id="fil71E113BAB89BB3A1C46CDFDB302643AD" KeyPath="yes" Source="$(var.SourceDir)\win-x64\System.Diagnostics.DiagnosticSource.dll" />

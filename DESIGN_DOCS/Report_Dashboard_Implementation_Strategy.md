@@ -122,7 +122,7 @@ This document outlines the complete implementation strategy for transforming the
      Dictionary<string, List<AuditNote>> GetNotesGroupedByFile(DateTime from, DateTime to);
      ```
 
-3. **SQLite Schema Migration**
+3. **Oracle Schema Migration**
    ```sql
    CREATE TABLE AuditNotes (
        Id TEXT PRIMARY KEY,
@@ -1123,4 +1123,4 @@ The bilingual support (English/Arabic with RTL) is baked into the architecture f
 
 **Estimated Timeline:** 10 weeks for complete implementation with testing
 **Team Size:** 1-2 developers (full-time)
-**Key Dependencies:** QuestPDF NuGet package, SQLite database migration
+**Key Dependencies:** QuestPDF NuGet package, Oracle migration tooling

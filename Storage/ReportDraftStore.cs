@@ -86,7 +86,7 @@ public class ReportDraftStore : IReportDraftStore
         
         using var cmd = new OracleCommand(sql, conn);
         cmd.Parameters.AddWithValue("@id", draft.Id);
-        cmd.Parameters.AddWithValue("@lastModifiedAt", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.Add(new OracleParameter("@lastModifiedAt", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
         cmd.Parameters.AddWithValue("@configJson", draft.ConfigJson);
         cmd.Parameters.AddWithValue("@draftFilePath", draft.DraftFilePath);
         cmd.Parameters.AddWithValue("@title", draft.Title ?? (object)DBNull.Value);

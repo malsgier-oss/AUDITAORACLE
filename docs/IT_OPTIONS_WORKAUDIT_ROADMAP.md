@@ -1,15 +1,15 @@
 # WorkAudit — Options for IT Review
 
 **Purpose:** Help IT and stakeholders choose priorities for architecture, delivery, and operations.  
-**Context:** Desktop app (`WorkAudit`) with **local SQLite** per installation; optional **HQ SQL Server** (or other shared database) and multi-branch patterns are described for planning in [`HYBRID_SYNC_DESIGN.md`](HYBRID_SYNC_DESIGN.md). This repository **does not** ship a separate ASP.NET “central API” service — HQ connectivity (direct SQL, VPN, exports, or a future middleware layer) is an **IT deployment choice**.
+**Context:** Desktop app (`WorkAudit`) with **local Oracle** per installation; optional **HQ Oracle** (or other shared database) and multi-branch patterns are described for planning in [`HYBRID_SYNC_DESIGN.md`](HYBRID_SYNC_DESIGN.md). This repository **does not** ship a separate ASP.NET “central API” service — HQ connectivity (direct SQL, VPN, exports, or a future middleware layer) is an **IT deployment choice**.
 
-> **Pilot phase (single branch, real work):** **Hybrid HQ sync** is **not in scope** for the first pilot. Operations use **local SQLite only** on pilot PCs, with normal **backup/recovery** and **support** as in the admin runbook. The sections below on HQ SQL and sync are for **after** pilot success, when IT selects a roadmap package. Do **not** require HQ infrastructure or sync for go-live at one branch.
+> **Pilot phase (single branch, real work):** **Hybrid HQ sync** is **not in scope** for the first pilot. Operations use **local Oracle only** on pilot PCs, with normal **backup/recovery** and **support** as in the admin runbook. The sections below on HQ Oracle and sync are for **after** pilot success, when IT selects a roadmap package. Do **not** require HQ infrastructure or sync for go-live at one branch.
 
 **How to use this doc:** Pick one primary track (e.g. A + D), note dependencies, assign owners, and set a target quarter — **or** use only the pilot note above until multi-branch / HQ reporting is approved.
 
 ---
 
-## Proposed approach: SQLite locally + HQ SQL Server + sync *only* agreed data
+## Proposed approach: Oracle locally + HQ Oracle + sync *only* agreed data
 
 This section states the **recommended default** for IT review. Alternatives (e.g. SQL Server on every PC) remain in section 2.
 
@@ -17,7 +17,7 @@ This section states the **recommended default** for IT review. Alternatives (e.g
 
 | Proposal | Detail |
 |----------|--------|
-| **Engine** | **SQLite** — single file per installation, no separate database server on branch PCs. |
+| **Engine** | **Oracle** — central database service for branch and HQ environments. |
 | **Role** | **System of record for day-to-day work** while offline or when HQ is unreachable; fast reads/writes. |
 | **Why not replicate full SQL Server to every PC** | Lower operational cost, simpler deployment, fewer licenses and patches; matches the current WorkAudit architecture. |
 
@@ -30,7 +30,7 @@ This section states the **recommended default** for IT review. Alternatives (e.g
 
 ### What gets synced (only in-scope data)
 
-Sync is **not** a full copy of every SQLite byte to HQ. Only **agreed entity types** and **directions** are replicated (see [`HYBRID_SYNC_DESIGN.md` — Data Sync Scope](HYBRID_SYNC_DESIGN.md#data-sync-scope)).
+Sync is **not** a full copy of every Oracle byte to HQ. Only **agreed entity types** and **directions** are replicated (see [`HYBRID_SYNC_DESIGN.md` — Data Sync Scope](HYBRID_SYNC_DESIGN.md#data-sync-scope)).
 
 | Entity / data | Direction (proposal) | Priority |
 |---------------|----------------------|----------|
@@ -53,7 +53,7 @@ IT should confirm **attachment strategy** (on-demand vs nightly batch) and **ret
 
 ### Summary line for stakeholders
 
-**Branches keep SQLite; HQ holds SQL Server; the API moves only the agreed sync scope** — not the entire database file and not necessarily all blobs in real time.
+**Branches keep Oracle; HQ holds Oracle; the API moves only the agreed sync scope** — not the entire database file and not necessarily all blobs in real time.
 
 ---
 
@@ -79,7 +79,7 @@ IT should confirm **attachment strategy** (on-demand vs nightly batch) and **ret
 
 | ID | Option | Summary | Notes |
 |----|--------|---------|--------|
-| **B1** | **SQLite per workstation (recommended)** | **Proposed default:** local **SQLite**; **only in-scope** data syncs to HQ via API (see *Proposed approach* above). | Lowest change; aligns with selective sync |
+| **B1** | **Oracle per workstation (recommended)** | **Proposed default:** local **Oracle**; **only in-scope** data syncs to HQ via API (see *Proposed approach* above). | Lowest change; aligns with selective sync |
 | **B2** | **SQL Server Express / LocalDB per PC** | Same SQL engine as HQ on every client; heavier **ops** (install, patches, backups). | Only if policy requires SQL everywhere |
 | **B3** | **Defer client DB change** | Ship sync with **B1** first; revisit B2 only if required. | Recommended default |
 
@@ -120,7 +120,7 @@ IT should confirm **attachment strategy** (on-demand vs nightly batch) and **ret
 
 | ID | Option | Summary |
 |----|--------|---------|
-| **E1** | **Single architecture one-pager:** HQ SQL + local SQLite + API + sync direction. |
+| **E1** | **Single architecture one-pager:** HQ Oracle + local Oracle + API + sync direction. |
 | **E2** | **Consolidate** user/admin docs (`docs/` vs `Documentation/`); remove outdated features from guides. |
 | **E3** | **Runbooks:** HQ SQL backup/restore, DR drill, branch reconnection after outage. |
 
@@ -144,7 +144,7 @@ C1–C4 + E2, **without** committing to HQ sync timeline.
 | Question | IT decision |
 |----------|-------------|
 | HQ database | ☐ SQL Server (version: ______) · ☐ Other: ______ |
-| Branch local DB | ☐ **B1 SQLite (proposed)** · ☐ B2 SQL Express/LocalDB |
+| Branch local DB | ☐ **B1 Oracle (proposed)** · ☐ B2 Oracle XE |
 | **Sync scope** | ☐ Accept **metadata + listed entities only** (see § Proposed approach) · ☐ Request changes: ________________ |
 | **Attachments** | ☐ On-demand · ☐ Scheduled batch · ☐ Other: ______ |
 | Sync timeline | ☐ Q___ FY___ |

@@ -8,5 +8,5 @@ public interface IOracleMigration
 {
     int Version { get; }
     string Name { get; }
-    void Apply(OracleConnection connection, ILogger log);
+    void Apply(OracleConnection connection, OracleTransaction transaction, ILogger log);
 }

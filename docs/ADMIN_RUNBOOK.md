@@ -28,7 +28,7 @@ WorkAudit is a document management system designed for banking compliance, audit
 
 ### Architecture
 - **Type**: Desktop application (WPF, .NET 8.0)
-- **Database**: SQLite (local) with optional centralized sync
+- **Database**: Oracle 19c (`WORKAUDIT_ORACLE_CONNECTION`), with `TNS_ADMIN`/Wallet support per deployment.
 - **Storage**: File system (attachments, images, PDFs)
 - **Deployment**: Per-branch installation with centralized reporting
 
@@ -101,7 +101,7 @@ For customized deployment, set these system environment variables:
 ```powershell
 # Set via PowerShell (requires admin)
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_BASE_DIR", "D:\WorkAuditData", "Machine")
-[System.Environment]::SetEnvironmentVariable("WORKAUDIT_DATABASE_PATH", "D:\WorkAuditData\workaudit.db", "Machine")
+[System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "Data Source=//db-host:1521/WORKAUDIT;User Id=WORKAUDIT_APP;Password=...;Persist Security Info=True;", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_USERNAME", "sysadmin", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_EMAIL", "admin@yourbank.com", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_BRANCH", "Main Branch", "Machine")
@@ -269,7 +269,7 @@ From **Control Panel** → **Backup & Recovery**:
 4. Restore database file from backup:
    ```powershell
    # If backup is encrypted, use the application to decrypt first
-   # Or restore database manually to %APPDATA%\WORKAUDIT\workaudit.db
+   # Restore database data using the application's backup/restore workflow
    ```
 5. Launch application
 6. Login with existing admin credentials
@@ -387,27 +387,22 @@ eventvwr.msc
 4. Reinstall application
 5. Check antivirus quarantine
 
-#### Issue 2: Database Locked Error
+#### Issue 2: Database Connectivity/Locking Errors
 
-**Symptoms**: "database is locked" message or slow performance
+**Symptoms**: `ORA-*` database connectivity errors, slow queries, or intermittent hangs.
 
 **Diagnosis**:
-- Multiple instances of WorkAudit running
-- Crashed process holding lock
-- Network drive access issue
+- Check active session health in Oracle views and application logs.
+- Confirm network/TNS stability and endpoint reachability.
+- Identify long-running report/maintenance SQL at the same time.
 
 **Solutions**:
 ```powershell
-# Kill all WorkAudit processes
-Get-Process WorkAudit | Stop-Process -Force
+# Check recent connectivity and database errors
+Select-String "$env:APPDATA\WORKAUDIT\Logs\workaudit-$(Get-Date -Format yyyyMMdd).log" -Pattern "ORA-"
 
-# Check for lock files
-Get-ChildItem %APPDATA%\WORKAUDIT -Filter *.db-shm
-Get-ChildItem %APPDATA%\WORKAUDIT -Filter *.db-wal
-
-# Delete lock files if no WorkAudit is running
-Remove-Item %APPDATA%\WORKAUDIT\workaudit.db-shm -Force
-Remove-Item %APPDATA%\WORKAUDIT\workaudit.db-wal -Force
+# Confirm Oracle session is reachable
+[System.Environment]::GetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "Machine")
 ```
 
 #### Issue 3: Out of Disk Space
@@ -495,9 +490,8 @@ Remove-Item %APPDATA%\WORKAUDIT\workaudit.db-wal -Force
 #### Optimize Database
 
 ```powershell
-# SQLite VACUUM operation (compacts database)
-# Do this monthly or after large deletions
-# From Control Panel → Database Maintenance → "Optimize Database"
+# Oracle maintenance (index/statistics + tablespace tuning) is handled by DBA procedures.
+# Run through Control Panel → Database Maintenance → "Optimize Database" as guided.
 ```
 
 ---
@@ -583,7 +577,7 @@ Remove-Item %APPDATA%\WORKAUDIT\workaudit.db-wal -Force
 | Item | Location |
 |------|----------|
 | Application | `C:\Program Files\WorkAudit\` |
-| Database | `%APPDATA%\WORKAUDIT\workaudit.db` |
+| Database | Oracle 19c (configured via `WORKAUDIT_ORACLE_CONNECTION`) |
 | Attachments | `%APPDATA%\WORKAUDIT\attachments\` (or custom base dir) |
 | Logs | `%APPDATA%\WORKAUDIT\Logs\` |
 | Configuration | `%APPDATA%\WORKAUDIT\user_settings.json` |
@@ -593,7 +587,7 @@ Remove-Item %APPDATA%\WORKAUDIT\workaudit.db-wal -Force
 
 ## Appendix B: Database Schema
 
-The SQLite database contains these primary tables:
+The Oracle database contains these primary tables:
 
 - `users` - User accounts and credentials
 - `sessions` - Active user sessions

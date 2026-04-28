@@ -7,7 +7,8 @@ internal static class OracleMigrationRegistry
         // Add future migrations here in ascending version order.
         return
         [
-            new Migration_050_NormalizeRequiredDocumentText()
+            new Migration_050_NormalizeRequiredDocumentText(),
+            new Migration_051_NormalizeEventTimeColumns()
         ];
     }
 }

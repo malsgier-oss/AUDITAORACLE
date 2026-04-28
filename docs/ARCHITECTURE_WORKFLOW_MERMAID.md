@@ -33,7 +33,7 @@ Implementation-based repo map completed from the runtime code paths in the deskt
   - `Core/Helpers/DocumentWorkspaceOcr.cs` decides when to enqueue OCR from workspace/import status transitions.
   - Preview OCR overlay uses `IWindowsPreviewOcrLayout` bound to `TesseractPreviewOcrLayoutService`.
 
-- **Data Layer (SQLite + file system)**
+- **Data Layer (Oracle + file system)**
   - `Storage/DocumentStore.cs` is core query/update path (`ListDocuments`, `FullTextSearch`, `UpdateStatus`, `Update`, `Delete`, `GetStats`).
   - `Storage/MigrationService.cs` runs schema migrations (`Migration_001` ... `Migration_049`), includes FTS migrations.
   - Other stores: `UserStore`, `AuditLogStore`, `NotesStore`, `ConfigStore`, assignment/report stores, etc.
@@ -46,7 +46,7 @@ Implementation-based repo map completed from the runtime code paths in the deskt
 - **External/Library Dependencies (runtime)**
   - OCR: `Tesseract`, `OpenCvSharp4`.
   - PDF/text/image: `PdfPig`, `PDFtoImage`, `PdfiumViewer.Net.WPF`, `PDFsharp`, `QuestPDF`.
-  - Storage: `Microsoft.Data.Sqlite` (FTS used).
+  - Storage: `Oracle.ManagedDataAccess.Core` (Oracle provider).
   - UI/infra: `WebView2`, `OxyPlot`, `Serilog`, DI libs.
   - Update endpoint client: `AutoUpdateService` uses `HttpClient` to fetch `version.json` and zip packages.
 
@@ -70,7 +70,7 @@ flowchart TD
   M[Report Service]
   N[Merge Queue Service]
 
-  O[Document Store SQLite]
+  O[Document Store Oracle]
   P[User Store]
   Q[Other Stores]
   R[Migration Service]
@@ -251,7 +251,7 @@ Critical fixes were implemented to prevent document classification failures:
 1. **Transaction Support** - Added transaction-aware methods to `DocumentStore` for atomic operations
 2. **File Rollback Capability** - `FileRenameService` can now roll back file moves when database operations fail
 3. **Fail-Fast Logic** - Processing stops immediately if either type or section update fails (prevents partial updates)
-4. **Exponential Backoff Retry** - Improved from 4×75ms to 6 retries with backoff (50ms→1600ms) for SQLite busy conditions
+4. **Exponential Backoff Retry** - Improved from 4×75ms to 6 retries with backoff (50ms→1600ms) for Oracle lock/busy conditions
 5. **Pre-flight Validation** - Checks file locks, disk space, and permissions before attempting operations
 6. **Automatic Rollback** - Files are automatically moved back if database updates fail after file move
 7. **Better Error Reporting** - Users see detailed failure reasons instead of silent failures

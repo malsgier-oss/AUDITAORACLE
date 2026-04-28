@@ -12,7 +12,7 @@ Access via **Admin → Control Panel** (Manager+ role required).
 
 ### General Tab
 
-- **Database path:** Location of the SQLite database.
+- **Oracle connection:** ODP.NET Oracle connection string used by the app.
 - **Log level:** Debug, Information, Warning, Error.
 - **Confidence threshold:** Minimum OCR confidence for auto-classification.
 
@@ -38,6 +38,9 @@ Access via **Admin → Control Panel** (Manager+ role required).
 #### Webcam
 
 - **Default to Auto mode:** Open webcam with Auto capture selected.
+- **Default to Scan Area mode:** Open webcam in Scan Area mode (drag a region on the preview). Takes precedence over Default to Auto when both are set.
+- **Enable Area auto-capture by default:** Turn on the **Area auto** checkbox by default when using Scan Area mode.
+- **Cooldown / status options:** Same as before (cooldown seconds, optional countdown in status).
 
 ### KPI Targets Tab
 

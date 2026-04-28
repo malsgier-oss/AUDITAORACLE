@@ -19,8 +19,8 @@ public partial class IdentityDialog : Window
     {
         var config = ServiceContainer.IsInitialized ? ServiceContainer.GetService<IConfigStore>() : null;
         if (config == null) return;
-        var isArabic = ReportLocalizationService.IsArabic(config);
-        FlowDirection = isArabic ? System.Windows.FlowDirection.RightToLeft : System.Windows.FlowDirection.LeftToRight;
+        // Keep shell layout fixed in LTR; language selection only changes localized strings.
+        FlowDirection = ReportLocalizationService.ShellFlowDirection;
         Title = ReportLocalizationService.GetString("Identity", config);
         if (PromptLabel != null) PromptLabel.Text = ReportLocalizationService.GetString("IdentityPrompt", config);
         if (OkButton != null) OkButton.Content = ReportLocalizationService.GetString("OK", config);

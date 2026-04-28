@@ -40,7 +40,8 @@ public class NotesStore : INotesStore
                 @createdAt, @createdBy, @createdByUserId, @status, @attachments, @tags)";
 
         note.Uuid = string.IsNullOrEmpty(note.Uuid) ? Guid.NewGuid().ToString() : note.Uuid;
-        note.CreatedAt = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
+        note.CreatedAt = now.ToString("O");
 
         cmd.Parameters.AddWithValue("@uuid", note.Uuid);
         cmd.Parameters.AddWithValue("@docId", note.DocumentId);
@@ -49,7 +50,7 @@ public class NotesStore : INotesStore
         cmd.Parameters.AddWithValue("@p_type", note.Type);
         cmd.Parameters.AddWithValue("@severity", note.Severity);
         cmd.Parameters.AddWithValue("@category", note.Category ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@createdAt", note.CreatedAt);
+        cmd.Parameters.Add(new OracleParameter("createdAt", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("@createdBy", note.CreatedBy);
         cmd.Parameters.AddWithValue("@createdByUserId", note.CreatedByUserId);
         cmd.Parameters.AddWithValue("@status", note.Status);
@@ -175,8 +176,8 @@ public class NotesStore : INotesStore
         if (!string.IsNullOrEmpty(type)) cmd.Parameters.AddWithValue("@p_type", type);
         if (!string.IsNullOrEmpty(severity)) cmd.Parameters.AddWithValue("@severity", severity);
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("@status", status);
-        if (fromDate.HasValue) cmd.Parameters.AddWithValue("@p_fromDate", fromDate.Value.ToString("O"));
-        if (toDate.HasValue) cmd.Parameters.AddWithValue("@p_toDate", toDate.Value.ToString("O"));
+        if (fromDate.HasValue) cmd.Parameters.Add(new OracleParameter("p_fromDate", fromDate.Value) { OracleDbType = OracleDbType.TimeStamp });
+        if (toDate.HasValue) cmd.Parameters.Add(new OracleParameter("p_toDate", toDate.Value) { OracleDbType = OracleDbType.TimeStamp });
         if (!string.IsNullOrEmpty(createdBy)) cmd.Parameters.AddWithValue("@createdBy", createdBy);
         cmd.Parameters.AddWithValue("@limit", limit);
 
@@ -193,7 +194,8 @@ public class NotesStore : INotesStore
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
 
-        note.UpdatedAt = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
+        note.UpdatedAt = now.ToString("O");
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
@@ -207,10 +209,10 @@ public class NotesStore : INotesStore
         cmd.Parameters.AddWithValue("@p_type", note.Type);
         cmd.Parameters.AddWithValue("@severity", note.Severity);
         cmd.Parameters.AddWithValue("@category", note.Category ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@updatedAt", note.UpdatedAt);
+        cmd.Parameters.Add(new OracleParameter("updatedAt", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("@updatedBy", note.UpdatedBy ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@status", note.Status);
-        cmd.Parameters.AddWithValue("@resolvedAt", note.ResolvedAt ?? (object)DBNull.Value);
+        cmd.Parameters.Add(new OracleParameter("resolvedAt", ParseDateTimeOrNull(note.ResolvedAt) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("@resolvedBy", note.ResolvedBy ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@resolutionComment", note.ResolutionComment ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@attachments", note.Attachments ?? (object)DBNull.Value);
@@ -270,8 +272,8 @@ public class NotesStore : INotesStore
 
         for (int i = 0; i < documentIds.Count; i++)
         {
-            var paramName = $"@id{i}";
-            paramNames.Add(paramName);
+            var paramName = $"id{i}";
+            paramNames.Add($":{paramName}");
             parameters.Add(new OracleParameter(paramName, documentIds[i]));
         }
 
@@ -309,8 +311,9 @@ public class NotesStore : INotesStore
             var parameters = new OracleParameter[count];
             for (var i = 0; i < count; i++)
             {
-                paramNames[i] = "@d" + i;
-                parameters[i] = new OracleParameter(paramNames[i], ids[offset + i]);
+                var paramName = "d" + i;
+                paramNames[i] = ":" + paramName;
+                parameters[i] = new OracleParameter(paramName, ids[offset + i]);
             }
 
             var inClause = string.Join(",", paramNames);
@@ -353,17 +356,42 @@ public class NotesStore : INotesStore
             Type = reader.GetString(reader.GetOrdinal("type")),
             Severity = reader.GetString(reader.GetOrdinal("severity")),
             Category = reader.IsDBNull(reader.GetOrdinal("category")) ? "" : reader.GetString(reader.GetOrdinal("category")),
-            CreatedAt = reader.GetString(reader.GetOrdinal("created_at")),
+            CreatedAt = GetStringOrDateTimeStringOrNull(reader, "created_at") ?? "",
             CreatedBy = reader.GetString(reader.GetOrdinal("created_by")),
             CreatedByUserId = reader.GetInt32(reader.GetOrdinal("created_by_user_id")),
-            UpdatedAt = reader.IsDBNull(reader.GetOrdinal("updated_at")) ? null : reader.GetString(reader.GetOrdinal("updated_at")),
+            UpdatedAt = GetStringOrDateTimeStringOrNull(reader, "updated_at"),
             UpdatedBy = reader.IsDBNull(reader.GetOrdinal("updated_by")) ? null : reader.GetString(reader.GetOrdinal("updated_by")),
             Status = reader.GetString(reader.GetOrdinal("status")),
-            ResolvedAt = reader.IsDBNull(reader.GetOrdinal("resolved_at")) ? null : reader.GetString(reader.GetOrdinal("resolved_at")),
+            ResolvedAt = GetStringOrDateTimeStringOrNull(reader, "resolved_at"),
             ResolvedBy = reader.IsDBNull(reader.GetOrdinal("resolved_by")) ? null : reader.GetString(reader.GetOrdinal("resolved_by")),
             ResolutionComment = reader.IsDBNull(reader.GetOrdinal("resolution_comment")) ? null : reader.GetString(reader.GetOrdinal("resolution_comment")),
             Attachments = reader.IsDBNull(reader.GetOrdinal("attachments")) ? null : reader.GetString(reader.GetOrdinal("attachments")),
             Tags = reader.IsDBNull(reader.GetOrdinal("tags")) ? null : reader.GetString(reader.GetOrdinal("tags"))
         };
+    }
+
+    private static DateTime? ParseDateTimeOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        if (DateTime.TryParse(value, out var dt))
+            return dt;
+        return null;
+    }
+
+    private static string? GetStringOrDateTimeStringOrNull(OracleDataReader reader, string column)
+    {
+        var ordinal = reader.GetOrdinal(column);
+        if (reader.IsDBNull(ordinal))
+            return null;
+
+        try
+        {
+            return reader.GetDateTime(ordinal).ToString("O");
+        }
+        catch
+        {
+            return reader.GetString(ordinal);
+        }
     }
 }

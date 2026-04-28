@@ -62,7 +62,7 @@ WorkAudit is a comprehensive document management system designed for banking com
 ## 🏗️ Architecture
 
 - **Framework**: .NET 8.0, WPF (Windows Presentation Foundation)
-- **Database**: SQLite (local per branch)
+- **Database**: Oracle Database (Oracle 19c target via ODP.NET)
 - **Storage**: File system (attachments, images, PDFs)
 - **Security**: BCrypt, AES-256, DPAPI, RBAC
 - **Logging**: Serilog (structured logging, 30-day retention)
@@ -97,7 +97,7 @@ WorkAudit is a comprehensive document management system designed for banking com
 
 ### 🔄 Future Enhancements (Post-Launch)
 
-- [ ] Optional HQ / multi-branch data strategy (see `docs/HYBRID_SYNC_DESIGN.md`; not required for single-site SQLite)
+- [ ] Optional HQ / multi-branch data strategy (see `docs/HYBRID_SYNC_DESIGN.md`; not required for a single-site Oracle deployment)
 - [ ] Full accessibility (screen readers, high contrast)
 - [ ] Complete Arabic localization
 
@@ -164,7 +164,7 @@ Configure before first launch for custom settings:
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_BASE_DIR", "D:\WorkAuditData", "Machine")
-[System.Environment]::SetEnvironmentVariable("WORKAUDIT_DATABASE_PATH", "D:\WorkAuditData\workaudit.db", "Machine")
+[System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "User Id=workaudit;Password=change-me;Data Source=//localhost:1521/FREEPDB1", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_USERNAME", "sysadmin", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_EMAIL", "admin@yourbank.com", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_BRANCH", "Main Branch", "Machine")
@@ -250,7 +250,7 @@ dotnet test WorkAudit.Tests\WorkAudit.Tests.csproj -c Release
 ### File Locations
 
 - **Application**: `C:\Program Files\WorkAudit\`
-- **Database**: `%APPDATA%\WORKAUDIT\workaudit.db` (default)
+- **Database**: Oracle schema configured by `WORKAUDIT_ORACLE_CONNECTION`
 - **Attachments**: `%APPDATA%\WORKAUDIT\attachments\` (default)
 - **Logs**: `%APPDATA%\WORKAUDIT\Logs\`
 - **Configuration**: `%APPDATA%\WORKAUDIT\user_settings.json`
@@ -290,7 +290,7 @@ WorkAudit.CSharp/
 │   ├── Security/            - Auth, encryption, audit trail
 │   ├── Services/            - Core services (logging, DI, config)
 │   └── Update/              - Auto-update service
-├── Storage/                 - Database access layer (SQLite)
+├── Storage/                 - Database access layer (Oracle)
 ├── Views/                   - WPF UI views
 ├── ViewModels/              - MVVM view models
 ├── Dialogs/                 - Popup dialogs

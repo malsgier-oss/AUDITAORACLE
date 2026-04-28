@@ -407,7 +407,7 @@ IF ANY CHECKPOINT FAILS:
 
 Database Level:
 ┌─────────────────────────────────────────────────────────────────┐
-│ • SQLite Indexes:                                               │
+│ • Oracle Indexes:                                               │
 │   - idx_auditnotes_fileid (for quick file → notes lookup)       │
 │   - idx_auditnotes_createdat (for date range queries)           │
 │   - idx_auditnotes_type (for filtering by note type)            │

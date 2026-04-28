@@ -139,8 +139,8 @@ public partial class MainWindow : Window
         var config = ServiceContainer.IsInitialized ? ServiceContainer.GetService<IConfigStore>() : null;
         if (config == null) return;
 
-        var isArabic = ReportLocalizationService.IsArabic(config);
-        FlowDirection = isArabic ? System.Windows.FlowDirection.RightToLeft : System.Windows.FlowDirection.LeftToRight;
+        // Keep shell layout fixed in LTR; language selection only changes localized strings.
+        FlowDirection = ReportLocalizationService.ShellFlowDirection;
 
         Title = ReportLocalizationService.GetString("AppTitle", config);
         if (StatusText != null) StatusText.Text = ReportLocalizationService.GetString("Ready", config);

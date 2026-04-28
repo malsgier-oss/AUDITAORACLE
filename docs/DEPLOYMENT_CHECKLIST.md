@@ -145,7 +145,7 @@ For each branch:
 5. **Configure environment variables** (if using custom paths):
    ```powershell
    [System.Environment]::SetEnvironmentVariable("WORKAUDIT_BASE_DIR", "D:\WorkAuditData", "Machine")
-   [System.Environment]::SetEnvironmentVariable("WORKAUDIT_DATABASE_PATH", "D:\WorkAuditData\workaudit.db", "Machine")
+[System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "Data Source=//db-host:1521/WORKAUDIT;User Id=WORKAUDIT_APP;Password=...;", "Machine")
    [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_USERNAME", "branch01_admin", "Machine")
    [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_EMAIL", "branch01_admin@bank.com", "Machine")
    [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_BRANCH", "Branch 01", "Machine")
@@ -322,7 +322,7 @@ Deployment is considered successful when:
 | Security breach | Medium | Critical | RBAC, encryption, audit trail, regular security reviews |
 | Performance issues | Medium | Medium | Load testing, performance monitoring, optimization |
 | Disk space exhaustion | Medium | High | Monitoring, alerts at 80%, retention policies |
-| Network outages | High | Low | Local SQLite (works offline), sync when available |
+| Network outages | High | Low | Oracle connectivity fallback (local operations only where possible), sync when available |
 | User adoption resistance | Medium | Medium | Training, documentation, user-friendly UI |
 | Code signing issues | Low | Medium | Obtain certificate early, test signing process |
 

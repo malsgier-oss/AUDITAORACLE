@@ -51,14 +51,14 @@ Guidance for monitoring application health, performance, and usage.
 
 ### Size
 
-- Monitor `workaudit.db` size.
+- Monitor Oracle tablespace growth and the main WorkAudit schema objects.
 - Archive old documents to control growth.
 - Use retention settings in Control Panel.
 
 ### Integrity
 
-- **Control Panel → System:** Shows database path and migration status.
-- Run integrity checks periodically (SQLite: `PRAGMA integrity_check`).
+- **Control Panel → System:** Shows database migration status and environment.
+- Run database health checks (Oracle DBA views, `user_tables`, and scheduled backups) on a regular cadence.
 
 ---
 

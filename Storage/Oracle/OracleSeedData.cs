@@ -42,7 +42,7 @@ internal static class OracleSeedData
             ("Signature Card", "OTHER", "signature,card,بطاقة,توقيع", 15)
         };
 
-        var now = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
         foreach (var (name, category, keywords, order) in types)
         {
             var sql = """
@@ -73,7 +73,7 @@ internal static class OracleSeedData
             ("Almashtel Branch", "ALMB", 5),
             ("Misrata Branch", "MB", 6)
         };
-        var now = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
         foreach (var (name, code, order) in branches)
         {
             var sql = """
@@ -103,7 +103,7 @@ internal static class OracleSeedData
             ("KYC", "Know Your Customer", 5),
             ("OTHER", "Other documents", 6)
         };
-        var now = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
         foreach (var (name, description, order) in categories)
         {
             var sql = """
@@ -154,7 +154,7 @@ internal static class OracleSeedData
             ("vision_timeout_seconds", "120", "ai", "Timeout for vision API calls in seconds", "int")
         };
 
-        var now = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
         foreach (var (key, value, category, description, valueType) in settings)
         {
             var sql = """

@@ -12,7 +12,7 @@ internal sealed class Migration_050_NormalizeRequiredDocumentText : IOracleMigra
     public int Version => 50;
     public string Name => "Normalize required documents text columns";
 
-    public void Apply(OracleConnection connection, ILogger log)
+    public void Apply(OracleConnection connection, OracleTransaction transaction, ILogger log)
     {
         using var cmd = OracleSql.CreateCommand(connection, @"
             UPDATE documents
@@ -28,6 +28,7 @@ internal sealed class Migration_050_NormalizeRequiredDocumentText : IOracleMigra
                                 WHEN section IS NULL OR TRIM(section) IS NULL THEN 'Unspecified'
                                 ELSE section
                             END");
+        cmd.Transaction = transaction;
 
         var affected = cmd.ExecuteNonQuery();
         log.Information("Migration 050 normalized {Count} document rows", affected);

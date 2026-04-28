@@ -29,8 +29,8 @@ public partial class LoginDialog : Window
     {
         var config = ServiceContainer.IsInitialized ? ServiceContainer.GetService<IConfigStore>() : null;
         if (config == null) return;
-        var isArabic = ReportLocalizationService.IsArabic(config);
-        FlowDirection = isArabic ? System.Windows.FlowDirection.RightToLeft : System.Windows.FlowDirection.LeftToRight;
+        // Keep shell layout fixed in LTR; language selection only changes localized strings.
+        FlowDirection = ReportLocalizationService.ShellFlowDirection;
         Title = ReportLocalizationService.GetString("AuditaSignInWindowTitle", config);
         if (UsernameLabel != null) UsernameLabel.Text = ReportLocalizationService.GetString("Username", config);
         if (PasswordLabel != null) PasswordLabel.Text = ReportLocalizationService.GetString("Password", config);

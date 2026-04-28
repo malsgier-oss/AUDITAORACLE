@@ -66,16 +66,20 @@ Contact your system administrator to reset your password.
 
 1. Click **Import** in the left menu
 2. Select **Webcam** tab
-3. Position document under camera
-4. Click **Capture**
-5. Review the captured image
-6. Click **Save** to add to workspace
+3. Click **Start Camera**
+4. Choose capture **Mode**:
+   - **Manual** — align the document, then press **Enter** or tap **Space** once to capture.
+   - **Auto** — the app detects the page outline, waits until the view is steady, and captures automatically (with a cooldown between shots).
+   - **Scan Area** — drag a rectangle on the live preview to define what to capture (useful to ignore the desk or frame). Press **Enter** / **Space** to capture, or turn on **Area auto** for automatic capture when the view is steady (same cooldown as Auto).
+5. Use **Finish Document** (backslash key or double-tap **Space**) when all pages are captured to build the PDF and import.
+6. Review thumbnails and metadata as needed.
 
 **Tips**:
 - Ensure good lighting (no shadows)
 - Align document straight
 - Use a contrasting background
 - Avoid glare from lights
+- In **Scan Area** mode, redraw the rectangle if you resize the window or restart the camera
 
 ### Method 2: Upload Files
 

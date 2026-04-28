@@ -91,7 +91,7 @@ WorkAudit is a bank-grade document audit and workflow management application. Th
 
 ## Tools
 
-- **Webcam:** Capture documents via camera.
+- **Webcam:** Capture documents via camera; modes include Manual, Auto (document detection), and Scan Area (draw a capture region, optional Area auto).
 - **Backup:** Create manual backups.
 - **Control Panel:** (Admin only) Configure system settings.
 

@@ -9,6 +9,8 @@ namespace WorkAudit.Core.Reports;
 public static class ReportLocalizationService
 {
     private const string LangKey = "report_language";
+    // Contract: report_language controls localized text only; app shell layout remains LTR.
+    public static readonly System.Windows.FlowDirection ShellFlowDirection = System.Windows.FlowDirection.LeftToRight;
 
     private static readonly Dictionary<string, (string En, string Ar)> Strings = new()
     {

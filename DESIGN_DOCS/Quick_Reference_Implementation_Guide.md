@@ -33,7 +33,7 @@ This is your quick reference for implementing the Audit Manager's Intelligence D
 
 ## 🗄️ Database Changes
 
-### SQLite Migration Script
+### Oracle Migration Script
 
 ```sql
 -- Run this migration before implementing code
@@ -94,7 +94,7 @@ CREATE INDEX IF NOT EXISTS idx_noteattachments_noteid ON NoteAttachments(NoteId)
 Install-Package QuestPDF
 
 # Already in project (verify versions)
-# Install-Package Microsoft.Data.Sqlite
+# Install-Package Oracle.ManagedDataAccess.Core
 # Install-Package Newtonsoft.Json
 # Install-Package OxyPlot.Wpf
 # Install-Package Serilog

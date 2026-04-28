@@ -151,6 +151,13 @@ public partial class App : Application
     {
         DispatcherUnhandledException += (s, e) =>
         {
+            if (IsBenignShutdownComException(e.Exception))
+            {
+                Log.Warning(e.Exception, "Suppressed benign WPF/TSF COM exception during shutdown");
+                e.Handled = true;
+                return;
+            }
+
             if (IsBenignPdfPreviewException(e.Exception))
             {
                 Log.Warning(e.Exception, "Benign PdfiumViewer race (disposed PdfPage); error dialog suppressed");
@@ -166,6 +173,13 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
         {
             var ex = e.ExceptionObject as Exception;
+
+            if (IsBenignShutdownComException(ex))
+            {
+                Log.Warning(ex, "Suppressed benign domain exception during shutdown");
+                return;
+            }
+
             Log.Fatal(ex, "Unhandled domain exception (IsTerminating: {IsTerminating})", e.IsTerminating);
 
             if (e.IsTerminating)
@@ -204,6 +218,25 @@ public partial class App : Application
                 if (st.Contains("PdfiumViewer", StringComparison.OrdinalIgnoreCase) ||
                     st.Contains("PdfViewer", StringComparison.OrdinalIgnoreCase))
                     return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// WPF can rarely throw an InvalidCastException for ITfThreadMgr while tearing down TSF/IME state
+    /// at process shutdown. This is non-actionable for users and should not trigger a fatal popup.
+    /// </summary>
+    private static bool IsBenignShutdownComException(Exception? ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is InvalidCastException ice &&
+                ice.Message.Contains("System.__ComObject", StringComparison.OrdinalIgnoreCase) &&
+                ice.Message.Contains("ITfThreadMgr", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
             }
         }
 

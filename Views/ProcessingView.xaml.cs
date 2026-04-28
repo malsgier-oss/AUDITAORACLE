@@ -337,11 +337,6 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
     {
         if (_store == null) return;
         var config = ServiceContainer.GetService<IConfigStore>();
-        var dateTo = DateTime.UtcNow;
-        var dateFrom = dateTo.AddDays(-7);
-        var dateFromStr = dateFrom.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-        var dateToStr = dateTo.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-
         var branch = _permissionService.GetEffectiveDocumentListBranchFilter();
 
         string? filterType = null;
@@ -349,13 +344,15 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
         if (FilterType?.SelectedItem is ComboBoxItem typeItem && typeItem.Content is string typeStr && typeStr != allTypesStr)
             filterType = typeStr;
 
-        var documents = _store.ListDocuments(branch: branch, dateFrom: dateFromStr, dateTo: dateToStr, status: null, documentType: filterType, limit: 200, dateFilterField: "capture")
+        var documents = _store.ListDocuments(branch: branch, status: null, documentType: filterType, limit: 5000)
             .Where(d => d.Status != Enums.Status.ReadyForAudit && d.Status != Enums.Status.Cleared && d.Status != Enums.Status.Archived)
+            .OrderByDescending(d => d.Id)
+            .Take(200)
             .ToList();
 
         var session = ServiceContainer.GetService<ISessionService>();
-        _log.Debug("ProcessingView RefreshData: branch={Branch}, dateFrom={DateFrom}, dateTo={DateTo}, documentType={DocType}, count={Count}",
-            branch ?? "(all)", dateFromStr, dateToStr, filterType ?? "(all)", documents.Count);
+        _log.Debug("ProcessingView RefreshData: branch={Branch}, documentType={DocType}, count={Count}",
+            branch ?? "(all)", filterType ?? "(all)", documents.Count);
         if (session?.CurrentUser == null)
             _log.Debug("ProcessingView: CurrentUser is null, branch filter uses fallback {Branch}", branch ?? Domain.Branches.Default);
         else if (branch != null && branch != session.CurrentUser.Branch)

@@ -8,7 +8,7 @@ This guide explains how to recover WorkAudit data after a failure (disk loss, co
 
 | Data | Location |
 |------|----------|
-| **Database** | `{base_directory}\workaudit.db` where base_directory is configured in Setup Wizard (default: `%USERPROFILE%\Documents\WORKAUDIT_Docs`). |
+| **Database** | Oracle schema referenced by `WORKAUDIT_ORACLE_CONNECTION` (or saved `oracle_connection_string`). |
 | **Documents** | Base directory (e.g. `Documents\WORKAUDIT_Docs` or your configured path). |
 | **Automatic backups** | `%APPDATA%\WORKAUDIT\Backups\` — ZIP files named `WorkAudit_Backup_yyyyMMdd_HHmmss.zip`. |
 | **User settings** | `%APPDATA%\WORKAUDIT\user_settings.json`. |
@@ -19,7 +19,6 @@ This guide explains how to recover WorkAudit data after a failure (disk loss, co
 
 Each backup ZIP contains:
 
-- **workaudit.db** — SQLite database (documents, users, audit log).
 - **manifest.json** — Version, creation time, machine name, whether documents are included.
 - **Documents/** — Copy of the document base directory (if “Include documents” was selected).
 
@@ -50,7 +49,7 @@ If the app supports **point-in-time recovery**:
 1. Close WorkAudit.
 2. Copy your current database and base directory elsewhere (safety copy).
 3. Extract the backup ZIP to a temporary folder.
-4. Copy `workaudit.db` from the ZIP over your live database path.
+4. Restore Oracle data from your Oracle backup/export procedure for the target schema.
 5. If the backup includes a `Documents` folder, copy its contents over your document base directory.
 6. Start WorkAudit and verify.
 
@@ -60,7 +59,7 @@ If the app supports **point-in-time recovery**:
 
 Before relying on a backup:
 
-- Use **Backup Verification** (if available in Tools/Admin) to check that the ZIP contains a valid manifest and database.
+- Use **Backup Verification** (if available in Tools/Admin) to check that the ZIP contains a valid manifest and document snapshot.
 - Periodically **restore to a test location** and open WorkAudit against it to confirm the backup is usable.
 
 ---
@@ -81,8 +80,8 @@ To reduce risk of losing backups with the machine:
 
 - [ ] WorkAudit is closed.
 - [ ] You have identified the correct backup ZIP (by date/time or location).
-- [ ] You have a safety copy of the current database and documents (if they still exist).
-- [ ] You restored `workaudit.db` (and documents if applicable) from the backup.
+- [ ] You have a safety copy of the current Oracle schema and documents (if they still exist).
+- [ ] You restored Oracle data and documents from backup.
 - [ ] You restarted WorkAudit and confirmed login and data.
 - [ ] You ran verification on the backup (if the feature is available).
 
@@ -91,5 +90,5 @@ To reduce risk of losing backups with the machine:
 ## 7. Getting Help
 
 - **Logs**: Check application logs (e.g. under `%APPDATA%\WORKAUDIT` or the path configured for Serilog) for restore or backup errors.
-- **Database path**: Stored in app configuration; ensure the path you restore to matches what WorkAudit uses at startup.
-- **Permissions**: Ensure the app has read/write access to the database path and document base directory.
+- **Oracle connection**: Ensure startup configuration points to the intended Oracle schema/service.
+- **Permissions**: Ensure the app has read/write access to the document base directory and Oracle account has required DDL/DML permissions.

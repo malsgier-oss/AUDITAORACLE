@@ -114,3 +114,5 @@ You may see **two** separate issues:
 ### Legacy files
 
 `ApplicationFiles.wxs`, `Product.wxs`, `WorkAudit.wxs`, and `Components.wxs` in this folder are **old** WiX v3 / draft sources. The active project compiles **`Package.wxs`** only (`EnableDefaultCompileItems=false`).
+
+The installer build publishes an Oracle-only payload and does not retain legacy database runtime files in the MSI output.

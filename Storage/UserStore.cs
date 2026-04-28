@@ -93,7 +93,8 @@ public class UserStore : IUserStore
         return ExecuteDbOperation(() =>
         {
             user.Uuid = Guid.NewGuid().ToString();
-            user.CreatedAt = DateTime.UtcNow.ToString("O");
+            var now = DateTime.UtcNow;
+            user.CreatedAt = now.ToString("O");
 
             using var conn = new OracleConnection(_connectionString);
         conn.Open();
@@ -113,11 +114,11 @@ public class UserStore : IUserStore
         cmd.Parameters.AddWithValue("role", user.Role);
         cmd.Parameters.AddWithValue("branch", user.Branch ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("department", user.Department ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("is_active", user.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("is_locked", user.IsLocked ? 1 : 0);
-        cmd.Parameters.AddWithValue("must_change_password", user.MustChangePassword ? 1 : 0);
+        cmd.Parameters.Add(new OracleParameter("is_active", OracleDbType.Int16) { Value = user.IsActive ? 1 : 0 });
+        cmd.Parameters.Add(new OracleParameter("is_locked", OracleDbType.Int16) { Value = user.IsLocked ? 1 : 0 });
+        cmd.Parameters.Add(new OracleParameter("must_change_password", OracleDbType.Int16) { Value = user.MustChangePassword ? 1 : 0 });
         cmd.Parameters.AddWithValue("failed_login_attempts", user.FailedLoginAttempts);
-        cmd.Parameters.AddWithValue("created_at", user.CreatedAt);
+        cmd.Parameters.Add(new OracleParameter("created_at", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("created_by", user.CreatedBy ?? (object)DBNull.Value);
         var rid = new OracleParameter("rid", OracleDbType.Int64) { Direction = ParameterDirection.Output };
         cmd.Parameters.Add(rid);
@@ -152,11 +153,12 @@ public class UserStore : IUserStore
             WHERE id = @id";
         cmd.Parameters.AddWithValue("id", id);
         cmd.Parameters.AddWithValue("password_hash", passwordHash);
-        cmd.Parameters.AddWithValue("password_changed_at", DateTime.UtcNow.ToString("O"));
-        cmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow.ToString("O"));
+        var now = DateTime.UtcNow;
+        cmd.Parameters.Add(new OracleParameter("password_changed_at", OracleDbType.TimeStamp) { Value = now });
+        cmd.Parameters.Add(new OracleParameter("updated_at", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("updated_by", updatedBy ?? (object)DBNull.Value);
         if (requirePasswordChangeOnNextLogin.HasValue)
-            cmd.Parameters.AddWithValue("must_change_password", requirePasswordChangeOnNextLogin.Value ? 1 : 0);
+            cmd.Parameters.Add(new OracleParameter("must_change_password", OracleDbType.Int16) { Value = requirePasswordChangeOnNextLogin.Value ? 1 : 0 });
             Prep(cmd); return cmd.ExecuteNonQuery() > 0;
         }, nameof(UpdatePassword), false);
     }
@@ -224,7 +226,7 @@ public class UserStore : IUserStore
         }
 
         sql += " ORDER BY username FETCH FIRST @limit ROWS ONLY";
-        parameters.Add(new OracleParameter("limit", limit));
+        parameters.Add(new OracleParameter("limit", OracleDbType.Int32) { Value = limit });
 
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
@@ -246,7 +248,8 @@ public class UserStore : IUserStore
     {
         return ExecuteDbOperation(() =>
         {
-            user.UpdatedAt = DateTime.UtcNow.ToString("O");
+            var now = DateTime.UtcNow;
+            user.UpdatedAt = now.ToString("O");
 
             using var conn = new OracleConnection(_connectionString);
         conn.Open();
@@ -279,10 +282,10 @@ public class UserStore : IUserStore
         cmd.Parameters.AddWithValue("is_locked", user.IsLocked ? 1 : 0);
         cmd.Parameters.AddWithValue("must_change_password", user.MustChangePassword ? 1 : 0);
         cmd.Parameters.AddWithValue("failed_login_attempts", user.FailedLoginAttempts);
-        cmd.Parameters.AddWithValue("last_login_at", user.LastLoginAt ?? (object)DBNull.Value);
+        cmd.Parameters.Add(new OracleParameter("last_login_at", ParseDateTimeOrNull(user.LastLoginAt) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("last_login_ip", user.LastLoginIp ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("password_changed_at", user.PasswordChangedAt ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("updated_at", user.UpdatedAt);
+        cmd.Parameters.Add(new OracleParameter("password_changed_at", ParseDateTimeOrNull(user.PasswordChangedAt) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
+        cmd.Parameters.Add(new OracleParameter("updated_at", now) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("updated_by", user.UpdatedBy ?? (object)DBNull.Value);
             Prep(cmd); return cmd.ExecuteNonQuery() > 0;
         }, nameof(Update), false);
@@ -346,7 +349,7 @@ public class UserStore : IUserStore
                 UPDATE user_emergency_codes
                 SET used_at = @used
                 WHERE id = @id AND user_id = @p_uid AND used_at IS NULL";
-            cmd.Parameters.AddWithValue("used", DateTime.UtcNow.ToString("O"));
+            cmd.Parameters.Add(new OracleParameter("used", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
             cmd.Parameters.AddWithValue("id", codeId);
             cmd.Parameters.AddWithValue("p_uid", userId);
             Prep(cmd); return cmd.ExecuteNonQuery() > 0;
@@ -371,7 +374,7 @@ public class UserStore : IUserStore
                 Prep(del); del.ExecuteNonQuery();
             }
 
-            var createdAt = DateTime.UtcNow.ToString("O");
+            var createdAt = DateTime.UtcNow;
             foreach (var hash in codeHashes)
             {
                 using var ins = conn.CreateCommand();
@@ -380,7 +383,7 @@ public class UserStore : IUserStore
                     "INSERT INTO user_emergency_codes (user_id, code_hash, created_at, used_at) VALUES (@p_uid, @h, @c, NULL)";
                 ins.Parameters.AddWithValue("p_uid", userId);
                 ins.Parameters.AddWithValue("h", hash);
-                ins.Parameters.AddWithValue("c", createdAt);
+                ins.Parameters.Add(new OracleParameter("c", OracleDbType.TimeStamp) { Value = createdAt });
                 Prep(ins); ins.ExecuteNonQuery();
             }
 
@@ -403,8 +406,8 @@ public class UserStore : IUserStore
         cmd.Parameters.AddWithValue("user_id", session.UserId);
         cmd.Parameters.AddWithValue("username", session.Username);
         cmd.Parameters.AddWithValue("user_role", session.UserRole);
-        cmd.Parameters.AddWithValue("created_at", session.CreatedAt);
-        cmd.Parameters.AddWithValue("expires_at", session.ExpiresAt);
+        cmd.Parameters.Add(new OracleParameter("created_at", ParseDateTimeOrNull(session.CreatedAt) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
+        cmd.Parameters.Add(new OracleParameter("expires_at", ParseDateTimeOrNull(session.ExpiresAt) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("ip_address", session.IpAddress ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("user_agent", session.UserAgent ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("is_active", session.IsActive ? 1 : 0);
@@ -493,7 +496,7 @@ public class UserStore : IUserStore
             LastLoginAt = GetStringOrNull(r, "last_login_at"),
             LastLoginIp = GetStringOrNull(r, "last_login_ip"),
             PasswordChangedAt = GetStringOrNull(r, "password_changed_at"),
-            CreatedAt = r.GetString(r.GetOrdinal("created_at")),
+            CreatedAt = GetStringOrNull(r, "created_at") ?? string.Empty,
             CreatedBy = GetStringOrNull(r, "created_by"),
             UpdatedAt = GetStringOrNull(r, "updated_at"),
             UpdatedBy = GetStringOrNull(r, "updated_by")
@@ -509,8 +512,8 @@ public class UserStore : IUserStore
             UserId = r.GetInt32(r.GetOrdinal("user_id")),
             Username = r.GetString(r.GetOrdinal("username")),
             UserRole = r.GetString(r.GetOrdinal("user_role")),
-            CreatedAt = r.GetString(r.GetOrdinal("created_at")),
-            ExpiresAt = r.GetString(r.GetOrdinal("expires_at")),
+            CreatedAt = GetStringOrNull(r, "created_at") ?? string.Empty,
+            ExpiresAt = GetStringOrNull(r, "expires_at") ?? string.Empty,
             IpAddress = GetStringOrNull(r, "ip_address"),
             UserAgent = GetStringOrNull(r, "user_agent"),
             IsActive = r.GetInt32(r.GetOrdinal("is_active")) == 1
@@ -520,7 +523,26 @@ public class UserStore : IUserStore
     private static string? GetStringOrNull(OracleDataReader r, string column)
     {
         var ordinal = r.GetOrdinal(column);
-        return r.IsDBNull(ordinal) ? null : r.GetString(ordinal);
+        if (r.IsDBNull(ordinal))
+            return null;
+
+        try
+        {
+            return r.GetDateTime(ordinal).ToString("O");
+        }
+        catch
+        {
+            return r.GetString(ordinal);
+        }
+    }
+
+    private static DateTime? ParseDateTimeOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        if (DateTime.TryParse(value, out var dt))
+            return dt;
+        return null;
     }
 
     private static int GetIntOrDefault(OracleDataReader r, string column, int defaultValue)

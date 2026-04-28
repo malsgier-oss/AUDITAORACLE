@@ -81,7 +81,7 @@ Expected performance on modern hardware (8+ GB RAM, SSD):
 1. **Disk Space**: Ensure at least 10GB free space per 1000 documents
 2. **Memory**: Minimum 8GB RAM recommended, 16GB for heavy workloads
 3. **CPU**: Multi-core processor recommended for parallel import
-4. **Database**: SQLite performs well up to 100K documents. For larger datasets, consider PostgreSQL migration.
+4. **Database**: Oracle performs well up to 100K documents in this profile. For larger enterprise datasets, evaluate Oracle RAC scaling options.
 
 ## TODO: Implement Full Load Tests
 

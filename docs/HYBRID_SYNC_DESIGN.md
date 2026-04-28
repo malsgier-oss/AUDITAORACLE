@@ -10,7 +10,7 @@
 
 ## Overview
 
-The hybrid sync architecture enables multiple bank branches to operate independently with local SQLite databases while synchronizing to a centralized database for enterprise-wide reporting and compliance.
+The hybrid sync architecture enables multiple bank branches to operate independently with local Oracle databases while synchronizing to a centralized database for enterprise-wide reporting and compliance.
 
 ### Design Goals
 
@@ -60,7 +60,7 @@ The hybrid sync architecture enables multiple bank branches to operate independe
         │ │Desktop App│ │ │         │ │             │
         │ │           │ │ │         │ │             │
         │ │┌─────────┐│ │ │         │ │             │
-        │ ││SQLite DB││ │ │         │ │             │
+        │ ││Oracle DB││ │ │         │ │             │
         │ ││(Local)  ││ │ │         │ │             │
         │ │└─────────┘│ │ │         │ │             │
         │ │           │ │ │         │ │             │
@@ -76,7 +76,7 @@ The hybrid sync architecture enables multiple bank branches to operate independe
 
 ### 1. Branch Client (WorkAudit Desktop App)
 
-**Technology**: WPF, .NET 8.0, SQLite
+**Technology**: WPF, .NET 8.0, Oracle
 
 **Components**:
 - `ISyncService` - Manages bidirectional sync
@@ -85,7 +85,7 @@ The hybrid sync architecture enables multiple bank branches to operate independe
 - `ISyncStatusService` - Monitors sync health
 
 **Responsibilities**:
-- Normal document operations (local SQLite)
+- Normal document operations (local Oracle)
 - Queue local changes for upload
 - Poll central server for changes (every 5 minutes)
 - Download and apply remote changes
@@ -120,7 +120,7 @@ POST   /api/sync/resolve-conflict          - Submit conflict resolution
 
 **Technology**: PostgreSQL 15+ or SQL Server 2019+
 
-**Schema Additions** (beyond SQLite schema):
+**Schema Additions** (beyond Oracle schema):
 
 ```sql
 -- Sync metadata table
@@ -185,7 +185,7 @@ Branch                          Central Server
   |<------ Full data dump -------------|
   |                                   |
   |----(3) Apply remote changes ------|
-  |       to local SQLite             |
+  |       to local Oracle             |
   |                                   |
   |----(4) POST /api/sync/upload ---->|
   |       local documents             |
@@ -340,7 +340,7 @@ Branch                          Central Server
 
 #### Week 1: Sync Infrastructure
 - [ ] Create `ISyncService` interface and implementation
-- [ ] Create `ISyncQueueStore` (SQLite table for pending changes)
+- [ ] Create `ISyncQueueStore` (Oracle table for pending changes)
 - [ ] Implement change tracking (triggers or entity modifications)
 - [ ] Add sync configuration settings
 
@@ -497,7 +497,7 @@ Response:
 
 ---
 
-## Sync Database Tables (Branch SQLite)
+## Sync Database Tables (Branch Oracle)
 
 ### sync_queue Table
 
@@ -583,7 +583,7 @@ CREATE TABLE sync_conflicts (
 ### Graceful Degradation
 
 When network is unavailable:
-1. Branch continues normal operations (local SQLite)
+1. Branch continues normal operations (local Oracle)
 2. Changes queued in `sync_queue` table
 3. Sync status indicator shows "Offline" (yellow)
 4. Operations remain fast (<1 second)
@@ -687,7 +687,7 @@ When network restored:
 
 ### Option C: Scheduled Database Replication (Read-Only Central)
 
-- Branch SQLite databases replicated to central PostgreSQL (nightly)
+- Branch Oracle databases replicated to central PostgreSQL (nightly)
 - No bidirectional sync, no conflict resolution
 - Central database is read-only aggregation
 - **Pros**: Simple, low conflict risk

@@ -2,6 +2,7 @@ using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -9,6 +10,12 @@ public class MarkupStore : IMarkupStore
 {
     private readonly ILogger _log = LoggingService.ForContext<MarkupStore>();
     private readonly string _connectionString;
+
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public MarkupStore(string dbPath)
     {
@@ -24,6 +31,7 @@ public class MarkupStore : IMarkupStore
         cmd.CommandText = @"SELECT id, document_id, kind, color, norm_x, norm_y, norm_w, norm_h, page_index, preview_surface, note_id, label, created_at, created_by
                             FROM document_markup_regions WHERE document_id = @docId ORDER BY id";
         cmd.Parameters.AddWithValue("@docId", documentId);
+        Prep(cmd);
         using var r = cmd.ExecuteReader();
         while (r.Read())
         {
@@ -41,7 +49,7 @@ public class MarkupStore : IMarkupStore
                 PreviewSurface = r.GetString(9),
                 NoteId = r.IsDBNull(10) ? null : r.GetInt32(10),
                 Label = r.IsDBNull(11) ? null : r.GetString(11),
-                CreatedAt = r.GetString(12),
+                CreatedAt = GetStringOrDateTimeStringOrNull(r, 12) ?? string.Empty,
                 CreatedBy = r.GetString(13)
             });
         }
@@ -50,7 +58,7 @@ public class MarkupStore : IMarkupStore
 
     public void ReplaceForDocument(int documentId, IReadOnlyList<MarkupRegion> regions, string createdBy)
     {
-        var now = DateTime.UtcNow.ToString("O");
+        var now = DateTime.UtcNow;
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         using var tx = conn.BeginTransaction();
@@ -61,6 +69,7 @@ public class MarkupStore : IMarkupStore
                 del.Transaction = tx;
                 del.CommandText = "DELETE FROM document_markup_regions WHERE document_id = @docId";
                 del.Parameters.AddWithValue("@docId", documentId);
+                Prep(del);
                 del.ExecuteNonQuery();
             }
 
@@ -82,8 +91,9 @@ public class MarkupStore : IMarkupStore
                 ins.Parameters.AddWithValue("@surface", m.PreviewSurface);
                 ins.Parameters.AddWithValue("@noteId", m.NoteId.HasValue ? m.NoteId.Value : DBNull.Value);
                 ins.Parameters.AddWithValue("@label", string.IsNullOrEmpty(m.Label) ? DBNull.Value : m.Label);
-                ins.Parameters.AddWithValue("@createdAt", string.IsNullOrEmpty(m.CreatedAt) ? now : m.CreatedAt);
+                ins.Parameters.Add(new OracleParameter("createdAt", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNull(m.CreatedAt) ?? now });
                 ins.Parameters.AddWithValue("@createdBy", string.IsNullOrEmpty(m.CreatedBy) ? createdBy : m.CreatedBy);
+                Prep(ins);
                 ins.ExecuteNonQuery();
             }
 
@@ -95,6 +105,29 @@ public class MarkupStore : IMarkupStore
             tx.Rollback();
             _log.Error(ex, "ReplaceForDocument failed for {DocId}", documentId);
             throw;
+        }
+    }
+
+    private static DateTime? ParseDateTimeOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        if (DateTime.TryParse(value, out var dt))
+            return dt;
+        return null;
+    }
+
+    private static string? GetStringOrDateTimeStringOrNull(OracleDataReader r, int ordinal)
+    {
+        if (r.IsDBNull(ordinal))
+            return null;
+        try
+        {
+            return r.GetDateTime(ordinal).ToString("O");
+        }
+        catch
+        {
+            return r.GetString(ordinal);
         }
     }
 }

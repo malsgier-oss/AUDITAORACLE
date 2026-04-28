@@ -65,8 +65,9 @@ public class DocumentStore : IDocumentStore
         return ExecuteDbOperation(() =>
         {
             doc.Uuid = Guid.NewGuid().ToString();
-            doc.CaptureTime = DateTime.UtcNow.ToString("O");
-            doc.UpdatedAt = doc.CaptureTime;
+            var now = DateTime.UtcNow;
+            doc.CaptureTime = now.ToString("O");
+            doc.UpdatedAt = now.ToString("O");
             if (string.IsNullOrEmpty(doc.Status)) doc.Status = Enums.Status.Draft;
 
             // Calculate file hash if file exists
@@ -106,8 +107,9 @@ public class DocumentStore : IDocumentStore
         try
         {
             doc.Uuid = Guid.NewGuid().ToString();
-            doc.CaptureTime = DateTime.UtcNow.ToString("O");
-            doc.UpdatedAt = doc.CaptureTime;
+            var now = DateTime.UtcNow;
+            doc.CaptureTime = now.ToString("O");
+            doc.UpdatedAt = now.ToString("O");
             if (string.IsNullOrEmpty(doc.Status)) doc.Status = Enums.Status.Draft;
 
             if (!string.IsNullOrEmpty(doc.FilePath) && File.Exists(doc.FilePath))
@@ -663,8 +665,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
 #pragma warning restore CS0618
         cmd.Parameters.AddWithValue("conf", doc.Confidence ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("status", doc.Status);
-        cmd.Parameters.AddWithValue("ra", doc.ReviewedAt ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("ua", doc.UpdatedAt);
+        cmd.Parameters.Add(new OracleParameter("ra", ToDateTimeOrNull(doc.ReviewedAt) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
+        cmd.Parameters.Add(new OracleParameter("ua", ToDateTimeOrNow(doc.UpdatedAt)) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("branch", doc.Branch ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("exp", doc.Explanation ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("category", doc.Category ?? (object)DBNull.Value);
@@ -702,7 +704,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
     {
         return ExecuteDbOperation(() =>
         {
-            var now = DateTime.UtcNow.ToString("O");
+            var now = DateTime.UtcNow;
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
@@ -728,7 +730,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             cmd.Parameters.AddWithValue("am", doc.Amounts ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("ocr_lang", doc.OcrLanguage ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("ocr_duration", doc.OcrDurationMs ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("ua", now);
+            cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = now });
 
             PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
         }, nameof(UpdateOcrFields), false);
@@ -816,8 +818,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
 #pragma warning restore CS0618
             cmd.Parameters.AddWithValue("conf", doc.Confidence ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("status", doc.Status);
-            cmd.Parameters.AddWithValue("ra", doc.ReviewedAt ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("ua", doc.UpdatedAt);
+            cmd.Parameters.Add(new OracleParameter("ra", ToDateTimeOrNull(doc.ReviewedAt) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
+            cmd.Parameters.Add(new OracleParameter("ua", ToDateTimeOrNow(doc.UpdatedAt)) { OracleDbType = OracleDbType.TimeStamp });
             cmd.Parameters.AddWithValue("branch", doc.Branch ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("exp", doc.Explanation ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("category", doc.Category ?? (object)DBNull.Value);
@@ -868,7 +870,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "UPDATE documents SET status = @s, updated_at = @ua WHERE id = @id";
         cmd.Parameters.AddWithValue("s", status);
-        cmd.Parameters.AddWithValue("ua", DateTime.UtcNow.ToString("O"));
+        var now = DateTime.UtcNow;
+        cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("id", id);
         PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
     }
@@ -881,7 +884,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "UPDATE documents SET notes = @n, updated_at = @ua WHERE id = @id";
         cmd.Parameters.AddWithValue("n", notes ?? "");
-        cmd.Parameters.AddWithValue("ua", DateTime.UtcNow.ToString("O"));
+        var now = DateTime.UtcNow;
+        cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("id", id);
         PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
     }
@@ -893,7 +897,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "UPDATE documents SET tags = @tags, updated_at = @ua WHERE id = @id";
         cmd.Parameters.AddWithValue("tags", tags ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("ua", DateTime.UtcNow.ToString("O"));
+        var now = DateTime.UtcNow;
+        cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("id", id);
         PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
     }
@@ -905,7 +910,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "UPDATE documents SET custodian_id = @cid, updated_at = @ua WHERE id = @id";
         cmd.Parameters.AddWithValue("cid", custodianId ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("ua", DateTime.UtcNow.ToString("O"));
+        var now = DateTime.UtcNow;
+        cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("id", id);
         PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
     }
@@ -915,7 +921,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         var doc = Get(id);
         if (doc == null) return false;
 
-        var now = DateTime.UtcNow.ToString("O");
+            var now = DateTime.UtcNow;
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
@@ -923,26 +929,26 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         if (disposalStatus == "Pending")
         {
             cmd.CommandText = "UPDATE documents SET disposal_status = 'Pending', disposal_requested_at = @now, disposal_requested_by = @by, disposal_approved_at = NULL, disposal_approved_by = NULL, disposal_rejected_at = NULL, disposal_rejected_by = NULL, disposal_rejection_reason = NULL, updated_at = @ua WHERE id = @id";
-            cmd.Parameters.AddWithValue("now", now);
+            cmd.Parameters.Add(new OracleParameter("now", OracleDbType.TimeStamp) { Value = now });
             cmd.Parameters.AddWithValue("by", requestedBy ?? (object)DBNull.Value);
         }
         else if (disposalStatus == "Approved")
         {
             cmd.CommandText = "UPDATE documents SET disposal_status = 'Approved', disposal_approved_at = @now, disposal_approved_by = @by, updated_at = @ua WHERE id = @id";
-            cmd.Parameters.AddWithValue("now", now);
+            cmd.Parameters.Add(new OracleParameter("now", OracleDbType.TimeStamp) { Value = now });
             cmd.Parameters.AddWithValue("by", approvedBy ?? (object)DBNull.Value);
         }
         else if (disposalStatus == "Rejected")
         {
             cmd.CommandText = "UPDATE documents SET disposal_status = 'Rejected', disposal_rejected_at = @now, disposal_rejected_by = @by, disposal_rejection_reason = @reason, updated_at = @ua WHERE id = @id";
-            cmd.Parameters.AddWithValue("now", now);
+            cmd.Parameters.Add(new OracleParameter("now", OracleDbType.TimeStamp) { Value = now });
             cmd.Parameters.AddWithValue("by", rejectedBy ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("reason", rejectionReason ?? (object)DBNull.Value);
         }
         else
             return false;
 
-        cmd.Parameters.AddWithValue("ua", now);
+        cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = now });
         cmd.Parameters.AddWithValue("id", id);
         PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
     }
@@ -965,7 +971,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             using var cmd = Ora(conn, "UPDATE documents SET document_type = @dt, updated_at = @ua WHERE id = @id");
             cmd.Transaction = transaction as OracleTransaction;
             cmd.Parameters.AddWithValue("dt", documentType ?? "");
-            cmd.Parameters.AddWithValue("ua", DateTime.UtcNow.ToString("O"));
+            cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
             cmd.Parameters.AddWithValue("id", id);
             PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
         }
@@ -993,7 +999,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             using var cmd = Ora(conn, "UPDATE documents SET section = @sec, updated_at = @ua WHERE id = @id");
             cmd.Transaction = transaction as OracleTransaction;
             cmd.Parameters.AddWithValue("sec", section ?? "");
-            cmd.Parameters.AddWithValue("ua", DateTime.UtcNow.ToString("O"));
+            cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
             cmd.Parameters.AddWithValue("id", id);
             PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
         }
@@ -1040,7 +1046,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             using var cmd = Ora(conn, "UPDATE documents SET file_path = @fp, updated_at = @ua WHERE id = @id");
             cmd.Transaction = transaction as OracleTransaction;
             cmd.Parameters.AddWithValue("fp", filePath ?? "");
-            cmd.Parameters.AddWithValue("ua", DateTime.UtcNow.ToString("O"));
+            cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
             cmd.Parameters.AddWithValue("id", id);
             PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
         }
@@ -1259,6 +1265,18 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         }
     }
 
+    private static object ToDateTimeOrNow(string? value)
+    {
+        return ToDateTimeOrNull(value) ?? DateTime.UtcNow;
+    }
+
+    private static DateTime? ToDateTimeOrNull(string? value)
+    {
+        if (DateTime.TryParse(value, out var parsed))
+            return parsed;
+        return null;
+    }
+
     private static void AddParams(OracleCommand cmd, Document doc)
     {
         cmd.Parameters.AddWithValue("uuid", doc.Uuid);
@@ -1271,7 +1289,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         cmd.Parameters.AddWithValue("txn_ref", doc.TransactionReference ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("sn", doc.Snippet ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("ocr", doc.OcrText ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("ct", doc.CaptureTime);
+        cmd.Parameters.Add(new OracleParameter("ct", ToDateTimeOrNow(doc.CaptureTime)) { OracleDbType = OracleDbType.TimeStamp });
         // Oracle treats empty string as NULL, so NOT NULL text columns need a non-empty fallback.
         cmd.Parameters.AddWithValue("src", RequiredTextOrFallback(doc.Source, "Unknown"));
         cmd.Parameters.AddWithValue("eng", RequiredTextOrFallback(doc.Engagement, "General"));
@@ -1283,8 +1301,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
 #pragma warning restore CS0618
         cmd.Parameters.AddWithValue("conf", doc.Confidence ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("status", doc.Status);
-        cmd.Parameters.AddWithValue("ra", doc.ReviewedAt ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("ua", doc.UpdatedAt ?? (object)DBNull.Value);
+        cmd.Parameters.Add(new OracleParameter("ra", ToDateTimeOrNull(doc.ReviewedAt) ?? (object)DBNull.Value) { OracleDbType = OracleDbType.TimeStamp });
+        cmd.Parameters.Add(new OracleParameter("ua", ToDateTimeOrNow(doc.UpdatedAt)) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("branch", doc.Branch ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("exp", doc.Explanation ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("created_by", doc.CreatedBy ?? (object)DBNull.Value);

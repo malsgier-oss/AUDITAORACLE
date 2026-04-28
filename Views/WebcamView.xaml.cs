@@ -43,7 +43,7 @@ public partial class WebcamView : UserControl
     private readonly object _detectionLock = new();
     private const int DetectionMaxSize = 640;
 
-    // Auto-capture state (only when enable_auto_capture=true and CaptureMode=Auto)
+    // Auto-capture state: classic Auto mode uses document corners + motion; Scan Area + "Area auto" uses motion stability only.
     private DateTime _lastAutoCaptureAt = DateTime.MinValue;
     private readonly List<(DateTime At, Point2f[] Corners)> _cornerHistory = new();
     private Mat? _lastMotionFrame;
@@ -62,6 +62,22 @@ public partial class WebcamView : UserControl
     private bool _spaceTapPending;
     private DateTime _lastSpaceTapAtUtc = DateTime.MinValue;
     private const int SpaceDoubleTapThresholdMs = 350;
+
+    private const int ModeManual = 0;
+    private const int ModeAuto = 1;
+    private const int ModeScanArea = 2;
+
+    /// <summary>Scan region in normalized full-frame coordinates (0–1).</summary>
+    private readonly object _roiLock = new();
+    private bool _hasRoi;
+    private double _roiNormX, _roiNormY, _roiNormW, _roiNormH;
+
+    private System.Windows.Point? _roiDragStart;
+    private System.Windows.Shapes.Rectangle? _roiRubberBand;
+    private System.Windows.Shapes.Rectangle? _roiCommittedRect;
+
+    private DateTime _scanAreaMotionLowSince = DateTime.MinValue;
+    private const int ScanAreaStabilityMs = 600;
 
     /// <summary>Physical device display name — locked selection for document capture.</summary>
     private const string PreferredCameraName = "Doccamera";
@@ -188,12 +204,21 @@ public partial class WebcamView : UserControl
 
     private void PopulateModeControls()
     {
+        var defaultScanArea = _configStore?.GetSettingBool("webcam_default_scan_area_mode", false) ?? false;
         var defaultAuto = _configStore?.GetSettingBool("enable_auto_capture", false) ?? false;
         CaptureModeCombo.Items.Clear();
         CaptureModeCombo.Items.Add("Manual");
         CaptureModeCombo.Items.Add("Auto");
-        CaptureModeCombo.SelectedIndex = defaultAuto ? 1 : 0;
-        CaptureModeCombo.SelectionChanged += CaptureModeCombo_SelectionChanged;
+        CaptureModeCombo.Items.Add("Scan Area");
+        if (defaultScanArea)
+            CaptureModeCombo.SelectedIndex = ModeScanArea;
+        else
+            CaptureModeCombo.SelectedIndex = defaultAuto ? ModeAuto : ModeManual;
+
+        if (ScanAreaAutoCaptureCheck != null)
+            ScanAreaAutoCaptureCheck.IsChecked = _configStore?.GetSettingBool("webcam_scan_area_auto_capture", false) ?? false;
+
+        ApplyScanAreaUiState();
     }
 
     private void CaptureModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -205,7 +230,315 @@ public partial class WebcamView : UserControl
             _lastMotionFrame?.Dispose();
             _lastMotionFrame = null;
         }
+        _scanAreaMotionLowSince = DateTime.MinValue;
+
+        if (CaptureModeCombo.SelectedIndex != ModeScanArea)
+            ClearRoi(keepScanAreaCheckbox: true);
+        else
+            RedrawCommittedRoiOutline();
+
+        ApplyScanAreaUiState();
     }
+
+    private void ScanAreaAutoCaptureCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        _scanAreaMotionLowSince = DateTime.MinValue;
+    }
+
+    private void ApplyScanAreaUiState()
+    {
+        if (ScanAreaAutoCaptureCheck == null || RoiInteractionCanvas == null)
+            return;
+        var scan = IsScanAreaMode();
+        ScanAreaAutoCaptureCheck.Visibility = scan ? Visibility.Visible : Visibility.Collapsed;
+        RoiInteractionCanvas.IsHitTestVisible = scan && _cameraService is { IsCapturing: true };
+    }
+
+    private bool IsClassicAutoMode() => CaptureModeCombo.SelectedIndex == ModeAuto;
+
+    private bool IsScanAreaMode() => CaptureModeCombo.SelectedIndex == ModeScanArea;
+
+    private bool IsScanAreaAutoCaptureEnabled() =>
+        IsScanAreaMode() && ScanAreaAutoCaptureCheck?.IsChecked == true;
+
+    /// <summary>Multi-frame sharpness pick for classic Auto or Scan Area with Area auto on.</summary>
+    private bool UseBestFrameCapture() =>
+        IsClassicAutoMode() || IsScanAreaAutoCaptureEnabled();
+
+    private void ClearRoi(bool keepScanAreaCheckbox = false)
+    {
+        lock (_roiLock)
+        {
+            _hasRoi = false;
+            _roiNormX = _roiNormY = _roiNormW = _roiNormH = 0;
+        }
+        RoiInteractionCanvas?.Children.Clear();
+        _roiCommittedRect = null;
+        _roiRubberBand = null;
+        _roiDragStart = null;
+        if (!keepScanAreaCheckbox)
+            ApplyScanAreaUiState();
+    }
+
+    private void PreviewBorder_SizeChanged(object sender, SizeChangedEventArgs e) => SyncOverlayCanvasSizes();
+
+    private void SyncOverlayCanvasSizes()
+    {
+        if (PreviewBorder == null || OverlayCanvas == null || RoiInteractionCanvas == null) return;
+        var w = PreviewBorder.ActualWidth;
+        var h = PreviewBorder.ActualHeight;
+        if (w <= 0 || h <= 0) return;
+        OverlayCanvas.Width = w;
+        OverlayCanvas.Height = h;
+        RoiInteractionCanvas.Width = w;
+        RoiInteractionCanvas.Height = h;
+        RedrawCommittedRoiOutline();
+    }
+
+    private (int frameW, int frameH) GetPreviewFrameSize()
+    {
+        if (_cameraService is { IsCapturing: true, CurrentWidth: > 0, CurrentHeight: > 0 })
+            return (_cameraService.CurrentWidth, _cameraService.CurrentHeight);
+        return (0, 0);
+    }
+
+    /// <summary>Letterboxing match (Uniform): image area inside canvases.</summary>
+    private (double scale, double offsetX, double offsetY) GetLetterboxForFrame(int frameW, int frameH)
+    {
+        var imgW = PreviewImage.ActualWidth;
+        var imgH = PreviewImage.ActualHeight;
+        var canvasW = RoiInteractionCanvas.ActualWidth;
+        var canvasH = RoiInteractionCanvas.ActualHeight;
+        if (imgW <= 0 || imgH <= 0 || frameW <= 0 || frameH <= 0 || canvasW <= 0 || canvasH <= 0)
+            return (0, 0, 0);
+        var scaleX = imgW / frameW;
+        var scaleY = imgH / frameH;
+        var scale = Math.Min(scaleX, scaleY);
+        var offsetX = (canvasW - frameW * scale) / 2;
+        var offsetY = (canvasH - frameH * scale) / 2;
+        return (scale, offsetX, offsetY);
+    }
+
+    private bool TryCanvasDragToNormalized(System.Windows.Point a, System.Windows.Point b, int frameW, int frameH,
+        out double nx, out double ny, out double nw, out double nh)
+    {
+        nx = ny = nw = nh = 0;
+        var (scale, ox, oy) = GetLetterboxForFrame(frameW, frameH);
+        if (scale <= 0) return false;
+
+        var x1 = Math.Min(a.X, b.X);
+        var y1 = Math.Min(a.Y, b.Y);
+        var x2 = Math.Max(a.X, b.X);
+        var y2 = Math.Max(a.Y, b.Y);
+
+        var imgLeft = ox;
+        var imgTop = oy;
+        var imgRight = ox + frameW * scale;
+        var imgBottom = oy + frameH * scale;
+
+        x1 = Math.Clamp(x1, imgLeft, imgRight);
+        x2 = Math.Clamp(x2, imgLeft, imgRight);
+        y1 = Math.Clamp(y1, imgTop, imgBottom);
+        y2 = Math.Clamp(y2, imgTop, imgBottom);
+
+        if (x2 - x1 < 4 || y2 - y1 < 4) return false;
+
+        nx = ((x1 - ox) / scale) / frameW;
+        ny = ((y1 - oy) / scale) / frameH;
+        nw = ((x2 - x1) / scale) / frameW;
+        nh = ((y2 - y1) / scale) / frameH;
+
+        nx = Math.Clamp(nx, 0, 1);
+        ny = Math.Clamp(ny, 0, 1);
+        nw = Math.Clamp(nw, 0, 1 - nx);
+        nh = Math.Clamp(nh, 0, 1 - ny);
+        return nw > 1e-4 && nh > 1e-4;
+    }
+
+    private void RoiInteractionCanvas_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!IsScanAreaMode() || _cameraService is not { IsCapturing: true }) return;
+        var (fw, fh) = GetPreviewFrameSize();
+        if (fw <= 0 || fh <= 0) return;
+
+        e.Handled = true;
+        var pos = e.GetPosition(RoiInteractionCanvas);
+        _roiDragStart = pos;
+
+        if (_roiRubberBand != null)
+        {
+            RoiInteractionCanvas.Children.Remove(_roiRubberBand);
+            _roiRubberBand = null;
+        }
+        if (_roiCommittedRect != null)
+        {
+            RoiInteractionCanvas.Children.Remove(_roiCommittedRect);
+            _roiCommittedRect = null;
+        }
+
+        _roiRubberBand = new System.Windows.Shapes.Rectangle
+        {
+            Stroke = System.Windows.Media.Brushes.DeepSkyBlue,
+            StrokeThickness = 2,
+            StrokeDashArray = new DoubleCollection { 4, 2 },
+            Fill = System.Windows.Media.Brushes.Transparent,
+            Width = 0,
+            Height = 0
+        };
+        Canvas.SetLeft(_roiRubberBand, pos.X);
+        Canvas.SetTop(_roiRubberBand, pos.Y);
+        RoiInteractionCanvas.Children.Add(_roiRubberBand);
+        Mouse.Capture(RoiInteractionCanvas, CaptureMode.Element);
+    }
+
+    private void RoiInteractionCanvas_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_roiRubberBand == null || _roiDragStart == null || !IsScanAreaMode()) return;
+        if (e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        e.Handled = true;
+        var pos = e.GetPosition(RoiInteractionCanvas);
+        var start = _roiDragStart.Value;
+        var x = Math.Min(start.X, pos.X);
+        var y = Math.Min(start.Y, pos.Y);
+        var w = Math.Abs(pos.X - start.X);
+        var h = Math.Abs(pos.Y - start.Y);
+        Canvas.SetLeft(_roiRubberBand, x);
+        Canvas.SetTop(_roiRubberBand, y);
+        _roiRubberBand.Width = Math.Max(1, w);
+        _roiRubberBand.Height = Math.Max(1, h);
+    }
+
+    private void RoiInteractionCanvas_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!IsScanAreaMode()) return;
+        if (_roiRubberBand == null || _roiDragStart == null)
+        {
+            Mouse.Capture(null);
+            return;
+        }
+
+        e.Handled = true;
+        Mouse.Capture(null);
+
+        var (fw, fh) = GetPreviewFrameSize();
+        var end = e.GetPosition(RoiInteractionCanvas);
+        var start = _roiDragStart.Value;
+
+        RoiInteractionCanvas.Children.Remove(_roiRubberBand);
+        _roiRubberBand = null;
+        _roiDragStart = null;
+
+        if (fw <= 0 || fh <= 0 ||
+            !TryCanvasDragToNormalized(start, end, fw, fh, out var nx, out var ny, out var nw, out var nh))
+        {
+            lock (_roiLock) { _hasRoi = false; }
+            UpdateStatus("Scan Area: drag a larger rectangle on the document.");
+            return;
+        }
+
+        lock (_roiLock)
+        {
+            _hasRoi = true;
+            _roiNormX = nx;
+            _roiNormY = ny;
+            _roiNormW = nw;
+            _roiNormH = nh;
+        }
+        _scanAreaMotionLowSince = DateTime.MinValue;
+        RedrawCommittedRoiOutline();
+        UpdateStatus("Scan Area: region saved. Capture when ready.");
+    }
+
+    private void RedrawCommittedRoiOutline()
+    {
+        if (RoiInteractionCanvas == null) return;
+        if (!IsScanAreaMode())
+        {
+            RoiInteractionCanvas.Children.Clear();
+            _roiCommittedRect = null;
+            return;
+        }
+
+        bool has;
+        double nx, ny, nw, nh;
+        lock (_roiLock)
+        {
+            has = _hasRoi;
+            nx = _roiNormX;
+            ny = _roiNormY;
+            nw = _roiNormW;
+            nh = _roiNormH;
+        }
+        if (!has)
+        {
+            if (_roiCommittedRect != null)
+            {
+                RoiInteractionCanvas.Children.Remove(_roiCommittedRect);
+                _roiCommittedRect = null;
+            }
+            return;
+        }
+
+        var (fw, fh) = GetPreviewFrameSize();
+        if (fw <= 0 || fh <= 0) return;
+
+        var (scale, ox, oy) = GetLetterboxForFrame(fw, fh);
+        if (scale <= 0) return;
+
+        var left = ox + nx * fw * scale;
+        var top = oy + ny * fh * scale;
+        var w = nw * fw * scale;
+        var h = nh * fh * scale;
+
+        if (_roiCommittedRect == null || !RoiInteractionCanvas.Children.Contains(_roiCommittedRect))
+        {
+            foreach (var child in RoiInteractionCanvas.Children.OfType<System.Windows.Shapes.Rectangle>().Where(r => r != _roiRubberBand).ToList())
+                RoiInteractionCanvas.Children.Remove(child);
+            _roiCommittedRect = new System.Windows.Shapes.Rectangle
+            {
+                Stroke = System.Windows.Media.Brushes.Cyan,
+                StrokeThickness = 2,
+                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 0, 255, 255))
+            };
+            RoiInteractionCanvas.Children.Insert(0, _roiCommittedRect);
+        }
+
+        Canvas.SetLeft(_roiCommittedRect, left);
+        Canvas.SetTop(_roiCommittedRect, top);
+        _roiCommittedRect.Width = Math.Max(2, w);
+        _roiCommittedRect.Height = Math.Max(2, h);
+    }
+
+    private static OpenCvSharp.Rect NormalizeRoiToPixelRect(int frameW, int frameH, double nx, double ny, double nw, double nh)
+    {
+        var x = (int)Math.Floor(nx * frameW);
+        var y = (int)Math.Floor(ny * frameH);
+        var w = (int)Math.Ceiling(nw * frameW);
+        var h = (int)Math.Ceiling(nh * frameH);
+        x = Math.Clamp(x, 0, Math.Max(0, frameW - 1));
+        y = Math.Clamp(y, 0, Math.Max(0, frameH - 1));
+        w = Math.Clamp(w, 1, frameW - x);
+        h = Math.Clamp(h, 1, frameH - y);
+        return new OpenCvSharp.Rect(x, y, w, h);
+    }
+
+    private void UpdateScanAreaMotionStability(bool motionLow)
+    {
+        var now = DateTime.UtcNow;
+        if (!motionLow)
+        {
+            _scanAreaMotionLowSince = DateTime.MinValue;
+            return;
+        }
+        if (_scanAreaMotionLowSince == DateTime.MinValue)
+            _scanAreaMotionLowSince = now;
+    }
+
+    private bool IsScanAreaMotionStableEnough() =>
+        _scanAreaMotionLowSince != DateTime.MinValue
+        && (DateTime.UtcNow - _scanAreaMotionLowSince).TotalMilliseconds >= ScanAreaStabilityMs;
 
     private void UpdateCameraInfoLabel()
     {
@@ -280,6 +613,8 @@ public partial class WebcamView : UserControl
                 PlaceholderText.Visibility = Visibility.Collapsed;
                 BtnStop.IsEnabled = true;
                 BtnCapture.IsEnabled = true;
+                SyncOverlayCanvasSizes();
+                ApplyScanAreaUiState();
                 StartOverlayDetection();
                 var width = _cameraService.CurrentWidth;
                 var height = _cameraService.CurrentHeight;
@@ -338,6 +673,7 @@ public partial class WebcamView : UserControl
         PlaceholderText.Visibility = Visibility.Visible;
         PreviewImage.Source = null;
         OverlayCanvas.Children.Clear();
+        ClearRoi();
         BtnStart.IsEnabled = true;
         BtnStop.IsEnabled = false;
         BtnCapture.IsEnabled = false;
@@ -366,14 +702,27 @@ public partial class WebcamView : UserControl
         if (_overlayRunning) return;
 
         var enableOverlay = _configStore?.GetSettingBool("enable_document_scan_overlay", true) ?? true;
-        var isAutoMode = CaptureModeCombo.SelectedIndex == 1;
-        if (!enableOverlay && !isAutoMode) return;
+        var scanArea = IsScanAreaMode();
+        var classicAuto = IsClassicAutoMode();
+        var scanAreaAuto = IsScanAreaAutoCaptureEnabled();
+        var needDetection = classicAuto || (!scanArea && enableOverlay);
+        if (!classicAuto && !scanAreaAuto && !needDetection && !scanArea) return;
 
         _overlayRunning = true;
         Task.Run(() =>
         {
             try
             {
+                if (!classicAuto && !scanAreaAuto && !needDetection && scanArea)
+                {
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        RedrawCommittedRoiOutline();
+                        UpdateStatus("");
+                    });
+                    return;
+                }
+
                 var mat = _cameraService?.CaptureFrameMat();
                 if (mat == null) return;
 
@@ -395,10 +744,19 @@ public partial class WebcamView : UserControl
                         scaleY = (float)origH / h;
                     }
 
-                    var (found, corners, confidence) = _imageProcessing!.DetectDocumentCorners(detectMat);
+                    bool found = false;
+                    Point2f[] corners = Array.Empty<Point2f>();
+                    float confidence = 0f;
+                    if (needDetection)
+                    {
+                        var result = _imageProcessing!.DetectDocumentCorners(detectMat);
+                        found = result.Found;
+                        corners = result.Corners;
+                        confidence = result.Confidence;
+                    }
 
-                    bool shouldAutoCapture = false;
-                    if (isAutoMode && found && corners.Length == 4)
+                    bool shouldClassicAuto = false;
+                    if (classicAuto && found && corners.Length == 4)
                     {
                         var motionLow = ComputeMotionLow(detectMat);
                         UpdateCornerHistory(confidence, corners);
@@ -406,7 +764,22 @@ public partial class WebcamView : UserControl
                         var inCooldown = (DateTime.UtcNow - _lastAutoCaptureAt).TotalMilliseconds < GetAutoCooldownMs();
 
                         if (confidence >= StabilityConfidenceMin && cornersStable && motionLow && !inCooldown)
-                            shouldAutoCapture = true;
+                            shouldClassicAuto = true;
+                    }
+
+                    bool shouldScanAreaAuto = false;
+                    if (scanAreaAuto)
+                    {
+                        bool hasRoi;
+                        lock (_roiLock) { hasRoi = _hasRoi; }
+                        if (hasRoi)
+                        {
+                            var motionLow = ComputeMotionLow(detectMat);
+                            UpdateScanAreaMotionStability(motionLow);
+                            var inCooldown = (DateTime.UtcNow - _lastAutoCaptureAt).TotalMilliseconds < GetAutoCooldownMs();
+                            if (motionLow && IsScanAreaMotionStableEnough() && !inCooldown)
+                                shouldScanAreaAuto = true;
+                        }
                     }
 
                     if (detectMat != mat)
@@ -424,14 +797,17 @@ public partial class WebcamView : UserControl
                         _lastConfidence = confidence;
                     }
                     var cornersToDraw = fullResCorners ?? corners;
-                    var autoCapture = shouldAutoCapture;
-                    var drawOverlay = enableOverlay;
+                    var needDocCorners = enableOverlay && !scanArea;
                     Dispatcher.BeginInvoke(() =>
                     {
-                        if (drawOverlay)
+                        if (needDocCorners)
                             DrawOverlay(found, cornersToDraw, confidence, origW, origH);
+                        else
+                            OverlayCanvas.Children.Clear();
+
+                        RedrawCommittedRoiOutline();
                         UpdateStatus("");
-                        if (autoCapture)
+                        if (shouldClassicAuto || shouldScanAreaAuto)
                             TryTriggerAutoCapture();
                     });
                 }
@@ -521,17 +897,26 @@ public partial class WebcamView : UserControl
     {
         if (_cameraService == null || !_cameraService.IsCapturing) return;
         if (!BtnCapture.IsEnabled) return; // Do not trigger while capture/processing is running
+        if (IsScanAreaMode())
+        {
+            lock (_roiLock)
+            {
+                if (!_hasRoi) return;
+            }
+        }
 
         var multiPage = MultiPageCheck?.IsChecked == true;
         if (!multiPage && _pages.Count >= 1)
         {
-            UpdateStatus("Auto: single-page captured. Press Finish to continue.");
+            var prefix = IsScanAreaAutoCaptureEnabled() ? "Scan Area" : "Auto";
+            UpdateStatus($"{prefix}: single-page captured. Press Finish to continue.");
             _explicitStatusUntil = DateTime.UtcNow.AddMilliseconds(250);
             return;
         }
 
         _isRetaking = false;
         _lastAutoCaptureAt = DateTime.UtcNow;
+        _scanAreaMotionLowSince = DateTime.MinValue;
         lock (_cornerHistory) { _cornerHistory.Clear(); }
         BtnCapture.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
     }
@@ -716,14 +1101,36 @@ public partial class WebcamView : UserControl
             return;
         }
 
+        var scanArea = IsScanAreaMode();
+        if (scanArea)
+        {
+            lock (_roiLock)
+            {
+                if (!_hasRoi)
+                {
+                    UpdateStatus("Scan Area: drag a rectangle on the preview to set the scan region.");
+                    _explicitStatusUntil = DateTime.UtcNow.AddMilliseconds(1200);
+                    return;
+                }
+            }
+        }
+
         var autoCrop = AutoCropCheck?.IsChecked == true;
-        var isAutoMode = IsAutoModeActive();
+        var useBestFrame = UseBestFrameCapture();
         const DocumentEnhanceMode enhanceMode = DocumentEnhanceMode.Color;
-        
-        // Cache UI corners as fallback
-        Point2f[]? uiCorners = null;
-        lock (_detectionLock) { uiCorners = _lastCorners?.ToArray(); }
-        
+
+        double capRnx = 0, capRny = 0, capRnw = 0, capRnh = 0;
+        if (scanArea)
+        {
+            lock (_roiLock)
+            {
+                capRnx = _roiNormX;
+                capRny = _roiNormY;
+                capRnw = _roiNormW;
+                capRnh = _roiNormH;
+            }
+        }
+
         var isRetaking = _isRetaking && _pages.Count > 0;
         var replaceIndex = isRetaking ? _pages.Count - 1 : -1;
         var pageNum = isRetaking ? _pages[replaceIndex].PageNumber : _pages.Count + 1;
@@ -737,8 +1144,8 @@ public partial class WebcamView : UserControl
             Mat? mat = null;
             try
             {
-                // Capture frame (using best-of-N for auto mode)
-                if (isAutoMode)
+                // Capture frame (best-of-N for classic Auto or Scan Area + Area auto)
+                if (useBestFrame)
                 {
                     Mat? bestFrame = null;
                     double bestSharp = -1;
@@ -759,6 +1166,32 @@ public partial class WebcamView : UserControl
                 }
 
                 if (mat == null) { Dispatcher.BeginInvoke(() => { BtnCapture.IsEnabled = true; }); return; }
+
+                if (scanArea)
+                {
+                    try
+                    {
+                        var roiPx = NormalizeRoiToPixelRect(mat.Width, mat.Height, capRnx, capRny, capRnw, capRnh);
+                        var cropped = new Mat(mat, roiPx).Clone();
+                        mat.Dispose();
+                        mat = cropped;
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Warning(ex, "Scan Area ROI crop failed");
+                        mat.Dispose();
+                        Dispatcher.BeginInvoke(() =>
+                        {
+                            MessageBox.Show("Could not crop the selected scan region.", "Scan Area", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            BtnCapture.IsEnabled = true;
+                        });
+                        return;
+                    }
+                }
+
+                Point2f[]? uiCorners = null;
+                if (!scanArea)
+                    lock (_detectionLock) { uiCorners = _lastCorners?.ToArray(); }
 
                 Mat processed;
                 if (autoCrop)
@@ -824,7 +1257,7 @@ public partial class WebcamView : UserControl
                     _isRetaking = false;
                     UpdatePageCount(); UpdateButtonStates();
                     UpdateStatus(isRetaking ? "Page replaced." : "Page captured.");
-                    if (isAutoMode)
+                    if (useBestFrame)
                         TriggerCaptureFlash();
                     BtnCapture.IsEnabled = true;
 
@@ -1008,10 +1441,8 @@ public partial class WebcamView : UserControl
         }
     }
 
-    private bool IsAutoModeActive()
-    {
-        return CaptureModeCombo.SelectedIndex == 1;
-    }
+    private bool ShowsAutoCooldownStatus() =>
+        IsClassicAutoMode() || IsScanAreaAutoCaptureEnabled();
 
     private int GetAutoCooldownMs()
     {
@@ -1030,18 +1461,32 @@ public partial class WebcamView : UserControl
             return;
         }
         if (DateTime.UtcNow < _explicitStatusUntil) return;
-        if (IsAutoModeActive())
+        if (ShowsAutoCooldownStatus())
         {
+            var prefix = IsScanAreaAutoCaptureEnabled() ? "Scan Area" : "Auto";
             var autoCooldownMs = GetAutoCooldownMs();
             var elapsedSinceAutoCaptureMs = (DateTime.UtcNow - _lastAutoCaptureAt).TotalMilliseconds;
             var cooldownRemainingMs = autoCooldownMs - elapsedSinceAutoCaptureMs;
             if (cooldownRemainingMs > 0)
             {
-                StatusLabel.Text = $"Auto: next capture in {cooldownRemainingMs / 1000d:0.0}s";
+                StatusLabel.Text = $"{prefix}: next capture in {cooldownRemainingMs / 1000d:0.0}s";
                 return;
             }
 
-            StatusLabel.Text = "Auto: Ready";
+            StatusLabel.Text = $"{prefix}: Ready";
+            return;
+        }
+        if (IsScanAreaMode())
+        {
+            lock (_roiLock)
+            {
+                if (!_hasRoi)
+                    StatusLabel.Text = "Scan Area: drag to select region";
+                else if (IsScanAreaAutoCaptureEnabled())
+                    StatusLabel.Text = "Scan Area: hold steady for auto-capture";
+                else
+                    StatusLabel.Text = "Scan Area: Ready — press Enter or Space to capture";
+            }
             return;
         }
         lock (_detectionLock)
