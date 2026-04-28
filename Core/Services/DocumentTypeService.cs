@@ -14,6 +14,11 @@ public interface IDocumentTypeService
     string[] GetAllDocumentTypes();
 
     /// <summary>
+    /// Gets active configured document types from Control Panel only.
+    /// </summary>
+    string[] GetConfiguredDocumentTypes();
+
+    /// <summary>
     /// Gets active document types filtered by section and optional branch.
     /// When section is empty, returns all document types.
     /// When section is provided, returns only types explicitly assigned to that section.
@@ -31,6 +36,7 @@ public class DocumentTypeService : IDocumentTypeService
 {
     private readonly IConfigStore _configStore;
     private string[]? _cachedTypes;
+    private string[]? _cachedConfiguredTypes;
     private DateTime? _cachedAt;
     private readonly object _lock = new();
     private readonly TimeSpan _ttl = TimeSpan.FromMinutes(5);
@@ -51,6 +57,21 @@ public class DocumentTypeService : IDocumentTypeService
                 _cachedAt = DateTime.UtcNow;
             }
             return _cachedTypes!;
+        }
+    }
+
+    public string[] GetConfiguredDocumentTypes()
+    {
+        lock (_lock)
+        {
+            if (_cachedConfiguredTypes == null || _cachedAt == null ||
+                DateTime.UtcNow - _cachedAt.Value > _ttl)
+            {
+                RefreshFromDatabaseInternal();
+                _cachedAt = DateTime.UtcNow;
+            }
+
+            return _cachedConfiguredTypes!;
         }
     }
 
@@ -105,5 +126,11 @@ public class DocumentTypeService : IDocumentTypeService
         }
 
         _cachedTypes = allTypes.OrderBy(t => t).ToArray();
+        _cachedConfiguredTypes = dbTypes
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 }

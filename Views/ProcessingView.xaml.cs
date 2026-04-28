@@ -131,7 +131,7 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
             FilterType.Items.Clear();
             FilterType.Items.Add(new ComboBoxItem { Content = ReportLocalizationService.GetString("AllTypes", config) });
             FilterType.Items.Add(new ComboBoxItem { Content = DocumentTypeInfo.UnclassifiedType });
-            foreach (var t in _docTypeService.GetAllDocumentTypes())
+            foreach (var t in _docTypeService.GetConfiguredDocumentTypes())
                 FilterType.Items.Add(new ComboBoxItem { Content = t });
             FilterType.SelectedIndex = 0;
         }

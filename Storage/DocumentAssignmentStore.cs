@@ -94,7 +94,7 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
 
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        a.Id = Convert.ToInt32(idParam.Value);
+        a.Id = ToInt32(idParam.Value);
             return a.Id;
         }, nameof(Insert), 0);
     }
@@ -303,5 +303,14 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
         if (DateTime.TryParse(value, out var parsed))
             return parsed;
         return null;
+    }
+
+    private static int ToInt32(object? value)
+    {
+        if (value is null || value == DBNull.Value)
+            return 0;
+        if (value is global::Oracle.ManagedDataAccess.Types.OracleDecimal oracleDecimal)
+            return oracleDecimal.ToInt32();
+        return Convert.ToInt32(value);
     }
 }

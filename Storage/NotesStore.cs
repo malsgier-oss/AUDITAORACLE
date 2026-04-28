@@ -62,7 +62,7 @@ public class NotesStore : INotesStore
 
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        note.Id = Convert.ToInt32(idParam.Value);
+        note.Id = ToInt32(idParam.Value);
 
         _log.Information("Added note {NoteId} for document {DocumentId}", note.Id, note.DocumentId);
         return note;
@@ -251,7 +251,7 @@ public class NotesStore : INotesStore
         cmd.CommandText = "SELECT COUNT(*) FROM notes WHERE document_id = @docId";
         cmd.Parameters.AddWithValue("@docId", documentId);
 
-        Prep(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
+        Prep(cmd); return ToInt32(cmd.ExecuteScalar());
     }
 
     /// <summary>
@@ -393,5 +393,14 @@ public class NotesStore : INotesStore
         {
             return reader.GetString(ordinal);
         }
+    }
+
+    private static int ToInt32(object? value)
+    {
+        if (value is null || value == DBNull.Value)
+            return 0;
+        if (value is global::Oracle.ManagedDataAccess.Types.OracleDecimal oracleDecimal)
+            return oracleDecimal.ToInt32();
+        return Convert.ToInt32(value);
     }
 }

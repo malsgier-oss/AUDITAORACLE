@@ -62,7 +62,7 @@ public class NotificationStore : INotificationStore
         cmd.CommandText = "SELECT COUNT(*) FROM notifications WHERE user_id = @p_uid AND is_read = 0";
         cmd.Parameters.AddWithValue("@p_uid", userId);
         Prep(cmd);
-        return Convert.ToInt32(cmd.ExecuteScalar());
+        return ToInt32(cmd.ExecuteScalar());
     }
 
     public void MarkRead(int id)
@@ -122,5 +122,14 @@ public class NotificationStore : INotificationStore
         {
             return r.GetString(ord);
         }
+    }
+
+    private static int ToInt32(object? value)
+    {
+        if (value is null || value == DBNull.Value)
+            return 0;
+        if (value is global::Oracle.ManagedDataAccess.Types.OracleDecimal oracleDecimal)
+            return oracleDecimal.ToInt32();
+        return Convert.ToInt32(value);
     }
 }

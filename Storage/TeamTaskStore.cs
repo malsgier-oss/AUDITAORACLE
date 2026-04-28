@@ -93,7 +93,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.CommandText += " RETURNING id INTO @rid";
             Prep(cmd);
             cmd.ExecuteNonQuery();
-            t.Id = Convert.ToInt32(idParam.Value);
+            t.Id = ToInt32(idParam.Value);
             return t.Id;
         }, nameof(Insert), 0);
     }
@@ -399,5 +399,14 @@ public class TeamTaskStore : ITeamTaskStore
         {
             return r.GetString(ord);
         }
+    }
+
+    private static int ToInt32(object? value)
+    {
+        if (value is null || value == DBNull.Value)
+            return 0;
+        if (value is global::Oracle.ManagedDataAccess.Types.OracleDecimal oracleDecimal)
+            return oracleDecimal.ToInt32();
+        return Convert.ToInt32(value);
     }
 }
