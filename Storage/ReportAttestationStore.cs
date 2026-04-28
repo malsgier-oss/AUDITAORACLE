@@ -1,8 +1,10 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Data;
 using WorkAudit.Core.Common;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -24,6 +26,11 @@ public class ReportAttestationStore : IReportAttestationStore
 {
     private readonly ILogger _log = LoggingService.ForContext<ReportAttestationStore>();
     private readonly string _connectionString;
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public ReportAttestationStore(AppConfiguration config)
     {
@@ -63,11 +70,12 @@ public class ReportAttestationStore : IReportAttestationStore
         cmd.Parameters.AddWithValue("@approved_by_user_id", a.ApprovedByUserId ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@approved_by_username", a.ApprovedByUsername ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@notes", a.Notes ?? (object)DBNull.Value);
+        var idParam = new OracleParameter("rid", OracleDbType.Int64, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        cmd.CommandText += " RETURNING id INTO @rid";
+        Prep(cmd);
         cmd.ExecuteNonQuery();
-
-        using var idCmd = conn.CreateCommand();
-        idCmd.CommandText = "SELECT last_insert_rowid()";
-        return Convert.ToInt64(idCmd.ExecuteScalar());
+        return Convert.ToInt64(idParam.Value);
     }
 
     public void Update(ReportAttestation a)
@@ -92,6 +100,7 @@ public class ReportAttestationStore : IReportAttestationStore
         cmd.Parameters.AddWithValue("@approved_by_user_id", a.ApprovedByUserId ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@approved_by_username", a.ApprovedByUsername ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@notes", a.Notes ?? (object)DBNull.Value);
+        Prep(cmd);
         cmd.ExecuteNonQuery();
     }
 
@@ -104,7 +113,7 @@ public class ReportAttestationStore : IReportAttestationStore
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM report_attestations WHERE id = @id";
             cmd.Parameters.AddWithValue("@id", id);
-            using var reader = cmd.ExecuteReader();
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             if (reader.Read())
                 return Result<ReportAttestation>.Success(ReadAttestation(reader));
             return Result<ReportAttestation>.Failure($"Report attestation with ID {id} not found");
@@ -132,9 +141,9 @@ public class ReportAttestationStore : IReportAttestationStore
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT * FROM report_attestations WHERE report_path = @path ORDER BY id DESC LIMIT 1";
+        cmd.CommandText = "SELECT * FROM report_attestations WHERE report_path = @path ORDER BY id DESC FETCH FIRST 1 ROWS ONLY";
         cmd.Parameters.AddWithValue("@path", reportPath);
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         return reader.Read() ? ReadAttestation(reader) : null;
     }
 
@@ -145,20 +154,20 @@ public class ReportAttestationStore : IReportAttestationStore
         var sql = "SELECT * FROM report_attestations WHERE 1=1";
         if (!string.IsNullOrEmpty(reportType)) sql += " AND report_type = @report_type";
         if (!string.IsNullOrEmpty(status)) sql += " AND status = @status";
-        if (from.HasValue) sql += " AND generated_at >= @from";
-        if (to.HasValue) sql += " AND generated_at <= @to";
-        sql += " ORDER BY id DESC LIMIT @limit";
+        if (from.HasValue) sql += " AND generated_at >= @p_from";
+        if (to.HasValue) sql += " AND generated_at <= @p_to";
+        sql += " ORDER BY id DESC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         if (!string.IsNullOrEmpty(reportType)) cmd.Parameters.AddWithValue("@report_type", reportType);
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("@status", status);
-        if (from.HasValue) cmd.Parameters.AddWithValue("@from", from.Value.ToString("O"));
-        if (to.HasValue) cmd.Parameters.AddWithValue("@to", to.Value.ToString("O"));
+        if (from.HasValue) cmd.Parameters.AddWithValue("@p_from", from.Value.ToString("O"));
+        if (to.HasValue) cmd.Parameters.AddWithValue("@p_to", to.Value.ToString("O"));
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var list = new List<ReportAttestation>();
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
             list.Add(ReadAttestation(reader));
         return list;

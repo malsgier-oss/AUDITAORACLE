@@ -1,7 +1,9 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Data;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -18,6 +20,11 @@ public class ReportHistoryStore : IReportHistoryStore
 {
     private readonly ILogger _log = LoggingService.ForContext<ReportHistoryStore>();
     private readonly string _connectionString;
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public ReportHistoryStore(AppConfiguration config)
     {
@@ -50,11 +57,12 @@ public class ReportHistoryStore : IReportHistoryStore
         cmd.Parameters.AddWithValue("@version", entry.Version ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@parent_report_id", entry.ParentReportId ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@app_version", entry.AppVersion ?? (object)DBNull.Value);
+        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        cmd.CommandText += " RETURNING id INTO @rid";
+        Prep(cmd);
         cmd.ExecuteNonQuery();
-
-        using var idCmd = conn.CreateCommand();
-        idCmd.CommandText = "SELECT last_insert_rowid()";
-        entry.Id = Convert.ToInt32(idCmd.ExecuteScalar());
+        entry.Id = Convert.ToInt32(idParam.Value);
         return entry.Id;
     }
 
@@ -64,17 +72,17 @@ public class ReportHistoryStore : IReportHistoryStore
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         var sql = "SELECT * FROM report_history WHERE 1=1";
-        if (from.HasValue) sql += " AND generated_at >= @from";
-        if (to.HasValue) sql += " AND generated_at <= @to";
-        sql += " ORDER BY generated_at DESC LIMIT @limit";
+        if (from.HasValue) sql += " AND generated_at >= @p_from";
+        if (to.HasValue) sql += " AND generated_at <= @p_to";
+        sql += " ORDER BY generated_at DESC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
-        if (from.HasValue) cmd.Parameters.AddWithValue("@from", from.Value.ToUniversalTime().ToString("O"));
-        if (to.HasValue) cmd.Parameters.AddWithValue("@to", to.Value.ToUniversalTime().ToString("O"));
+        if (from.HasValue) cmd.Parameters.AddWithValue("@p_from", from.Value.ToUniversalTime().ToString("O"));
+        if (to.HasValue) cmd.Parameters.AddWithValue("@p_to", to.Value.ToUniversalTime().ToString("O"));
         cmd.Parameters.AddWithValue("@limit", limit);
 
-        using var r = cmd.ExecuteReader();
+        Prep(cmd); using var r = cmd.ExecuteReader();
         while (r.Read())
             list.Add(ReadRow(r));
         return list;

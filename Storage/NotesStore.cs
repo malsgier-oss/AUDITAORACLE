@@ -1,18 +1,26 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Data;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
 /// <summary>
-/// SQLite-based storage implementation for enhanced notes system.
+/// Oracle-based storage implementation for enhanced notes system.
 /// Provides CRUD operations with performance-optimized batch queries.
 /// </summary>
 public class NotesStore : INotesStore
 {
     private readonly ILogger _log = LoggingService.ForContext<NotesStore>();
     private readonly string _connectionString;
+
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public NotesStore(string dbPath)
     {
@@ -28,7 +36,7 @@ public class NotesStore : INotesStore
         cmd.CommandText = @"
             INSERT INTO notes (uuid, document_id, document_uuid, content, type, severity, category,
                 created_at, created_by, created_by_user_id, status, attachments, tags)
-            VALUES (@uuid, @docId, @docUuid, @content, @type, @severity, @category,
+            VALUES (@uuid, @docId, @docUuid, @content, @p_type, @severity, @category,
                 @createdAt, @createdBy, @createdByUserId, @status, @attachments, @tags)";
 
         note.Uuid = string.IsNullOrEmpty(note.Uuid) ? Guid.NewGuid().ToString() : note.Uuid;
@@ -38,7 +46,7 @@ public class NotesStore : INotesStore
         cmd.Parameters.AddWithValue("@docId", note.DocumentId);
         cmd.Parameters.AddWithValue("@docUuid", note.DocumentUuid);
         cmd.Parameters.AddWithValue("@content", note.Content);
-        cmd.Parameters.AddWithValue("@type", note.Type);
+        cmd.Parameters.AddWithValue("@p_type", note.Type);
         cmd.Parameters.AddWithValue("@severity", note.Severity);
         cmd.Parameters.AddWithValue("@category", note.Category ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@createdAt", note.CreatedAt);
@@ -47,13 +55,13 @@ public class NotesStore : INotesStore
         cmd.Parameters.AddWithValue("@status", note.Status);
         cmd.Parameters.AddWithValue("@attachments", note.Attachments ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@tags", note.Tags ?? (object)DBNull.Value);
+        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        cmd.CommandText += " RETURNING id INTO @rid";
 
+        Prep(cmd);
         cmd.ExecuteNonQuery();
-
-        // Get the last inserted row ID
-        using var idCmd = conn.CreateCommand();
-        idCmd.CommandText = "SELECT last_insert_rowid()";
-        note.Id = Convert.ToInt32(idCmd.ExecuteScalar());
+        note.Id = Convert.ToInt32(idParam.Value);
 
         _log.Information("Added note {NoteId} for document {DocumentId}", note.Id, note.DocumentId);
         return note;
@@ -68,7 +76,7 @@ public class NotesStore : INotesStore
         cmd.CommandText = "SELECT * FROM notes WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         return reader.Read() ? MapNote(reader) : null;
     }
 
@@ -81,7 +89,7 @@ public class NotesStore : INotesStore
         cmd.CommandText = "SELECT * FROM notes WHERE uuid = @uuid";
         cmd.Parameters.AddWithValue("@uuid", uuid);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         return reader.Read() ? MapNote(reader) : null;
     }
 
@@ -95,7 +103,7 @@ public class NotesStore : INotesStore
         cmd.Parameters.AddWithValue("@docId", documentId);
 
         var notes = new List<Note>();
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
             notes.Add(MapNote(reader));
 
@@ -112,7 +120,7 @@ public class NotesStore : INotesStore
         cmd.Parameters.AddWithValue("@docUuid", documentUuid);
 
         var notes = new List<Note>();
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
             notes.Add(MapNote(reader));
 
@@ -125,12 +133,12 @@ public class NotesStore : INotesStore
         conn.Open();
 
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT * FROM notes ORDER BY created_at DESC LIMIT @limit OFFSET @offset";
-        cmd.Parameters.AddWithValue("@limit", limit);
-        cmd.Parameters.AddWithValue("@offset", offset);
+        cmd.CommandText = "SELECT * FROM notes ORDER BY created_at DESC OFFSET @p_offset ROWS FETCH NEXT @p_limit ROWS ONLY";
+        cmd.Parameters.AddWithValue("@p_limit", limit);
+        cmd.Parameters.AddWithValue("@p_offset", offset);
 
         var notes = new List<Note>();
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
             notes.Add(MapNote(reader));
 
@@ -150,30 +158,30 @@ public class NotesStore : INotesStore
         conn.Open();
 
         var where = new List<string>();
-        if (!string.IsNullOrEmpty(type)) where.Add("type = @type");
+        if (!string.IsNullOrEmpty(type)) where.Add("type = @p_type");
         if (!string.IsNullOrEmpty(severity)) where.Add("severity = @severity");
         if (!string.IsNullOrEmpty(status)) where.Add("status = @status");
-        if (fromDate.HasValue) where.Add("created_at >= @fromDate");
-        if (toDate.HasValue) where.Add("created_at <= @toDate");
+        if (fromDate.HasValue) where.Add("created_at >= @p_fromDate");
+        if (toDate.HasValue) where.Add("created_at <= @p_toDate");
         if (!string.IsNullOrEmpty(createdBy)) where.Add("created_by = @createdBy");
 
         var sql = "SELECT * FROM notes" +
             (where.Any() ? " WHERE " + string.Join(" AND ", where) : "") +
-            " ORDER BY created_at DESC LIMIT @limit";
+            " ORDER BY created_at DESC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
 
-        if (!string.IsNullOrEmpty(type)) cmd.Parameters.AddWithValue("@type", type);
+        if (!string.IsNullOrEmpty(type)) cmd.Parameters.AddWithValue("@p_type", type);
         if (!string.IsNullOrEmpty(severity)) cmd.Parameters.AddWithValue("@severity", severity);
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("@status", status);
-        if (fromDate.HasValue) cmd.Parameters.AddWithValue("@fromDate", fromDate.Value.ToString("O"));
-        if (toDate.HasValue) cmd.Parameters.AddWithValue("@toDate", toDate.Value.ToString("O"));
+        if (fromDate.HasValue) cmd.Parameters.AddWithValue("@p_fromDate", fromDate.Value.ToString("O"));
+        if (toDate.HasValue) cmd.Parameters.AddWithValue("@p_toDate", toDate.Value.ToString("O"));
         if (!string.IsNullOrEmpty(createdBy)) cmd.Parameters.AddWithValue("@createdBy", createdBy);
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var notes = new List<Note>();
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
             notes.Add(MapNote(reader));
 
@@ -189,14 +197,14 @@ public class NotesStore : INotesStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            UPDATE notes SET content = @content, type = @type, severity = @severity,
+            UPDATE notes SET content = @content, type = @p_type, severity = @severity,
                 category = @category, updated_at = @updatedAt, updated_by = @updatedBy,
                 status = @status, resolved_at = @resolvedAt, resolved_by = @resolvedBy,
                 resolution_comment = @resolutionComment, attachments = @attachments, tags = @tags
             WHERE id = @id";
 
         cmd.Parameters.AddWithValue("@content", note.Content);
-        cmd.Parameters.AddWithValue("@type", note.Type);
+        cmd.Parameters.AddWithValue("@p_type", note.Type);
         cmd.Parameters.AddWithValue("@severity", note.Severity);
         cmd.Parameters.AddWithValue("@category", note.Category ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@updatedAt", note.UpdatedAt);
@@ -209,7 +217,7 @@ public class NotesStore : INotesStore
         cmd.Parameters.AddWithValue("@tags", note.Tags ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@id", note.Id);
 
-        var rowsAffected = cmd.ExecuteNonQuery();
+        Prep(cmd); var rowsAffected = cmd.ExecuteNonQuery();
         if (rowsAffected > 0)
             _log.Information("Updated note {NoteId}", note.Id);
 
@@ -225,7 +233,7 @@ public class NotesStore : INotesStore
         cmd.CommandText = "DELETE FROM notes WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
 
-        var rowsAffected = cmd.ExecuteNonQuery();
+        Prep(cmd); var rowsAffected = cmd.ExecuteNonQuery();
         if (rowsAffected > 0)
             _log.Information("Deleted note {NoteId}", id);
 
@@ -241,7 +249,7 @@ public class NotesStore : INotesStore
         cmd.CommandText = "SELECT COUNT(*) FROM notes WHERE document_id = @docId";
         cmd.Parameters.AddWithValue("@docId", documentId);
 
-        return Convert.ToInt32(cmd.ExecuteScalar());
+        Prep(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
     /// <summary>
@@ -276,7 +284,7 @@ public class NotesStore : INotesStore
             cmd.Parameters.Add(param);
 
         var counts = new Dictionary<int, int>();
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
             counts[reader.GetInt32(0)] = reader.GetInt32(1);
 
@@ -308,12 +316,12 @@ public class NotesStore : INotesStore
             var inClause = string.Join(",", paramNames);
             using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                $"SELECT * FROM notes WHERE type = @type AND document_id IN ({inClause}) ORDER BY created_at DESC";
-            cmd.Parameters.AddWithValue("@type", NoteType.Issue);
+                $"SELECT * FROM notes WHERE type = @p_type AND document_id IN ({inClause}) ORDER BY created_at DESC";
+            cmd.Parameters.AddWithValue("@p_type", NoteType.Issue);
             foreach (var p in parameters)
                 cmd.Parameters.Add(p);
 
-            using var reader = cmd.ExecuteReader();
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 var note = MapNote(reader);

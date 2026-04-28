@@ -744,26 +744,19 @@ public partial class ControlPanelWindow : Window
 
     private void BrowseDbPath_Click(object sender, RoutedEventArgs e)
     {
-        var currentPath = DbPathBox.Text?.Trim() ?? "";
-        var initialDir = !string.IsNullOrEmpty(currentPath) ? Path.GetDirectoryName(currentPath) : BaseDirBox.Text;
-        var dlg = new SaveFileDialog
-        {
-            Title = "Select database file path",
-            Filter = "Database files (*.db)|*.db|All files (*.*)|*.*",
-            FileName = Path.GetFileName(currentPath) ?? "workaudit.db",
-            InitialDirectory = initialDir ?? ""
-        };
-        if (dlg.ShowDialog() == true && !string.IsNullOrEmpty(dlg.FileName))
-        {
-            DbPathBox.Text = dlg.FileName;
-            _isDirty = true;
-        }
+        MessageBox.Show(
+            "AUDITA now uses Oracle connection strings, not local .db files.\n\n" +
+            "Paste a value such as:\n" +
+            "User Id=workaudit;Password=***;Data Source=//localhost:1521/FREEPDB1",
+            "Oracle Connection",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
     private void SavePathSettings()
     {
         var baseDir = BaseDirBox.Text?.Trim() ?? "";
-        var dbPath = DbPathBox.Text?.Trim() ?? "";
+        var oracleConnectionString = DbPathBox.Text?.Trim() ?? "";
 
         if (!string.IsNullOrEmpty(baseDir))
         {
@@ -771,10 +764,11 @@ public partial class ControlPanelWindow : Window
             Directory.CreateDirectory(baseDir);
         }
 
-        if (!string.IsNullOrEmpty(dbPath))
-            UserSettings.Set("database_path", dbPath);
-        else
-            UserSettings.Set("database_path", ""); // Clear override - will use default (base_dir/workaudit.db) at next startup
+        if (!string.IsNullOrEmpty(oracleConnectionString))
+            UserSettings.Set("oracle_connection_string", oracleConnectionString);
+
+        // Clear legacy database_path setting if present.
+        UserSettings.Set("database_path", "");
     }
 
     #endregion

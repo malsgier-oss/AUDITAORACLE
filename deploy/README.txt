@@ -18,7 +18,7 @@
 
 - Default admin credentials will be displayed on first launch
 - **CRITICAL**: Save the temporary password and change it immediately
-- Configure base directory and database path in Settings
+- Configure base directory and Oracle connection in Settings
 
 ### System Requirements
 
@@ -33,7 +33,7 @@
 Set these environment variables BEFORE first launch to customize defaults:
 
 - WORKAUDIT_BASE_DIR - Base directory for data storage
-- WORKAUDIT_DATABASE_PATH - SQLite database file path
+- WORKAUDIT_ORACLE_CONNECTION - Oracle connection string
 - WORKAUDIT_ADMIN_USERNAME - Default admin username (default: admin)
 - WORKAUDIT_ADMIN_EMAIL - Default admin email
 - WORKAUDIT_ADMIN_BRANCH - Default admin branch

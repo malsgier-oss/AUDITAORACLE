@@ -36,14 +36,14 @@ You can also run from an **elevated** Command Prompt: `msiexec /i "full\path\Aud
 The MSI supports two public properties:
 
 - `WORKAUDIT_BASE_DIR` - folder for imported documents and default app data
-- `WORKAUDIT_DATABASE_PATH` - full path to the SQLite database file
+- `WORKAUDIT_ORACLE_CONNECTION` - Oracle connection string (ODP.NET format)
 
 Interactive install with explicit values:
 
 ```powershell
 msiexec /i ".\installer\bin\Release\Audita.msi" `
   WORKAUDIT_BASE_DIR="D:\WorkAuditData\Documents" `
-  WORKAUDIT_DATABASE_PATH="D:\WorkAuditData\workaudit.db"
+  WORKAUDIT_ORACLE_CONNECTION="User Id=workaudit;Password=change-me;Data Source=//localhost:1521/FREEPDB1"
 ```
 
 Silent install (no UI) with logging:
@@ -51,10 +51,10 @@ Silent install (no UI) with logging:
 ```powershell
 msiexec /i ".\installer\bin\Release\Audita.msi" /qn /l*v ".\workaudit-install.log" `
   WORKAUDIT_BASE_DIR="D:\WorkAuditData\Documents" `
-  WORKAUDIT_DATABASE_PATH="D:\WorkAuditData\workaudit.db"
+  WORKAUDIT_ORACLE_CONNECTION="User Id=workaudit;Password=change-me;Data Source=//localhost:1521/FREEPDB1"
 ```
 
-These values are written as machine environment variables (`WORKAUDIT_BASE_DIR` and `WORKAUDIT_DATABASE_PATH`) so WorkAudit uses them on first launch.
+These values are written as machine environment variables (`WORKAUDIT_BASE_DIR` and `WORKAUDIT_ORACLE_CONNECTION`) so WorkAudit uses them on first launch.
 
 The installer project **publishes** the app self-contained (`-r win-x64 -p:WorkAuditPortable=true`) into `artifacts\msi-app\`, then harvests that folder into the MSI. To reuse an existing publish without rebuilding:
 

@@ -2,6 +2,7 @@ using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Storage.Oracle;
+using WorkAudit.Storage.Oracle.Migrations;
 
 namespace WorkAudit.Storage;
 
@@ -55,17 +56,39 @@ public class MigrationService : IMigrationService
         {
             _log.Information("Applying Oracle baseline schema v{Version}", OracleBaselineInstaller.BaselineVersion);
             OracleBaselineInstaller.Install(conn);
-            RecordMigration(conn, OracleBaselineInstaller.BaselineVersion, "Oracle baseline schema");
+            EnsureMigrationRecorded(conn, OracleBaselineInstaller.BaselineVersion, "Oracle baseline schema");
             _log.Information("Baseline applied.");
-            return;
         }
 
-        var v = GetCurrentVersion();
-        _log.Information("Current database version: {Version}", v);
-        if (v == 0 && TableExists(conn, "WORKAUDIT_MIGRATIONS"))
+        var currentVersion = GetCurrentVersion(conn);
+        _log.Information("Current database version: {Version}", currentVersion);
+        if (currentVersion == 0 && TableExists(conn, "WORKAUDIT_MIGRATIONS"))
         {
-            RecordMigration(conn, OracleBaselineInstaller.BaselineVersion, "Oracle baseline (existing tables)");
+            EnsureMigrationRecorded(conn, OracleBaselineInstaller.BaselineVersion, "Oracle baseline (existing tables)");
+            currentVersion = GetCurrentVersion(conn);
         }
+
+        ApplyForwardMigrations(conn, currentVersion);
+    }
+
+    private int GetCurrentVersion(OracleConnection conn)
+    {
+        if (!TableExists(conn, "documents"))
+            return 0;
+        if (!TableExists(conn, "workaudit_migrations"))
+            return 0;
+
+        using var cmd = OracleSql.CreateCommand(conn, "SELECT NVL(MAX(version), 0) FROM workaudit_migrations");
+        var o = cmd.ExecuteScalar();
+        return Convert.ToInt32(o);
+    }
+
+    private static bool IsMigrationRecorded(OracleConnection conn, int version)
+    {
+        using var cmd = OracleSql.CreateCommand(conn,
+            "SELECT COUNT(*) FROM workaudit_migrations WHERE version = :v");
+        OracleSql.AddParameter(cmd, "v", version);
+        return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
     }
 
     private static void RecordMigration(OracleConnection conn, int version, string name)
@@ -76,6 +99,26 @@ public class MigrationService : IMigrationService
         OracleSql.AddParameter(cmd, "n", name);
         OracleSql.AddParameter(cmd, "a", DateTime.UtcNow.ToString("O"));
         cmd.ExecuteNonQuery();
+    }
+
+    private static void EnsureMigrationRecorded(OracleConnection conn, int version, string name)
+    {
+        if (!IsMigrationRecorded(conn, version))
+            RecordMigration(conn, version, name);
+    }
+
+    private void ApplyForwardMigrations(OracleConnection conn, int currentVersion)
+    {
+        foreach (var migration in OracleMigrationRegistry.GetOrderedMigrations())
+        {
+            if (migration.Version <= currentVersion || IsMigrationRecorded(conn, migration.Version))
+                continue;
+
+            _log.Information("Applying Oracle migration v{Version}: {Name}", migration.Version, migration.Name);
+            migration.Apply(conn, _log);
+            RecordMigration(conn, migration.Version, migration.Name);
+            _log.Information("Applied Oracle migration v{Version}", migration.Version);
+        }
     }
 
     public List<MigrationInfo> GetMigrationHistory()

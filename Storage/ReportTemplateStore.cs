@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Oracle.ManagedDataAccess.Client;
+using System.Data;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -8,6 +10,11 @@ public class ReportTemplateStore : IReportTemplateStore
 {
     private readonly string _connectionString;
     private readonly JsonSerializerOptions _jsonOptions;
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public ReportTemplateStore(string dbPath)
     {
@@ -32,8 +39,8 @@ public class ReportTemplateStore : IReportTemplateStore
             ) VALUES (
                 @name, @description, @reportType, @createdBy, @createdAt, 
                 @isShared, @fieldsJson, @filtersJson, @sortingJson, @groupingJson
-            );
-            SELECT last_insert_rowid();
+            )
+            RETURNING id INTO @rid
         ";
 
         cmd.Parameters.AddWithValue("@name", template.Name);
@@ -46,8 +53,12 @@ public class ReportTemplateStore : IReportTemplateStore
         cmd.Parameters.AddWithValue("@filtersJson", JsonSerializer.Serialize(template.Filters, _jsonOptions));
         cmd.Parameters.AddWithValue("@sortingJson", JsonSerializer.Serialize(template.Sorting, _jsonOptions));
         cmd.Parameters.AddWithValue("@groupingJson", template.Grouping != null ? JsonSerializer.Serialize(template.Grouping, _jsonOptions) : DBNull.Value);
+        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        Prep(cmd);
 
-        var id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        await cmd.ExecuteNonQueryAsync();
+        var id = Convert.ToInt32(idParam.Value);
         template.Id = id;
         return id;
     }
@@ -65,6 +76,7 @@ public class ReportTemplateStore : IReportTemplateStore
             WHERE id = @id
         ";
         cmd.Parameters.AddWithValue("@id", id);
+        Prep(cmd);
 
         using var reader = await cmd.ExecuteReaderAsync();
         if (await reader.ReadAsync())
@@ -89,6 +101,7 @@ public class ReportTemplateStore : IReportTemplateStore
             ORDER BY created_at DESC
         ";
         cmd.Parameters.AddWithValue("@userId", userId);
+        Prep(cmd);
 
         var templates = new List<CustomReportTemplate>();
         using var reader = await cmd.ExecuteReaderAsync();
@@ -113,6 +126,7 @@ public class ReportTemplateStore : IReportTemplateStore
             WHERE is_shared = 1
             ORDER BY created_at DESC
         ";
+        Prep(cmd);
 
         var templates = new List<CustomReportTemplate>();
         using var reader = await cmd.ExecuteReaderAsync();
@@ -138,6 +152,7 @@ public class ReportTemplateStore : IReportTemplateStore
             ORDER BY created_at DESC
         ";
         cmd.Parameters.AddWithValue("@userId", userId);
+        Prep(cmd);
 
         var templates = new List<CustomReportTemplate>();
         using var reader = await cmd.ExecuteReaderAsync();
@@ -179,6 +194,7 @@ public class ReportTemplateStore : IReportTemplateStore
         cmd.Parameters.AddWithValue("@filtersJson", JsonSerializer.Serialize(template.Filters, _jsonOptions));
         cmd.Parameters.AddWithValue("@sortingJson", JsonSerializer.Serialize(template.Sorting, _jsonOptions));
         cmd.Parameters.AddWithValue("@groupingJson", template.Grouping != null ? JsonSerializer.Serialize(template.Grouping, _jsonOptions) : DBNull.Value);
+        Prep(cmd);
 
         await cmd.ExecuteNonQueryAsync();
     }
@@ -191,6 +207,7 @@ public class ReportTemplateStore : IReportTemplateStore
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "DELETE FROM report_templates WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
+        Prep(cmd);
 
         await cmd.ExecuteNonQueryAsync();
     }

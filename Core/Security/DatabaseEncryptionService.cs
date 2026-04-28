@@ -8,12 +8,12 @@ namespace WorkAudit.Core.Security;
 
 /// <summary>
 /// Database file encryption service using Windows DPAPI and AES-256.
-/// Provides file-level encryption for SQLite database files to protect sensitive data at rest.
-/// Uses machine-specific encryption keys, ensuring the database can only be decrypted on the same machine.
+/// Provides file-level encryption for local backup/data files to protect sensitive data at rest.
+/// Uses machine-specific encryption keys, ensuring data can only be decrypted on the same machine.
 /// </summary>
 public interface IDatabaseEncryptionService
 {
-    /// <summary>Encrypts a SQLite database file. Creates .encrypted version.</summary>
+    /// <summary>Encrypts a local data file. Creates .encrypted version.</summary>
     void EncryptDatabaseFile(string dbPath);
     
     /// <summary>Decrypts an encrypted database file. Restores to .db format.</summary>

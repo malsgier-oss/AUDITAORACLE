@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using Oracle.ManagedDataAccess.Client;
 using WorkAudit.Config;
 using Button = System.Windows.Controls.Button;
 using TextBox = System.Windows.Controls.TextBox;
@@ -15,10 +16,10 @@ public partial class SetupWizardDialog : Window
 {
     private int _step;
     private TextBox? _baseDirBox;
-    private TextBox? _dbPathBox;
+    private TextBox? _oracleConnectionBox;
 
     public string BaseDirectory { get; private set; } = "";
-    public string DatabasePath { get; private set; } = "";
+    public string OracleConnectionString { get; private set; } = "";
 
     public SetupWizardDialog()
     {
@@ -28,10 +29,13 @@ public partial class SetupWizardDialog : Window
             ? envBaseDir.Trim()
             : (UserSettings.Get<string>("base_directory") ?? Defaults.GetDefaultBaseDir());
 
-        var envDbPath = Environment.GetEnvironmentVariable("WORKAUDIT_DATABASE_PATH");
-        DatabasePath = !string.IsNullOrWhiteSpace(envDbPath)
-            ? envDbPath.Trim()
-            : (UserSettings.Get<string>("database_path") ?? Path.Combine(BaseDirectory, "workaudit.db"));
+        var envOracleConnection = Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION")
+            ?? Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONN")
+            ?? Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING")
+            ?? Environment.GetEnvironmentVariable("WORKAUDIT_TEST_ORACLE");
+        OracleConnectionString = !string.IsNullOrWhiteSpace(envOracleConnection)
+            ? envOracleConnection.Trim()
+            : (UserSettings.Get<string>("oracle_connection_string") ?? "");
         ShowStep(0);
     }
 
@@ -40,12 +44,12 @@ public partial class SetupWizardDialog : Window
         _step = step;
         StepFields.Children.Clear();
         _baseDirBox = null;
-        _dbPathBox = null;
+        _oracleConnectionBox = null;
 
         if (step == 0)
         {
             StepTitle.Text = "Welcome to WorkAudit";
-            StepDescription.Text = "This setup helps you configure where WorkAudit stores documents and database data. You can change these locations later in Settings.";
+            StepDescription.Text = "This setup helps you configure where WorkAudit stores documents and how it connects to Oracle. You can change these values later in Settings.";
             NextBtn.Visibility = Visibility.Visible;
             FinishBtn.Visibility = Visibility.Collapsed;
             BackBtn.Visibility = Visibility.Collapsed;
@@ -93,43 +97,20 @@ public partial class SetupWizardDialog : Window
         }
         else if (step == 2)
         {
-            StepTitle.Text = "Database file";
-            StepDescription.Text = "Choose where to store the WorkAudit SQLite database file (.db).";
+            StepTitle.Text = "Oracle connection";
+            StepDescription.Text =
+                "Enter the Oracle connection string used by AUDITA. " +
+                "Example: User Id=workaudit;Password=***;Data Source=//localhost:1521/FREEPDB1";
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            _dbPathBox = new TextBox
+            _oracleConnectionBox = new TextBox
             {
-                Text = DatabasePath,
-                Margin = new Thickness(0, 0, 8, 0),
+                Text = OracleConnectionString,
                 Padding = new Thickness(8, 6, 8, 6),
                 VerticalContentAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(_dbPathBox, 0);
-            var browseBtn = new Button
-            {
-                Content = "Browse...",
-                Padding = new Thickness(12, 6, 12, 6),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-            browseBtn.Click += (s, e) =>
-            {
-                var dlg = new Microsoft.Win32.SaveFileDialog
-                {
-                    Title = "Select database file location",
-                    FileName = Path.GetFileName(_dbPathBox?.Text) ?? "workaudit.db",
-                    DefaultExt = ".db",
-                    Filter = "SQLite Database (*.db)|*.db|All files (*.*)|*.*",
-                    AddExtension = true,
-                    OverwritePrompt = false,
-                    InitialDirectory = ResolveInitialDirectory(_dbPathBox?.Text, BaseDirectory)
-                };
-                if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.FileName))
-                    _dbPathBox!.Text = dlg.FileName;
-            };
-            Grid.SetColumn(browseBtn, 1);
-            grid.Children.Add(_dbPathBox);
-            grid.Children.Add(browseBtn);
+            Grid.SetColumn(_oracleConnectionBox, 0);
+            grid.Children.Add(_oracleConnectionBox);
             StepFields.Children.Add(grid);
             NextBtn.Visibility = Visibility.Collapsed;
             FinishBtn.Visibility = Visibility.Visible;
@@ -154,8 +135,6 @@ public partial class SetupWizardDialog : Window
                 return;
             }
             BaseDirectory = path;
-            if (string.IsNullOrWhiteSpace(DatabasePath) || string.Equals(Path.GetFileName(DatabasePath), "workaudit.db", StringComparison.OrdinalIgnoreCase))
-                DatabasePath = Path.Combine(BaseDirectory, "workaudit.db");
         }
         if (_step < 2)
             ShowStep(_step + 1);
@@ -165,50 +144,39 @@ public partial class SetupWizardDialog : Window
     {
         if (_step == 2)
         {
-            var dbPath = _dbPathBox?.Text?.Trim() ?? "";
-            if (string.IsNullOrEmpty(dbPath))
+            var oracleConnection = _oracleConnectionBox?.Text?.Trim() ?? "";
+            if (string.IsNullOrEmpty(oracleConnection))
             {
-                MessageBox.Show("Please enter a database file path.", "Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Please enter an Oracle connection string.", "Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            DatabasePath = dbPath;
+
+            // Fast client-side validation for malformed connection strings.
+            try
+            {
+                _ = new OracleConnectionStringBuilder(oracleConnection);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Oracle connection string format is invalid:\n\n{ex.Message}",
+                    "Setup",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            OracleConnectionString = oracleConnection;
         }
 
         UserSettings.Set("base_directory", BaseDirectory);
-        UserSettings.Set("database_path", DatabasePath);
+        UserSettings.Set("oracle_connection_string", OracleConnectionString);
         UserSettings.Set("first_run_completed", true);
 
         if (!string.IsNullOrEmpty(BaseDirectory))
             Directory.CreateDirectory(BaseDirectory);
-        if (!string.IsNullOrEmpty(DatabasePath))
-        {
-            var dir = Path.GetDirectoryName(Path.GetFullPath(DatabasePath));
-            if (!string.IsNullOrEmpty(dir))
-                Directory.CreateDirectory(dir);
-        }
 
         DialogResult = true;
         Close();
-    }
-
-    private static string ResolveInitialDirectory(string? selectedFile, string baseDir)
-    {
-        if (!string.IsNullOrWhiteSpace(selectedFile))
-        {
-            try
-            {
-                var full = Path.GetFullPath(selectedFile);
-                var dir = Path.GetDirectoryName(full);
-                if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
-                    return dir;
-            }
-            catch
-            {
-                // fallback below
-            }
-        }
-        if (Directory.Exists(baseDir))
-            return baseDir;
-        return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
     }
 }

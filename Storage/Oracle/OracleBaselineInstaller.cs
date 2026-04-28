@@ -4,7 +4,7 @@ using WorkAudit.Core.Services;
 
 namespace WorkAudit.Storage.Oracle;
 
-/// <summary>Creates schema equivalent to SQLite migration 49 (fresh Oracle installs).</summary>
+/// <summary>Creates Oracle baseline schema at version 49 for fresh installs.</summary>
 internal static class OracleBaselineInstaller
 {
     private static readonly ILogger Log = LoggingService.ForContext(typeof(OracleBaselineInstaller));

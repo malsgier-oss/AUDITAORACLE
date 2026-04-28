@@ -200,8 +200,8 @@ public class DocumentStore : IDocumentStore
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
 
-            // SQLite has a limit on the number of parameters (usually 999)
-            // So we process in batches if needed
+            // Keep IN-clause parameter count bounded for stable Oracle execution plans.
+            // Process in batches when callers provide large ID sets.
             const int batchSize = 500;
             for (int i = 0; i < ids.Count; i += batchSize)
             {
@@ -353,9 +353,9 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         if (!string.IsNullOrEmpty(reviewedBy)) { sql += " AND reviewed_by = @reviewed_by"; pars.Add(new OracleParameter("reviewed_by", reviewedBy)); }
         if (!string.IsNullOrEmpty(createdOrReviewedBy)) { sql += " AND (created_by = @cor OR reviewed_by = @cor)"; pars.Add(new OracleParameter("cor", createdOrReviewedBy)); }
         if (!string.IsNullOrEmpty(engagement)) { sql += " AND engagement = @engagement"; pars.Add(new OracleParameter("engagement", engagement)); }
-        sql += " ORDER BY COALESCE(archived_at, capture_time) ASC, id ASC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY";
-        pars.Add(new OracleParameter("limit", limit));
-        pars.Add(new OracleParameter("offset", offset));
+        sql += " ORDER BY COALESCE(archived_at, capture_time) ASC, id ASC OFFSET @p_offset ROWS FETCH NEXT @p_limit ROWS ONLY";
+        pars.Add(new OracleParameter("p_limit", limit));
+        pars.Add(new OracleParameter("p_offset", offset));
 
         var list = new List<Document>();
         using var conn = new OracleConnection(_connectionString);
@@ -543,8 +543,42 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         if (string.IsNullOrWhiteSpace(query))
             return new List<Document>();
 
-        // Oracle Text (CONTAINS) can be enabled with baseline indexes; use same text search path as list for reliability.
-        return ListDocuments(textSearch: query, branch: string.IsNullOrWhiteSpace(branch) ? null : branch.Trim(), limit: limit);
+        var normalizedBranch = string.IsNullOrWhiteSpace(branch) ? null : branch.Trim();
+        var safeLimit = Math.Clamp(limit, 1, 1000);
+        var containsQuery = BuildContainsQuery(query);
+
+        try
+        {
+            var docs = new List<Document>();
+            using var conn = new OracleConnection(_connectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT *
+                FROM documents
+                WHERE (
+                    CONTAINS(ocr_text, @q, 1) > 0 OR
+                    CONTAINS(snippet, @q, 2) > 0 OR
+                    CONTAINS(notes, @q, 3) > 0 OR
+                    CONTAINS(document_type, @q, 4) > 0
+                )" + (normalizedBranch != null ? " AND branch = @branch" : "") + @"
+                ORDER BY (NVL(SCORE(1), 0) + NVL(SCORE(2), 0) + NVL(SCORE(3), 0) + NVL(SCORE(4), 0)) DESC,
+                         capture_time DESC
+                FETCH FIRST @p_limit ROWS ONLY";
+            cmd.Parameters.AddWithValue("@q", containsQuery);
+            if (normalizedBranch != null) cmd.Parameters.AddWithValue("@branch", normalizedBranch);
+            cmd.Parameters.AddWithValue("@p_limit", safeLimit);
+
+            PrepCmd(cmd); using var r = cmd.ExecuteReader();
+            while (r.Read())
+                docs.Add(ReadDocument(r));
+            return docs;
+        }
+        catch (OracleException ex)
+        {
+            _log.Warning(ex, "Oracle Text query failed; falling back to LIKE full-text search.");
+            return ListDocuments(textSearch: query, branch: normalizedBranch, limit: safeLimit);
+        }
     }
 
     public bool Update(Document doc)
@@ -620,8 +654,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         cmd.Parameters.AddWithValue("ocr", doc.OcrText ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("ocr_lang", doc.OcrLanguage ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("ocr_duration", doc.OcrDurationMs ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("eng", doc.Engagement ?? "");
-        cmd.Parameters.AddWithValue("sec", doc.Section ?? "");
+        cmd.Parameters.AddWithValue("eng", RequiredTextOrFallback(doc.Engagement, "General"));
+        cmd.Parameters.AddWithValue("sec", RequiredTextOrFallback(doc.Section, "Unspecified"));
         cmd.Parameters.AddWithValue("cd", doc.ClearingDirection ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("cs", doc.ClearingStatus ?? (object)DBNull.Value);
 #pragma warning disable CS0618 // Legacy notes column for DB compatibility
@@ -773,8 +807,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             cmd.Parameters.AddWithValue("ocr", doc.OcrText ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("ocr_lang", doc.OcrLanguage ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("ocr_duration", doc.OcrDurationMs ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("eng", doc.Engagement ?? "");
-            cmd.Parameters.AddWithValue("sec", doc.Section ?? "");
+            cmd.Parameters.AddWithValue("eng", RequiredTextOrFallback(doc.Engagement, "General"));
+            cmd.Parameters.AddWithValue("sec", RequiredTextOrFallback(doc.Section, "Unspecified"));
             cmd.Parameters.AddWithValue("cd", doc.ClearingDirection ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("cs", doc.ClearingStatus ?? (object)DBNull.Value);
 #pragma warning disable CS0618
@@ -1143,24 +1177,24 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
 
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @date" + branchFilter;
-            cmd.Parameters.AddWithValue("date", todayStart);
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
+            cmd.Parameters.AddWithValue("p_date", todayStart);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.TodayCount = Convert.ToInt32(cmd.ExecuteScalar());
         }
 
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @date" + branchFilter;
-            cmd.Parameters.AddWithValue("date", weekStart);
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
+            cmd.Parameters.AddWithValue("p_date", weekStart);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.ThisWeekCount = Convert.ToInt32(cmd.ExecuteScalar());
         }
 
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @date" + branchFilter;
-            cmd.Parameters.AddWithValue("date", monthStart);
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
+            cmd.Parameters.AddWithValue("p_date", monthStart);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.ThisMonthCount = Convert.ToInt32(cmd.ExecuteScalar());
         }
@@ -1238,9 +1272,10 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         cmd.Parameters.AddWithValue("sn", doc.Snippet ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("ocr", doc.OcrText ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("ct", doc.CaptureTime);
-        cmd.Parameters.AddWithValue("src", doc.Source ?? "");
-        cmd.Parameters.AddWithValue("eng", doc.Engagement ?? "");
-        cmd.Parameters.AddWithValue("sec", doc.Section ?? "");
+        // Oracle treats empty string as NULL, so NOT NULL text columns need a non-empty fallback.
+        cmd.Parameters.AddWithValue("src", RequiredTextOrFallback(doc.Source, "Unknown"));
+        cmd.Parameters.AddWithValue("eng", RequiredTextOrFallback(doc.Engagement, "General"));
+        cmd.Parameters.AddWithValue("sec", RequiredTextOrFallback(doc.Section, "Unspecified"));
         cmd.Parameters.AddWithValue("cd", doc.ClearingDirection ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("cs", doc.ClearingStatus ?? (object)DBNull.Value);
 #pragma warning disable CS0618 // Legacy notes column for DB compatibility
@@ -1264,6 +1299,20 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         cmd.Parameters.AddWithValue("dup_of", doc.DuplicateOf ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("tags", doc.Tags ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("custom", doc.CustomFields ?? (object)DBNull.Value);
+    }
+
+    private static string RequiredTextOrFallback(string? value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static string BuildContainsQuery(string query)
+    {
+        var normalized = query.Trim();
+        if (normalized.Length == 0)
+            return "\"\"";
+
+        // Keep it simple and safe for Oracle Text parser.
+        normalized = normalized.Replace("\"", "\"\"");
+        return $"\"{normalized}\"";
     }
 
     private static Document ReadDocument(OracleDataReader r)

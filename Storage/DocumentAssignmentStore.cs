@@ -1,8 +1,10 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Data;
 using WorkAudit.Core.Common;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -28,6 +30,12 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
 {
     private readonly ILogger _log = LoggingService.ForContext<DocumentAssignmentStore>();
     private readonly string _connectionString;
+
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     private T ExecuteDbOperation<T>(Func<T> operation, string operationName, T defaultValue = default!)
     {
@@ -79,12 +87,13 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
         cmd.Parameters.AddWithValue("@priority", a.Priority);
         cmd.Parameters.AddWithValue("@status", a.Status);
         cmd.Parameters.AddWithValue("@notes", a.Notes ?? (object)DBNull.Value);
+        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        cmd.CommandText += " RETURNING id INTO @rid";
 
+        Prep(cmd);
         cmd.ExecuteNonQuery();
-
-        using var idCmd = conn.CreateCommand();
-        idCmd.CommandText = "SELECT last_insert_rowid()";
-            a.Id = Convert.ToInt32(idCmd.ExecuteScalar());
+        a.Id = Convert.ToInt32(idParam.Value);
             return a.Id;
         }, nameof(Insert), 0);
     }
@@ -98,7 +107,7 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM document_assignments WHERE id = @id";
             cmd.Parameters.AddWithValue("@id", id);
-            using var r = cmd.ExecuteReader();
+            Prep(cmd); using var r = cmd.ExecuteReader();
             if (r.Read())
                 return Result<DocumentAssignment>.Success(ReadRow(r));
             return Result<DocumentAssignment>.Failure($"Assignment with ID {id} not found");
@@ -130,7 +139,7 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM document_assignments WHERE uuid = @uuid";
             cmd.Parameters.AddWithValue("@uuid", uuid);
-            using var r = cmd.ExecuteReader();
+            Prep(cmd); using var r = cmd.ExecuteReader();
             return r.Read() ? ReadRow(r) : null;
         }, nameof(GetByUuid), null);
     }
@@ -142,21 +151,21 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             var list = new List<DocumentAssignment>();
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
-        var sql = "SELECT * FROM document_assignments WHERE assigned_to_user_id = @uid AND status != @cancelled";
+        var sql = "SELECT * FROM document_assignments WHERE assigned_to_user_id = @p_uid AND status != @cancelled";
         if (!string.IsNullOrEmpty(status)) sql += " AND status = @status";
         if (overdueOnly) sql += " AND due_date IS NOT NULL AND due_date < @now AND status IN (@pending, @inprogress)";
-        sql += " ORDER BY CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC LIMIT @limit";
+        sql += " ORDER BY CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
-        cmd.Parameters.AddWithValue("@uid", userId);
+        cmd.Parameters.AddWithValue("@p_uid", userId);
         cmd.Parameters.AddWithValue("@cancelled", AssignmentStatus.Cancelled);
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("@status", status);
         if (overdueOnly) cmd.Parameters.AddWithValue("@now", DateTime.UtcNow.ToString("yyyy-MM-dd"));
         if (overdueOnly) { cmd.Parameters.AddWithValue("@pending", AssignmentStatus.Pending); cmd.Parameters.AddWithValue("@inprogress", AssignmentStatus.InProgress); }
         cmd.Parameters.AddWithValue("@limit", limit);
 
-        using var r = cmd.ExecuteReader();
+        Prep(cmd); using var r = cmd.ExecuteReader();
         while (r.Read()) list.Add(ReadRow(r));
             return list;
         }, nameof(ListByUser), new List<DocumentAssignment>());
@@ -173,7 +182,7 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             cmd.CommandText = "SELECT * FROM document_assignments WHERE document_id = @doc_id AND status != @cancelled ORDER BY assigned_at DESC";
             cmd.Parameters.AddWithValue("@doc_id", documentId);
             cmd.Parameters.AddWithValue("@cancelled", AssignmentStatus.Cancelled);
-            using var r = cmd.ExecuteReader();
+            Prep(cmd); using var r = cmd.ExecuteReader();
             while (r.Read()) list.Add(ReadRow(r));
             return list;
         }, nameof(ListByDocument), new List<DocumentAssignment>());
@@ -189,7 +198,7 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
         var sql = "SELECT * FROM document_assignments WHERE 1=1";
         if (!string.IsNullOrEmpty(assignedToUsername)) sql += " AND assigned_to_username = @username";
         if (!string.IsNullOrEmpty(status)) sql += " AND status = @status";
-        sql += " ORDER BY assigned_at DESC LIMIT @limit";
+        sql += " ORDER BY assigned_at DESC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
@@ -197,7 +206,7 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("@status", status);
         cmd.Parameters.AddWithValue("@limit", limit);
 
-        using var r = cmd.ExecuteReader();
+        Prep(cmd); using var r = cmd.ExecuteReader();
         while (r.Read()) list.Add(ReadRow(r));
             return list;
         }, nameof(ListAll), new List<DocumentAssignment>());
@@ -221,6 +230,7 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             if (startedAt != null) cmd.Parameters.AddWithValue("@started_at", startedAt);
             if (completedAt != null) cmd.Parameters.AddWithValue("@completed_at", completedAt);
             if (completionNotes != null) cmd.Parameters.AddWithValue("@completion_notes", completionNotes);
+            Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(UpdateStatus), false);
     }
@@ -232,10 +242,11 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "UPDATE document_assignments SET assigned_to_user_id = @uid, assigned_to_username = @username WHERE id = @id";
+            cmd.CommandText = "UPDATE document_assignments SET assigned_to_user_id = @p_uid, assigned_to_username = @username WHERE id = @id";
             cmd.Parameters.AddWithValue("@id", id);
-            cmd.Parameters.AddWithValue("@uid", newUserId);
+            cmd.Parameters.AddWithValue("@p_uid", newUserId);
             cmd.Parameters.AddWithValue("@username", newUsername);
+            Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(UpdateAssignedTo), false);
     }

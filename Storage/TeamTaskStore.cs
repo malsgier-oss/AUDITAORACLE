@@ -1,7 +1,9 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Data;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -28,6 +30,11 @@ public class TeamTaskStore : ITeamTaskStore
 {
     private readonly ILogger _log = LoggingService.ForContext<TeamTaskStore>();
     private readonly string _connectionString;
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     private T ExecuteDbOperation<T>(Func<T> operation, string operationName, T defaultValue = default!)
     {
@@ -81,11 +88,12 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@active", t.IsActive ? 1 : 0);
             cmd.Parameters.AddWithValue("@created", t.CreatedAt);
             cmd.Parameters.AddWithValue("@updated", t.UpdatedAt);
+            var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+            cmd.Parameters.Add(idParam);
+            cmd.CommandText += " RETURNING id INTO @rid";
+            Prep(cmd);
             cmd.ExecuteNonQuery();
-
-            using var idCmd = conn.CreateCommand();
-            idCmd.CommandText = "SELECT last_insert_rowid()";
-            t.Id = Convert.ToInt32(idCmd.ExecuteScalar());
+            t.Id = Convert.ToInt32(idParam.Value);
             return t.Id;
         }, nameof(Insert), 0);
     }
@@ -112,6 +120,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@end", t.EndDate ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@active", t.IsActive ? 1 : 0);
             cmd.Parameters.AddWithValue("@updated", t.UpdatedAt);
+            Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(Update), false);
     }
@@ -126,17 +135,20 @@ public class TeamTaskStore : ITeamTaskStore
             {
                 delC.CommandText = "DELETE FROM team_task_completions WHERE team_task_id = @id";
                 delC.Parameters.AddWithValue("@id", id);
+                Prep(delC);
                 delC.ExecuteNonQuery();
             }
             using (var delN = conn.CreateCommand())
             {
                 delN.CommandText = "DELETE FROM team_task_notes WHERE team_task_id = @id";
                 delN.Parameters.AddWithValue("@id", id);
+                Prep(delN);
                 delN.ExecuteNonQuery();
             }
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM team_tasks WHERE id = @id";
             cmd.Parameters.AddWithValue("@id", id);
+            Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(Delete), false);
     }
@@ -150,7 +162,7 @@ public class TeamTaskStore : ITeamTaskStore
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM team_tasks WHERE id = @id";
             cmd.Parameters.AddWithValue("@id", id);
-            using var r = cmd.ExecuteReader();
+            Prep(cmd); using var r = cmd.ExecuteReader();
             return r.Read() ? ReadTask(r) : null;
         }, nameof(Get), null);
     }
@@ -165,14 +177,14 @@ public class TeamTaskStore : ITeamTaskStore
             var sql = "SELECT * FROM team_tasks WHERE 1=1";
             if (assignedToUserId.HasValue)
             {
-                sql += " AND assigned_to_user_id = @uid";
-                cmd.Parameters.AddWithValue("@uid", assignedToUserId.Value);
+                sql += " AND assigned_to_user_id = @p_uid";
+                cmd.Parameters.AddWithValue("@p_uid", assignedToUserId.Value);
             }
-            sql += " ORDER BY updated_at DESC LIMIT @lim";
+            sql += " ORDER BY updated_at DESC FETCH FIRST @lim ROWS ONLY";
             cmd.Parameters.AddWithValue("@lim", limit);
             cmd.CommandText = sql;
             var list = new List<TeamTask>();
-            using var r = cmd.ExecuteReader();
+            Prep(cmd); using var r = cmd.ExecuteReader();
             while (r.Read())
                 list.Add(ReadTask(r));
             return list;
@@ -188,14 +200,14 @@ public class TeamTaskStore : ITeamTaskStore
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT * FROM team_tasks
-                WHERE assigned_to_user_id = @uid AND is_active = 1
+                WHERE assigned_to_user_id = @p_uid AND is_active = 1
                   AND start_date <= @today
                   AND (end_date IS NULL OR end_date >= @today)
                 ORDER BY title";
-            cmd.Parameters.AddWithValue("@uid", userId);
+            cmd.Parameters.AddWithValue("@p_uid", userId);
             cmd.Parameters.AddWithValue("@today", todayYyyyMmDd);
             var list = new List<TeamTask>();
-            using var r = cmd.ExecuteReader();
+            Prep(cmd); using var r = cmd.ExecuteReader();
             while (r.Read())
                 list.Add(ReadTask(r));
             return list;
@@ -209,9 +221,10 @@ public class TeamTaskStore : ITeamTaskStore
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT 1 FROM team_task_completions WHERE team_task_id = @tid AND period_key = @pk LIMIT 1";
+            cmd.CommandText = "SELECT 1 FROM team_task_completions WHERE team_task_id = @tid AND period_key = @pk FETCH FIRST 1 ROWS ONLY";
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
+            Prep(cmd);
             return cmd.ExecuteScalar() != null;
         }, nameof(HasCompletion), false);
     }
@@ -229,6 +242,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
             cmd.Parameters.AddWithValue("@at", now);
+            Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(InsertCompletion), false);
     }
@@ -243,6 +257,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.CommandText = "DELETE FROM team_task_completions WHERE team_task_id = @tid AND period_key = @pk";
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
+            Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(DeleteCompletion), false);
     }
@@ -256,6 +271,7 @@ public class TeamTaskStore : ITeamTaskStore
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM team_task_completions WHERE team_task_id = @tid";
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
+            Prep(cmd);
             cmd.ExecuteNonQuery();
             return true;
         }, nameof(DeleteCompletionsForTask), false);
@@ -269,10 +285,11 @@ public class TeamTaskStore : ITeamTaskStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                "SELECT note_text FROM team_task_notes WHERE team_task_id = @tid AND user_id = @uid AND period_key = @pk";
+                "SELECT note_text FROM team_task_notes WHERE team_task_id = @tid AND user_id = @p_uid AND period_key = @pk";
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
-            cmd.Parameters.AddWithValue("@uid", userId);
+            cmd.Parameters.AddWithValue("@p_uid", userId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
+            Prep(cmd);
             var o = cmd.ExecuteScalar();
             return o == null || o is DBNull ? null : Convert.ToString(o);
         }, nameof(GetNote), null);
@@ -286,10 +303,11 @@ public class TeamTaskStore : ITeamTaskStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                "SELECT 1 FROM team_task_notes WHERE team_task_id = @tid AND user_id = @uid AND period_key = @pk LIMIT 1";
+                "SELECT 1 FROM team_task_notes WHERE team_task_id = @tid AND user_id = @p_uid AND period_key = @pk FETCH FIRST 1 ROWS ONLY";
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
-            cmd.Parameters.AddWithValue("@uid", userId);
+            cmd.Parameters.AddWithValue("@p_uid", userId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
+            Prep(cmd);
             return cmd.ExecuteScalar() != null;
         }, nameof(HasNote), false);
     }
@@ -304,10 +322,11 @@ public class TeamTaskStore : ITeamTaskStore
             {
                 using var del = conn.CreateCommand();
                 del.CommandText =
-                    "DELETE FROM team_task_notes WHERE team_task_id = @tid AND user_id = @uid AND period_key = @pk";
+                    "DELETE FROM team_task_notes WHERE team_task_id = @tid AND user_id = @p_uid AND period_key = @pk";
                 del.Parameters.AddWithValue("@tid", teamTaskId);
-                del.Parameters.AddWithValue("@uid", userId);
+                del.Parameters.AddWithValue("@p_uid", userId);
                 del.Parameters.AddWithValue("@pk", periodKey);
+                Prep(del);
                 del.ExecuteNonQuery();
                 return true;
             }
@@ -318,16 +337,20 @@ public class TeamTaskStore : ITeamTaskStore
             var now = DateTime.UtcNow.ToString("O");
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                INSERT INTO team_task_notes (team_task_id, user_id, period_key, note_text, updated_at)
-                VALUES (@tid, @uid, @pk, @txt, @ua)
-                ON CONFLICT(team_task_id, user_id, period_key) DO UPDATE SET
-                    note_text = excluded.note_text,
-                    updated_at = excluded.updated_at";
+                MERGE INTO team_task_notes t
+                USING (SELECT @tid AS team_task_id, @p_uid AS user_id, @pk AS period_key, @txt AS note_text, @ua AS updated_at FROM dual) v
+                ON (t.team_task_id = v.team_task_id AND t.user_id = v.user_id AND t.period_key = v.period_key)
+                WHEN MATCHED THEN
+                  UPDATE SET t.note_text = v.note_text, t.updated_at = v.updated_at
+                WHEN NOT MATCHED THEN
+                  INSERT (team_task_id, user_id, period_key, note_text, updated_at)
+                  VALUES (v.team_task_id, v.user_id, v.period_key, v.note_text, v.updated_at)";
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
-            cmd.Parameters.AddWithValue("@uid", userId);
+            cmd.Parameters.AddWithValue("@p_uid", userId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
             cmd.Parameters.AddWithValue("@txt", trimmed);
             cmd.Parameters.AddWithValue("@ua", now);
+            Prep(cmd);
             cmd.ExecuteNonQuery();
             return true;
         }, nameof(SaveNote), false);

@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using System.Data;
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -80,6 +82,12 @@ public class UserStore : IUserStore
         _connectionString = config.OracleConnectionString;
     }
 
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
+
     public long Insert(User user)
     {
         return ExecuteDbOperation(() =>
@@ -94,28 +102,27 @@ public class UserStore : IUserStore
             INSERT INTO users (uuid, username, display_name, email, password_hash, role, branch, department,
                 is_active, is_locked, must_change_password, failed_login_attempts, created_at, created_by)
             VALUES (@uuid, @username, @display_name, @email, @password_hash, @role, @branch, @department,
-                @is_active, @is_locked, @must_change_password, @failed_login_attempts, @created_at, @created_by)";
+                @is_active, @is_locked, @must_change_password, @failed_login_attempts, @created_at, @created_by)
+            RETURNING id INTO :rid";
 
-        cmd.Parameters.AddWithValue("@uuid", user.Uuid);
-        cmd.Parameters.AddWithValue("@username", user.Username);
-        cmd.Parameters.AddWithValue("@display_name", user.DisplayName);
-        cmd.Parameters.AddWithValue("@email", user.Email ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@password_hash", user.PasswordHash);
-        cmd.Parameters.AddWithValue("@role", user.Role);
-        cmd.Parameters.AddWithValue("@branch", user.Branch ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@department", user.Department ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@is_active", user.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("@is_locked", user.IsLocked ? 1 : 0);
-        cmd.Parameters.AddWithValue("@must_change_password", user.MustChangePassword ? 1 : 0);
-        cmd.Parameters.AddWithValue("@failed_login_attempts", user.FailedLoginAttempts);
-        cmd.Parameters.AddWithValue("@created_at", user.CreatedAt);
-        cmd.Parameters.AddWithValue("@created_by", user.CreatedBy ?? (object)DBNull.Value);
-
-        cmd.ExecuteNonQuery();
-
-        using var idCmd = conn.CreateCommand();
-        idCmd.CommandText = "SELECT last_insert_rowid()";
-        var id = Convert.ToInt64(idCmd.ExecuteScalar());
+        cmd.Parameters.AddWithValue("uuid", user.Uuid);
+        cmd.Parameters.AddWithValue("username", user.Username);
+        cmd.Parameters.AddWithValue("display_name", user.DisplayName);
+        cmd.Parameters.AddWithValue("email", user.Email ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("password_hash", user.PasswordHash);
+        cmd.Parameters.AddWithValue("role", user.Role);
+        cmd.Parameters.AddWithValue("branch", user.Branch ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("department", user.Department ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("is_active", user.IsActive ? 1 : 0);
+        cmd.Parameters.AddWithValue("is_locked", user.IsLocked ? 1 : 0);
+        cmd.Parameters.AddWithValue("must_change_password", user.MustChangePassword ? 1 : 0);
+        cmd.Parameters.AddWithValue("failed_login_attempts", user.FailedLoginAttempts);
+        cmd.Parameters.AddWithValue("created_at", user.CreatedAt);
+        cmd.Parameters.AddWithValue("created_by", user.CreatedBy ?? (object)DBNull.Value);
+        var rid = new OracleParameter("rid", OracleDbType.Int64) { Direction = ParameterDirection.Output };
+        cmd.Parameters.Add(rid);
+        Prep(cmd); cmd.ExecuteNonQuery();
+        var id = Convert.ToInt64(rid.Value?.ToString() ?? "0");
         user.Id = (int)id;
 
         _log.Information("Created user: {Username} ({Role})", user.Username, user.Role);
@@ -143,14 +150,14 @@ public class UserStore : IUserStore
                 updated_by = @updated_by
                 {mustChangeSql}
             WHERE id = @id";
-        cmd.Parameters.AddWithValue("@id", id);
-        cmd.Parameters.AddWithValue("@password_hash", passwordHash);
-        cmd.Parameters.AddWithValue("@password_changed_at", DateTime.UtcNow.ToString("O"));
-        cmd.Parameters.AddWithValue("@updated_at", DateTime.UtcNow.ToString("O"));
-        cmd.Parameters.AddWithValue("@updated_by", updatedBy ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("password_hash", passwordHash);
+        cmd.Parameters.AddWithValue("password_changed_at", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("updated_by", updatedBy ?? (object)DBNull.Value);
         if (requirePasswordChangeOnNextLogin.HasValue)
-            cmd.Parameters.AddWithValue("@must_change_password", requirePasswordChangeOnNextLogin.Value ? 1 : 0);
-            return cmd.ExecuteNonQuery() > 0;
+            cmd.Parameters.AddWithValue("must_change_password", requirePasswordChangeOnNextLogin.Value ? 1 : 0);
+            Prep(cmd); return cmd.ExecuteNonQuery() > 0;
         }, nameof(UpdatePassword), false);
     }
 
@@ -162,9 +169,8 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM users WHERE id = @id";
-            cmd.Parameters.AddWithValue("@id", id);
-
-            using var reader = cmd.ExecuteReader();
+            cmd.Parameters.AddWithValue("id", id);
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             return reader.Read() ? ReadUser(reader) : null;
         }, nameof(Get), null);
     }
@@ -177,9 +183,8 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM users WHERE uuid = @uuid";
-            cmd.Parameters.AddWithValue("@uuid", uuid);
-
-            using var reader = cmd.ExecuteReader();
+            cmd.Parameters.AddWithValue("uuid", uuid);
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             return reader.Read() ? ReadUser(reader) : null;
         }, nameof(GetByUuid), null);
     }
@@ -191,10 +196,9 @@ public class UserStore : IUserStore
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM users WHERE username = @username COLLATE NOCASE";
-            cmd.Parameters.AddWithValue("@username", username);
-
-            using var reader = cmd.ExecuteReader();
+            cmd.CommandText = "SELECT * FROM users WHERE LOWER(username) = LOWER(@username)";
+            cmd.Parameters.AddWithValue("username", username);
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             return reader.Read() ? ReadUser(reader) : null;
         }, nameof(GetByUsername), null);
     }
@@ -210,17 +214,17 @@ public class UserStore : IUserStore
         if (!string.IsNullOrEmpty(role))
         {
             sql += " AND role = @role";
-            parameters.Add(new OracleParameter("@role", role));
+            parameters.Add(new OracleParameter("role", role));
         }
 
         if (isActive.HasValue)
         {
             sql += " AND is_active = @is_active";
-            parameters.Add(new OracleParameter("@is_active", isActive.Value ? 1 : 0));
+            parameters.Add(new OracleParameter("is_active", isActive.Value ? 1 : 0));
         }
 
-        sql += " ORDER BY username LIMIT @limit";
-        parameters.Add(new OracleParameter("@limit", limit));
+        sql += " ORDER BY username FETCH FIRST @limit ROWS ONLY";
+        parameters.Add(new OracleParameter("limit", limit));
 
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
@@ -228,7 +232,7 @@ public class UserStore : IUserStore
         cmd.CommandText = sql;
         foreach (var p in parameters) cmd.Parameters.Add(p);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             users.Add(ReadUser(reader));
@@ -265,23 +269,22 @@ public class UserStore : IUserStore
                 updated_by = @updated_by
             WHERE id = @id";
 
-        cmd.Parameters.AddWithValue("@id", user.Id);
-        cmd.Parameters.AddWithValue("@display_name", user.DisplayName);
-        cmd.Parameters.AddWithValue("@email", user.Email ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@role", user.Role);
-        cmd.Parameters.AddWithValue("@branch", user.Branch ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@department", user.Department ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@is_active", user.IsActive ? 1 : 0);
-        cmd.Parameters.AddWithValue("@is_locked", user.IsLocked ? 1 : 0);
-        cmd.Parameters.AddWithValue("@must_change_password", user.MustChangePassword ? 1 : 0);
-        cmd.Parameters.AddWithValue("@failed_login_attempts", user.FailedLoginAttempts);
-        cmd.Parameters.AddWithValue("@last_login_at", user.LastLoginAt ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@last_login_ip", user.LastLoginIp ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@password_changed_at", user.PasswordChangedAt ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@updated_at", user.UpdatedAt);
-        cmd.Parameters.AddWithValue("@updated_by", user.UpdatedBy ?? (object)DBNull.Value);
-
-            return cmd.ExecuteNonQuery() > 0;
+        cmd.Parameters.AddWithValue("id", user.Id);
+        cmd.Parameters.AddWithValue("display_name", user.DisplayName);
+        cmd.Parameters.AddWithValue("email", user.Email ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("role", user.Role);
+        cmd.Parameters.AddWithValue("branch", user.Branch ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("department", user.Department ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("is_active", user.IsActive ? 1 : 0);
+        cmd.Parameters.AddWithValue("is_locked", user.IsLocked ? 1 : 0);
+        cmd.Parameters.AddWithValue("must_change_password", user.MustChangePassword ? 1 : 0);
+        cmd.Parameters.AddWithValue("failed_login_attempts", user.FailedLoginAttempts);
+        cmd.Parameters.AddWithValue("last_login_at", user.LastLoginAt ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("last_login_ip", user.LastLoginIp ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("password_changed_at", user.PasswordChangedAt ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("updated_at", user.UpdatedAt);
+        cmd.Parameters.AddWithValue("updated_by", user.UpdatedBy ?? (object)DBNull.Value);
+            Prep(cmd); return cmd.ExecuteNonQuery() > 0;
         }, nameof(Update), false);
     }
 
@@ -297,9 +300,8 @@ public class UserStore : IUserStore
 
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM users WHERE id = @id";
-            cmd.Parameters.AddWithValue("@id", id);
-
-            return cmd.ExecuteNonQuery() > 0;
+            cmd.Parameters.AddWithValue("id", id);
+            Prep(cmd); return cmd.ExecuteNonQuery() > 0;
         }, nameof(Delete), false);
     }
 
@@ -311,7 +313,7 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM users";
-            return Convert.ToInt32(cmd.ExecuteScalar());
+            Prep(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
         }, nameof(Count), 0);
     }
 
@@ -324,9 +326,9 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                "SELECT id, code_hash FROM user_emergency_codes WHERE user_id = @uid AND used_at IS NULL ORDER BY id";
-            cmd.Parameters.AddWithValue("@uid", userId);
-            using var reader = cmd.ExecuteReader();
+                "SELECT id, code_hash FROM user_emergency_codes WHERE user_id = @p_uid AND used_at IS NULL ORDER BY id";
+            cmd.Parameters.AddWithValue("p_uid", userId);
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             while (reader.Read())
                 list.Add((reader.GetInt32(0), reader.GetString(1)));
             return list;
@@ -343,11 +345,11 @@ public class UserStore : IUserStore
             cmd.CommandText = @"
                 UPDATE user_emergency_codes
                 SET used_at = @used
-                WHERE id = @id AND user_id = @uid AND used_at IS NULL";
-            cmd.Parameters.AddWithValue("@used", DateTime.UtcNow.ToString("O"));
-            cmd.Parameters.AddWithValue("@id", codeId);
-            cmd.Parameters.AddWithValue("@uid", userId);
-            return cmd.ExecuteNonQuery() > 0;
+                WHERE id = @id AND user_id = @p_uid AND used_at IS NULL";
+            cmd.Parameters.AddWithValue("used", DateTime.UtcNow.ToString("O"));
+            cmd.Parameters.AddWithValue("id", codeId);
+            cmd.Parameters.AddWithValue("p_uid", userId);
+            Prep(cmd); return cmd.ExecuteNonQuery() > 0;
         }, nameof(MarkEmergencyCodeUsed), false);
     }
 
@@ -364,9 +366,9 @@ public class UserStore : IUserStore
             using (var del = conn.CreateCommand())
             {
                 del.Transaction = tx;
-                del.CommandText = "DELETE FROM user_emergency_codes WHERE user_id = @uid";
-                del.Parameters.AddWithValue("@uid", userId);
-                del.ExecuteNonQuery();
+                del.CommandText = "DELETE FROM user_emergency_codes WHERE user_id = @p_uid";
+                del.Parameters.AddWithValue("p_uid", userId);
+                Prep(del); del.ExecuteNonQuery();
             }
 
             var createdAt = DateTime.UtcNow.ToString("O");
@@ -375,11 +377,11 @@ public class UserStore : IUserStore
                 using var ins = conn.CreateCommand();
                 ins.Transaction = tx;
                 ins.CommandText =
-                    "INSERT INTO user_emergency_codes (user_id, code_hash, created_at, used_at) VALUES (@uid, @h, @c, NULL)";
-                ins.Parameters.AddWithValue("@uid", userId);
-                ins.Parameters.AddWithValue("@h", hash);
-                ins.Parameters.AddWithValue("@c", createdAt);
-                ins.ExecuteNonQuery();
+                    "INSERT INTO user_emergency_codes (user_id, code_hash, created_at, used_at) VALUES (@p_uid, @h, @c, NULL)";
+                ins.Parameters.AddWithValue("p_uid", userId);
+                ins.Parameters.AddWithValue("h", hash);
+                ins.Parameters.AddWithValue("c", createdAt);
+                Prep(ins); ins.ExecuteNonQuery();
             }
 
             tx.Commit();
@@ -397,17 +399,16 @@ public class UserStore : IUserStore
             INSERT INTO sessions (token, user_id, username, user_role, created_at, expires_at, ip_address, user_agent, is_active)
             VALUES (@token, @user_id, @username, @user_role, @created_at, @expires_at, @ip_address, @user_agent, @is_active)";
 
-        cmd.Parameters.AddWithValue("@token", session.Token);
-        cmd.Parameters.AddWithValue("@user_id", session.UserId);
-        cmd.Parameters.AddWithValue("@username", session.Username);
-        cmd.Parameters.AddWithValue("@user_role", session.UserRole);
-        cmd.Parameters.AddWithValue("@created_at", session.CreatedAt);
-        cmd.Parameters.AddWithValue("@expires_at", session.ExpiresAt);
-        cmd.Parameters.AddWithValue("@ip_address", session.IpAddress ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@user_agent", session.UserAgent ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@is_active", session.IsActive ? 1 : 0);
-
-            cmd.ExecuteNonQuery();
+        cmd.Parameters.AddWithValue("token", session.Token);
+        cmd.Parameters.AddWithValue("user_id", session.UserId);
+        cmd.Parameters.AddWithValue("username", session.Username);
+        cmd.Parameters.AddWithValue("user_role", session.UserRole);
+        cmd.Parameters.AddWithValue("created_at", session.CreatedAt);
+        cmd.Parameters.AddWithValue("expires_at", session.ExpiresAt);
+        cmd.Parameters.AddWithValue("ip_address", session.IpAddress ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("user_agent", session.UserAgent ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("is_active", session.IsActive ? 1 : 0);
+            Prep(cmd); cmd.ExecuteNonQuery();
         }, nameof(CreateSession));
     }
 
@@ -419,9 +420,8 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM sessions WHERE token = @token AND is_active = 1";
-            cmd.Parameters.AddWithValue("@token", token);
-
-            using var reader = cmd.ExecuteReader();
+            cmd.Parameters.AddWithValue("token", token);
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             return reader.Read() ? ReadSession(reader) : null;
         }, nameof(GetSession), null);
     }
@@ -434,8 +434,8 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE sessions SET is_active = 0 WHERE token = @token";
-            cmd.Parameters.AddWithValue("@token", token);
-            cmd.ExecuteNonQuery();
+            cmd.Parameters.AddWithValue("token", token);
+            Prep(cmd); cmd.ExecuteNonQuery();
         }, nameof(InvalidateSession));
     }
 
@@ -447,8 +447,8 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE sessions SET is_active = 0 WHERE user_id = @user_id";
-            cmd.Parameters.AddWithValue("@user_id", userId);
-            cmd.ExecuteNonQuery();
+            cmd.Parameters.AddWithValue("user_id", userId);
+            Prep(cmd); cmd.ExecuteNonQuery();
         }, nameof(InvalidateUserSessions));
     }
 
@@ -462,9 +462,8 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM sessions WHERE user_id = @user_id AND is_active = 1 ORDER BY created_at DESC";
-            cmd.Parameters.AddWithValue("@user_id", userId);
-
-            using var reader = cmd.ExecuteReader();
+            cmd.Parameters.AddWithValue("user_id", userId);
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 sessions.Add(ReadSession(reader));

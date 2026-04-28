@@ -1,8 +1,10 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Data;
 using WorkAudit.Core.Services;
 using WorkAudit.Core.Security;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -65,6 +67,12 @@ public class ConfigStore : IConfigStore
         _secureConfig = secureConfig;
     }
 
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
+
     #region Document Types
 
     public List<ConfigDocumentType> GetDocumentTypes(bool includeInactive = false)
@@ -78,7 +86,7 @@ public class ConfigStore : IConfigStore
             ? "SELECT * FROM config_document_types ORDER BY COALESCE(branch,''), COALESCE(section,''), display_order, name"
             : "SELECT * FROM config_document_types WHERE is_active = 1 ORDER BY COALESCE(branch,''), COALESCE(section,''), display_order, name";
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             types.Add(ReadDocumentType(reader));
@@ -95,7 +103,7 @@ public class ConfigStore : IConfigStore
         cmd.CommandText = "SELECT * FROM config_document_types WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         return reader.Read() ? ReadDocumentType(reader) : null;
     }
 
@@ -106,8 +114,8 @@ public class ConfigStore : IConfigStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"INSERT INTO config_document_types (name, category, keywords, is_active, display_order, created_at, branch, section)
-                            VALUES (@name, @category, @keywords, @active, @order, @created, @branch, @section);
-                            SELECT last_insert_rowid();";
+                            VALUES (@name, @category, @keywords, @active, @order, @created, @branch, @section)
+                            RETURNING id INTO @rid";
         cmd.Parameters.AddWithValue("@name", docType.Name);
         cmd.Parameters.AddWithValue("@category", docType.Category);
         cmd.Parameters.AddWithValue("@keywords", (object?)docType.Keywords ?? DBNull.Value);
@@ -116,8 +124,11 @@ public class ConfigStore : IConfigStore
         cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
         cmd.Parameters.AddWithValue("@branch", (object?)docType.Branch ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@section", (object?)docType.Section ?? DBNull.Value);
-
-        return Convert.ToInt32(cmd.ExecuteScalar());
+        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        Prep(cmd);
+        cmd.ExecuteNonQuery();
+        return Convert.ToInt32(idParam.Value);
     }
 
     public bool UpdateDocumentType(ConfigDocumentType docType)
@@ -141,6 +152,7 @@ public class ConfigStore : IConfigStore
         cmd.Parameters.AddWithValue("@branch", (object?)docType.Branch ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@section", (object?)docType.Section ?? DBNull.Value);
 
+        Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
     }
 
@@ -153,6 +165,7 @@ public class ConfigStore : IConfigStore
         cmd.CommandText = "DELETE FROM config_document_types WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
 
+        Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
     }
 
@@ -199,7 +212,7 @@ public class ConfigStore : IConfigStore
             ? "SELECT * FROM config_branches ORDER BY display_order, name"
             : "SELECT * FROM config_branches WHERE is_active = 1 ORDER BY display_order, name";
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             branches.Add(ReadBranch(reader));
@@ -216,7 +229,7 @@ public class ConfigStore : IConfigStore
         cmd.CommandText = "SELECT * FROM config_branches WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         return reader.Read() ? ReadBranch(reader) : null;
     }
 
@@ -227,15 +240,18 @@ public class ConfigStore : IConfigStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"INSERT INTO config_branches (name, code, is_active, display_order, created_at)
-                            VALUES (@name, @code, @active, @order, @created);
-                            SELECT last_insert_rowid();";
+                            VALUES (@name, @code, @active, @order, @created)
+                            RETURNING id INTO @rid";
         cmd.Parameters.AddWithValue("@name", branch.Name);
         cmd.Parameters.AddWithValue("@code", (object?)branch.Code ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@active", branch.IsActive ? 1 : 0);
         cmd.Parameters.AddWithValue("@order", branch.DisplayOrder);
         cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
-
-        return Convert.ToInt32(cmd.ExecuteScalar());
+        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        Prep(cmd);
+        cmd.ExecuteNonQuery();
+        return Convert.ToInt32(idParam.Value);
     }
 
     public bool UpdateBranch(ConfigBranch branch)
@@ -255,6 +271,7 @@ public class ConfigStore : IConfigStore
         cmd.Parameters.AddWithValue("@order", branch.DisplayOrder);
         cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
 
+        Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
     }
 
@@ -267,6 +284,7 @@ public class ConfigStore : IConfigStore
         cmd.CommandText = "DELETE FROM config_branches WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
 
+        Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
     }
 
@@ -296,7 +314,7 @@ public class ConfigStore : IConfigStore
             ? "SELECT * FROM config_categories ORDER BY display_order, name"
             : "SELECT * FROM config_categories WHERE is_active = 1 ORDER BY display_order, name";
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             categories.Add(ReadCategory(reader));
@@ -313,7 +331,7 @@ public class ConfigStore : IConfigStore
         cmd.CommandText = "SELECT * FROM config_categories WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         return reader.Read() ? ReadCategory(reader) : null;
     }
 
@@ -324,15 +342,18 @@ public class ConfigStore : IConfigStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"INSERT INTO config_categories (name, description, is_active, display_order, created_at)
-                            VALUES (@name, @description, @active, @order, @created);
-                            SELECT last_insert_rowid();";
+                            VALUES (@name, @description, @active, @order, @created)
+                            RETURNING id INTO @rid";
         cmd.Parameters.AddWithValue("@name", category.Name);
         cmd.Parameters.AddWithValue("@description", (object?)category.Description ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@active", category.IsActive ? 1 : 0);
         cmd.Parameters.AddWithValue("@order", category.DisplayOrder);
         cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
-
-        return Convert.ToInt32(cmd.ExecuteScalar());
+        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        Prep(cmd);
+        cmd.ExecuteNonQuery();
+        return Convert.ToInt32(idParam.Value);
     }
 
     public bool UpdateCategory(ConfigCategory category)
@@ -352,6 +373,7 @@ public class ConfigStore : IConfigStore
         cmd.Parameters.AddWithValue("@order", category.DisplayOrder);
         cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
 
+        Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
     }
 
@@ -364,6 +386,7 @@ public class ConfigStore : IConfigStore
         cmd.CommandText = "DELETE FROM config_categories WHERE id = @id";
         cmd.Parameters.AddWithValue("@id", id);
 
+        Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
     }
 
@@ -391,11 +414,11 @@ public class ConfigStore : IConfigStore
         using var cmd = conn.CreateCommand();
         cmd.CommandText = category == null
             ? "SELECT * FROM app_settings ORDER BY category, key"
-            : "SELECT * FROM app_settings WHERE category = @category ORDER BY key";
+            : "SELECT * FROM app_settings WHERE category = @p_category ORDER BY key";
         if (category != null)
-            cmd.Parameters.AddWithValue("@category", category);
+            cmd.Parameters.AddWithValue("p_category", category);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             settings.Add(ReadSetting(reader));
@@ -409,10 +432,10 @@ public class ConfigStore : IConfigStore
         conn.Open();
 
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT * FROM app_settings WHERE key = @key";
-        cmd.Parameters.AddWithValue("@key", key);
+        cmd.CommandText = "SELECT * FROM app_settings WHERE key = @p_key";
+        cmd.Parameters.AddWithValue("p_key", key);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         return reader.Read() ? ReadSetting(reader) : null;
     }
 
@@ -445,22 +468,25 @@ public class ConfigStore : IConfigStore
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
 
-        // Use UPSERT: INSERT new keys with required category; UPDATE existing keys
+        // Oracle upsert (MERGE) for settings
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"INSERT INTO app_settings (key, value, category, description, value_type, updated_at, updated_by)
-                            VALUES (@key, @value, @category, @description, @valueType, @updated, @updatedBy)
-                            ON CONFLICT(key) DO UPDATE SET
-                                value = excluded.value,
-                                updated_at = excluded.updated_at,
-                                updated_by = excluded.updated_by";
-        cmd.Parameters.AddWithValue("@key", key);
-        cmd.Parameters.AddWithValue("@value", (object?)value ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@category", "general");
-        cmd.Parameters.AddWithValue("@description", (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@valueType", "string");
-        cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
-        cmd.Parameters.AddWithValue("@updatedBy", (object?)updatedBy ?? DBNull.Value);
-
+        cmd.CommandText = @"
+            MERGE INTO app_settings s
+            USING (SELECT @p_key AS key_name, @p_value AS value_txt, @p_updated AS updated_at_txt, @p_updated_by AS updated_by_txt FROM dual) v
+            ON (s.key = v.key_name)
+            WHEN MATCHED THEN
+              UPDATE SET
+                s.value = v.value_txt,
+                s.updated_at = v.updated_at_txt,
+                s.updated_by = v.updated_by_txt
+            WHEN NOT MATCHED THEN
+              INSERT (key, value, category, description, value_type, updated_at, updated_by)
+              VALUES (v.key_name, v.value_txt, 'general', NULL, 'string', v.updated_at_txt, v.updated_by_txt)";
+        cmd.Parameters.AddWithValue("p_key", key);
+        cmd.Parameters.AddWithValue("p_value", (object?)value ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("p_updated", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("p_updated_by", (object?)updatedBy ?? DBNull.Value);
+        Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
     }
 
@@ -475,8 +501,9 @@ public class ConfigStore : IConfigStore
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "DELETE FROM app_settings WHERE key = @key";
-        cmd.Parameters.AddWithValue("@key", key);
+        cmd.CommandText = "DELETE FROM app_settings WHERE key = @p_key";
+        cmd.Parameters.AddWithValue("p_key", key);
+        Prep(cmd);
         return cmd.ExecuteNonQuery() > 0;
     }
 

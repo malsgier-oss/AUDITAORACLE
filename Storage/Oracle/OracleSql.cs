@@ -3,7 +3,7 @@ using Oracle.ManagedDataAccess.Client;
 
 namespace WorkAudit.Storage.Oracle;
 
-/// <summary>SQLite-style @bind → Oracle :bind (skips inside single-quoted literals).</summary>
+/// <summary>@bind → Oracle :bind conversion (skips inside single-quoted literals).</summary>
 public static class OracleSql
 {
     public static string ToOracleBindSyntax(string sql)
@@ -38,7 +38,7 @@ public static class OracleSql
         var s = sql.TrimEnd();
         if (!alreadyHasOrderBy && !s.Contains("ORDER BY", StringComparison.OrdinalIgnoreCase))
             s += " ORDER BY 1";
-        return s + " OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY";
+        return s + " OFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY";
     }
 
     public static OracleCommand CreateCommand(OracleConnection conn, string sql)

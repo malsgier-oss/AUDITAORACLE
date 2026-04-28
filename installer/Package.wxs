@@ -26,7 +26,7 @@
 
     <MediaTemplate EmbedCab="yes" />
     <Property Id="WORKAUDIT_BASE_DIR" Value="C:\ProgramData\Audita\Documents" Secure="yes" />
-    <Property Id="WORKAUDIT_DATABASE_PATH" Value="C:\ProgramData\Audita\workaudit.db" Secure="yes" />
+    <Property Id="WORKAUDIT_ORACLE_CONNECTION" Value="User Id=workaudit;Password=change-me;Data Source=//localhost:1521/FREEPDB1" Secure="yes" />
 
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
@@ -35,10 +35,10 @@
         <Control Id="Title" Type="Text" X="15" Y="10" Width="340" Height="25"
                  Text="{\WixUI_Font_Title}AUDITA data locations" />
         <Control Id="DescriptionUpgrade" Type="Text" X="15" Y="38" Width="340" Height="36"
-                 Text="This setup will upgrade your existing AUDITA installation. Choose where AUDITA stores documents and the database file."
+                 Text="This setup will upgrade your existing AUDITA installation. Choose documents storage and Oracle connection configuration."
                  ShowCondition="WIX_UPGRADE_DETECTED" />
         <Control Id="Description" Type="Text" X="15" Y="38" Width="340" Height="22"
-                 Text="Choose where AUDITA stores documents and the database file."
+                 Text="Choose where AUDITA stores documents and Oracle connection configuration."
                  ShowCondition="NOT WIX_UPGRADE_DETECTED" />
 
         <Control Id="BaseDirLabel" Type="Text" X="20" Y="74" Width="320" Height="12"
@@ -47,9 +47,9 @@
                  Property="WORKAUDIT_BASE_DIR" />
 
         <Control Id="DbPathLabel" Type="Text" X="20" Y="124" Width="320" Height="12"
-                 Text="Database file path (WORKAUDIT_DATABASE_PATH):" />
+                 Text="Oracle connection string (WORKAUDIT_ORACLE_CONNECTION):" />
         <Control Id="DbPathEdit" Type="Edit" X="20" Y="140" Width="330" Height="18"
-                 Property="WORKAUDIT_DATABASE_PATH" />
+                 Property="WORKAUDIT_ORACLE_CONNECTION" />
 
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
@@ -119,12 +119,12 @@
                    Part="all"
                    System="yes"
                    Value="[WORKAUDIT_BASE_DIR]" />
-      <Environment Id="WorkAuditDatabasePath"
+      <Environment Id="WorkAuditOracleConnection"
                    Action="set"
-                   Name="WORKAUDIT_DATABASE_PATH"
+                   Name="WORKAUDIT_ORACLE_CONNECTION"
                    Part="all"
                    System="yes"
-                   Value="[WORKAUDIT_DATABASE_PATH]" />
+                   Value="[WORKAUDIT_ORACLE_CONNECTION]" />
     </Component>
 
   </Package>

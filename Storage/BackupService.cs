@@ -7,7 +7,7 @@ using WorkAudit.Core.Services;
 namespace WorkAudit.Storage;
 
 /// <summary>
-/// Service for backing up and restoring the database and documents.
+/// Service for backing up and restoring application files (documents + manifest) in Oracle-only mode.
 /// </summary>
 public interface IBackupService
 {
@@ -50,16 +50,6 @@ public class BackupService : IBackupService
             var tempDir = Path.Combine(Path.GetTempPath(), backupName);
             Directory.CreateDirectory(tempDir);
 
-            // Copy local SQLite database file only when configuration points at an existing file (legacy); Oracle uses server DB.
-            var dbPath = _config.OracleConnectionString;
-            if (!string.IsNullOrWhiteSpace(dbPath) && dbPath.EndsWith(".db", StringComparison.OrdinalIgnoreCase) &&
-                Path.IsPathRooted(dbPath) && File.Exists(dbPath))
-            {
-                var dbBackupPath = Path.Combine(tempDir, "workaudit.db");
-                File.Copy(dbPath, dbBackupPath, true);
-                _log.Debug("Database file copied to backup");
-            }
-
             // Copy documents if requested
             if (includeDocuments && Directory.Exists(_config.BaseDirectory))
             {
@@ -75,7 +65,7 @@ public class BackupService : IBackupService
                 CreatedAt = DateTime.UtcNow.ToString("O"),
                 MachineName = Environment.MachineName,
                 IncludesDocuments = includeDocuments,
-                DatabaseSize = !string.IsNullOrWhiteSpace(dbPath) && File.Exists(dbPath) ? new FileInfo(dbPath).Length : 0,
+                DatabaseSize = 0,
                 IsEncrypted = shouldEncrypt
             };
 
@@ -205,20 +195,6 @@ public class BackupService : IBackupService
             await CreateBackupAsync(null, true, null);
             _log.Information("Created safety backup before restore");
 
-            // Restore database file only when current configuration targets a local .db path
-            var dbBackupPath = Path.Combine(tempDir, "workaudit.db");
-            var targetCs = _config.OracleConnectionString;
-            if (File.Exists(dbBackupPath) && !string.IsNullOrWhiteSpace(targetCs) &&
-                targetCs.EndsWith(".db", StringComparison.OrdinalIgnoreCase) && Path.IsPathRooted(targetCs))
-            {
-                File.Copy(dbBackupPath, targetCs, true);
-                _log.Information("Local database file restored");
-            }
-            else if (File.Exists(dbBackupPath))
-            {
-                _log.Warning("Backup contains workaudit.db but active configuration uses Oracle; database file was not restored.");
-            }
-
             // Restore documents
             var docsBackupDir = Path.Combine(tempDir, "Documents");
             if (Directory.Exists(docsBackupDir))
@@ -266,10 +242,6 @@ public class BackupService : IBackupService
             var manifest = Newtonsoft.Json.JsonConvert.DeserializeObject<BackupManifest>(json);
             if (manifest == null)
                 return new BackupVerificationResult { Valid = false, Error = "Invalid manifest" };
-
-            var dbEntry = archive.GetEntry("workaudit.db");
-            if (dbEntry == null)
-                return new BackupVerificationResult { Valid = false, Error = "Database not found in backup" };
 
             _log.Information("Backup verification passed: {Path} (Version: {Version}, Created: {Created})",
                 backupPath, manifest.Version, manifest.CreatedAt);
@@ -363,7 +335,7 @@ public class BackupService : IBackupService
 
     /// <summary>
     /// Builds a zip from a directory tree; skips individual files that cannot be read after one retry.
-    /// Required entries (manifest.json, workaudit.db) cause failure if they cannot be archived.
+    /// Required entries (manifest.json) cause failure if they cannot be archived.
     /// </summary>
     internal async Task CreateZipFromDirectoryResilientAsync(string sourceDir, string zipPath, List<string> skippedFiles)
     {
@@ -378,8 +350,7 @@ public class BackupService : IBackupService
     private static bool IsCriticalBackupZipEntry(string relativePath)
     {
         var n = relativePath.Replace('\\', '/');
-        return string.Equals(n, "manifest.json", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(n, "workaudit.db", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(n, "manifest.json", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task AddDirectoryToZipAsync(ZipArchive archive, string sourceDir, List<string> skippedFiles)

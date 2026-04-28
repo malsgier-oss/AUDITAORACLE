@@ -1,5 +1,7 @@
 using Oracle.ManagedDataAccess.Client;
+using System.Data;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -18,6 +20,11 @@ public interface IReportDraftStore
 public class ReportDraftStore : IReportDraftStore
 {
     private readonly string _connectionString;
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public ReportDraftStore(string connectionString)
     {
@@ -51,11 +58,13 @@ public class ReportDraftStore : IReportDraftStore
         cmd.Parameters.AddWithValue("@tags", draft.Tags ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@isFinalized", draft.IsFinalized ? 1 : 0);
         cmd.Parameters.AddWithValue("@exportedReportHistoryId", draft.ExportedReportHistoryId ?? (object)DBNull.Value);
-        
+        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        cmd.CommandText += " RETURNING id INTO @rid";
+
+        Prep(cmd);
         cmd.ExecuteNonQuery();
-        
-        using var idCmd = new OracleCommand("SELECT last_insert_rowid()", conn);
-        return Convert.ToInt32(idCmd.ExecuteScalar());
+        return Convert.ToInt32(idParam.Value);
     }
 
     public void Update(ReportDraft draft)
@@ -85,7 +94,8 @@ public class ReportDraftStore : IReportDraftStore
         cmd.Parameters.AddWithValue("@tags", draft.Tags ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@isFinalized", draft.IsFinalized ? 1 : 0);
         cmd.Parameters.AddWithValue("@exportedReportHistoryId", draft.ExportedReportHistoryId ?? (object)DBNull.Value);
-        
+
+        Prep(cmd);
         cmd.ExecuteNonQuery();
     }
 
@@ -96,6 +106,7 @@ public class ReportDraftStore : IReportDraftStore
         
         using var cmd = new OracleCommand("DELETE FROM report_drafts WHERE id = @id", conn);
         cmd.Parameters.AddWithValue("@id", id);
+        Prep(cmd);
         cmd.ExecuteNonQuery();
     }
 
@@ -106,7 +117,7 @@ public class ReportDraftStore : IReportDraftStore
         
         using var cmd = new OracleCommand("SELECT * FROM report_drafts WHERE id = @id", conn);
         cmd.Parameters.AddWithValue("@id", id);
-        
+        Prep(cmd);
         using var reader = cmd.ExecuteReader();
         return reader.Read() ? ReadRow(reader) : null;
     }
@@ -118,7 +129,7 @@ public class ReportDraftStore : IReportDraftStore
         
         using var cmd = new OracleCommand("SELECT * FROM report_drafts WHERE uuid = @uuid", conn);
         cmd.Parameters.AddWithValue("@uuid", uuid);
-        
+        Prep(cmd);
         using var reader = cmd.ExecuteReader();
         return reader.Read() ? ReadRow(reader) : null;
     }
@@ -131,7 +142,7 @@ public class ReportDraftStore : IReportDraftStore
         using var cmd = new OracleCommand(
             "SELECT * FROM report_drafts WHERE user_id = @userId ORDER BY created_at DESC", conn);
         cmd.Parameters.AddWithValue("@userId", userId);
-        
+        Prep(cmd);
         using var reader = cmd.ExecuteReader();
         var drafts = new List<ReportDraft>();
         while (reader.Read())
@@ -145,6 +156,7 @@ public class ReportDraftStore : IReportDraftStore
         conn.Open();
         
         using var cmd = new OracleCommand("SELECT * FROM report_drafts ORDER BY created_at DESC", conn);
+        Prep(cmd);
         using var reader = cmd.ExecuteReader();
         
         var drafts = new List<ReportDraft>();
@@ -160,7 +172,7 @@ public class ReportDraftStore : IReportDraftStore
         
         using var cmd = new OracleCommand(
             "SELECT * FROM report_drafts WHERE is_finalized = 0 ORDER BY created_at DESC", conn);
-        
+        Prep(cmd);
         using var reader = cmd.ExecuteReader();
         var drafts = new List<ReportDraft>();
         while (reader.Read())

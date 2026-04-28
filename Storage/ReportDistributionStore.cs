@@ -1,7 +1,9 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Data;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -18,6 +20,11 @@ public class ReportDistributionStore : IReportDistributionStore
 {
     private readonly ILogger _log = LoggingService.ForContext<ReportDistributionStore>();
     private readonly string _connectionString;
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public ReportDistributionStore(AppConfiguration config)
     {
@@ -40,11 +47,12 @@ public class ReportDistributionStore : IReportDistributionStore
         cmd.Parameters.AddWithValue("@username", username);
         cmd.Parameters.AddWithValue("@timestamp", DateTime.UtcNow.ToString("O"));
         cmd.Parameters.AddWithValue("@details", details ?? (object)DBNull.Value);
+        var idParam = new OracleParameter("rid", OracleDbType.Int64, ParameterDirection.Output);
+        cmd.Parameters.Add(idParam);
+        cmd.CommandText += " RETURNING id INTO @rid";
+        Prep(cmd);
         cmd.ExecuteNonQuery();
-
-        using var idCmd = conn.CreateCommand();
-        idCmd.CommandText = "SELECT last_insert_rowid()";
-        return Convert.ToInt64(idCmd.ExecuteScalar());
+        return Convert.ToInt64(idParam.Value);
     }
 
     public List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? to = null, int limit = 500)
@@ -54,20 +62,20 @@ public class ReportDistributionStore : IReportDistributionStore
         var sql = "SELECT * FROM report_distributions WHERE 1=1";
         if (!string.IsNullOrEmpty(reportPath)) sql += " AND report_path = @report_path";
         if (!string.IsNullOrEmpty(userId)) sql += " AND user_id = @user_id";
-        if (from.HasValue) sql += " AND timestamp >= @from";
-        if (to.HasValue) sql += " AND timestamp <= @to";
-        sql += " ORDER BY id DESC LIMIT @limit";
+        if (from.HasValue) sql += " AND timestamp >= @p_from";
+        if (to.HasValue) sql += " AND timestamp <= @p_to";
+        sql += " ORDER BY id DESC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         if (!string.IsNullOrEmpty(reportPath)) cmd.Parameters.AddWithValue("@report_path", reportPath);
         if (!string.IsNullOrEmpty(userId)) cmd.Parameters.AddWithValue("@user_id", userId);
-        if (from.HasValue) cmd.Parameters.AddWithValue("@from", from.Value.ToString("O"));
-        if (to.HasValue) cmd.Parameters.AddWithValue("@to", to.Value.ToString("O"));
+        if (from.HasValue) cmd.Parameters.AddWithValue("@p_from", from.Value.ToString("O"));
+        if (to.HasValue) cmd.Parameters.AddWithValue("@p_to", to.Value.ToString("O"));
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var list = new List<ReportDistribution>();
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
             list.Add(ReadDistribution(reader));
         return list;

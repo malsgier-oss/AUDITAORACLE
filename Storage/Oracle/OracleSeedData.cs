@@ -2,7 +2,7 @@ using Oracle.ManagedDataAccess.Client;
 
 namespace WorkAudit.Storage.Oracle;
 
-/// <summary>Default catalog rows (aligned with legacy SQLite migration 10/43/44/48).</summary>
+/// <summary>Default catalog rows aligned with historical baseline versions (10/43/44/48).</summary>
 internal static class OracleSeedData
 {
     public static void Apply(OracleConnection conn)

@@ -23,7 +23,7 @@ public class DatabaseEncryptionServiceTests : IDisposable
     public void EncryptDatabaseFile_ValidFile_ShouldCreateEncryptedFile()
     {
         var dbPath = Path.Combine(_testDir, "test.db");
-        File.WriteAllText(dbPath, "SQLite database content");
+        File.WriteAllText(dbPath, "Sample database content");
 
         _service.EncryptDatabaseFile(dbPath);
 
@@ -46,7 +46,7 @@ public class DatabaseEncryptionServiceTests : IDisposable
     public void EncryptDatabaseFile_AlreadyEncrypted_ShouldNotReEncrypt()
     {
         var dbPath = Path.Combine(_testDir, "test.db");
-        File.WriteAllText(dbPath, "SQLite database content");
+        File.WriteAllText(dbPath, "Sample database content");
 
         _service.EncryptDatabaseFile(dbPath);
         var encryptedPath = dbPath + ".encrypted";
@@ -63,7 +63,7 @@ public class DatabaseEncryptionServiceTests : IDisposable
     public void DecryptDatabaseFile_ValidEncryptedFile_ShouldRestoreOriginal()
     {
         var dbPath = Path.Combine(_testDir, "test.db");
-        var originalContent = "SQLite database content with special chars: !@#$%";
+        var originalContent = "Sample database content with special chars: !@#$%";
         File.WriteAllText(dbPath, originalContent);
 
         _service.EncryptDatabaseFile(dbPath);
@@ -105,7 +105,7 @@ public class DatabaseEncryptionServiceTests : IDisposable
     public void IsEncrypted_EncryptedFile_ShouldReturnTrue()
     {
         var dbPath = Path.Combine(_testDir, "test.db");
-        File.WriteAllText(dbPath, "SQLite database content");
+        File.WriteAllText(dbPath, "Sample database content");
 
         _service.EncryptDatabaseFile(dbPath);
         var encryptedPath = dbPath + ".encrypted";

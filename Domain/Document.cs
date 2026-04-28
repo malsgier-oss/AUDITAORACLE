@@ -4,7 +4,7 @@ using Newtonsoft.Json.Linq;
 namespace WorkAudit.Domain;
 
 /// <summary>
-/// Document metadata as stored in SQLite.
+/// Document metadata as persisted by the Oracle-backed storage layer.
 /// Enhanced with additional fields for professional audit workflow.
 /// </summary>
 public class Document

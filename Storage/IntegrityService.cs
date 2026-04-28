@@ -2,6 +2,7 @@ using System.IO;
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using WorkAudit.Core.Services;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -27,6 +28,11 @@ public class IntegrityService : IIntegrityService
 {
     private readonly ILogger _log = LoggingService.ForContext<IntegrityService>();
     private readonly string _connectionString;
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public IntegrityService(string dbPath)
     {
@@ -39,13 +45,6 @@ public class IntegrityService : IIntegrityService
 
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
-
-        // Enable foreign key checks for this connection
-        using (var fkCmd = conn.CreateCommand())
-        {
-            fkCmd.CommandText = "PRAGMA foreign_keys = ON";
-            fkCmd.ExecuteNonQuery();
-        }
 
         // Check for orphaned sessions (sessions referencing deleted users)
         var orphanedSessions = GetOrphanedSessions(conn);
@@ -99,6 +98,7 @@ public class IntegrityService : IIntegrityService
             using var cmd = conn.CreateCommand();
             cmd.Transaction = tx;
             cmd.CommandText = "DELETE FROM sessions WHERE user_id NOT IN (SELECT id FROM users)";
+            Prep(cmd);
             var deleted = cmd.ExecuteNonQuery();
             tx.Commit();
             _log.Information("Repaired {Count} orphaned sessions", deleted);
@@ -120,7 +120,7 @@ public class IntegrityService : IIntegrityService
             SELECT s.id FROM sessions s
             LEFT JOIN users u ON s.user_id = u.id
             WHERE u.id IS NULL";
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
             ids.Add(reader.GetInt32(0));
         return ids;
@@ -131,7 +131,7 @@ public class IntegrityService : IIntegrityService
         var ids = new List<long>();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT id, file_path FROM documents WHERE file_path IS NOT NULL AND file_path != ''";
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             var id = reader.GetInt64(0);
@@ -145,8 +145,9 @@ public class IntegrityService : IIntegrityService
     private static bool TableExists(OracleConnection conn, string tableName)
     {
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name=@name";
+        cmd.CommandText = "SELECT table_name FROM user_tables WHERE table_name = UPPER(@name)";
         cmd.Parameters.AddWithValue("@name", tableName);
+        Prep(cmd);
         return cmd.ExecuteScalar() != null;
     }
 }

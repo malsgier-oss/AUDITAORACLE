@@ -2,6 +2,7 @@ using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -28,6 +29,11 @@ public class ChangeHistoryService : IChangeHistoryService
     private readonly ILogger _log = LoggingService.ForContext<ChangeHistoryService>();
     private readonly string _connectionString;
     private readonly Func<ISessionService?> _sessionFactory;
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
 
     public ChangeHistoryService(string dbPath, Func<ISessionService?> sessionFactory)
     {
@@ -57,6 +63,7 @@ public class ChangeHistoryService : IChangeHistoryService
             cmd.Parameters.AddWithValue("@new", newValue ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@at", DateTime.UtcNow.ToString("O"));
             cmd.Parameters.AddWithValue("@by", changedBy);
+            Prep(cmd);
             cmd.ExecuteNonQuery();
         }
         catch (Exception ex)
@@ -73,10 +80,10 @@ public class ChangeHistoryService : IChangeHistoryService
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT field_name, old_value, new_value, changed_at, changed_by FROM document_change_history WHERE document_uuid = @uuid ORDER BY changed_at DESC LIMIT @limit";
+            cmd.CommandText = "SELECT field_name, old_value, new_value, changed_at, changed_by FROM document_change_history WHERE document_uuid = @uuid ORDER BY changed_at DESC FETCH FIRST @limit ROWS ONLY";
             cmd.Parameters.AddWithValue("@uuid", documentUuid);
             cmd.Parameters.AddWithValue("@limit", limit);
-            using var r = cmd.ExecuteReader();
+            Prep(cmd); using var r = cmd.ExecuteReader();
             while (r.Read())
             {
                 list.Add(new DocumentChangeRecord

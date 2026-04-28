@@ -1,7 +1,9 @@
+using System.Data;
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Storage;
 
@@ -66,6 +68,12 @@ public class AuditLogStore : IAuditLogStore
         _connectionString = config.OracleConnectionString;
     }
 
+    private static void Prep(OracleCommand cmd)
+    {
+        cmd.BindByName = true;
+        cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
+    }
+
     public long Insert(AuditLogEntry entry)
     {
         return ExecuteDbOperation(() =>
@@ -77,30 +85,29 @@ public class AuditLogStore : IAuditLogStore
             INSERT INTO audit_log (uuid, timestamp, user_id, username, user_role, action, category,
                 entity_type, entity_id, entity_name, old_value, new_value, ip_address, details, success, error_message)
             VALUES (@uuid, @timestamp, @user_id, @username, @user_role, @action, @category,
-                @entity_type, @entity_id, @entity_name, @old_value, @new_value, @ip_address, @details, @success, @error_message)";
+                @entity_type, @entity_id, @entity_name, @old_value, @new_value, @ip_address, @details, @success, @error_message)
+            RETURNING id INTO :rid";
 
-        cmd.Parameters.AddWithValue("@uuid", entry.Uuid);
-        cmd.Parameters.AddWithValue("@timestamp", entry.Timestamp);
-        cmd.Parameters.AddWithValue("@user_id", entry.UserId);
-        cmd.Parameters.AddWithValue("@username", entry.Username);
-        cmd.Parameters.AddWithValue("@user_role", entry.UserRole);
-        cmd.Parameters.AddWithValue("@action", entry.Action);
-        cmd.Parameters.AddWithValue("@category", entry.Category);
-        cmd.Parameters.AddWithValue("@entity_type", entry.EntityType);
-        cmd.Parameters.AddWithValue("@entity_id", entry.EntityId ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@entity_name", entry.EntityName ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@old_value", entry.OldValue ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@new_value", entry.NewValue ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@ip_address", entry.IpAddress ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@details", entry.Details ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@success", entry.Success ? 1 : 0);
-        cmd.Parameters.AddWithValue("@error_message", entry.ErrorMessage ?? (object)DBNull.Value);
-
-        cmd.ExecuteNonQuery();
-
-        using var idCmd = conn.CreateCommand();
-        idCmd.CommandText = "SELECT last_insert_rowid()";
-        return Convert.ToInt64(idCmd.ExecuteScalar());
+        cmd.Parameters.AddWithValue("uuid", entry.Uuid);
+        cmd.Parameters.AddWithValue("timestamp", entry.Timestamp);
+        cmd.Parameters.AddWithValue("user_id", entry.UserId);
+        cmd.Parameters.AddWithValue("username", entry.Username);
+        cmd.Parameters.AddWithValue("user_role", entry.UserRole);
+        cmd.Parameters.AddWithValue("action", entry.Action);
+        cmd.Parameters.AddWithValue("category", entry.Category);
+        cmd.Parameters.AddWithValue("entity_type", entry.EntityType);
+        cmd.Parameters.AddWithValue("entity_id", entry.EntityId ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("entity_name", entry.EntityName ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("old_value", entry.OldValue ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("new_value", entry.NewValue ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("ip_address", entry.IpAddress ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("details", entry.Details ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("success", entry.Success ? 1 : 0);
+        cmd.Parameters.AddWithValue("error_message", entry.ErrorMessage ?? (object)DBNull.Value);
+        var rid = new OracleParameter("rid", OracleDbType.Int64) { Direction = ParameterDirection.Output };
+        cmd.Parameters.Add(rid);
+        Prep(cmd); cmd.ExecuteNonQuery();
+        return Convert.ToInt64(rid.Value?.ToString() ?? "0");
         }, nameof(Insert), -1L);
     }
 
@@ -112,9 +119,8 @@ public class AuditLogStore : IAuditLogStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM audit_log WHERE id = @id";
-            cmd.Parameters.AddWithValue("@id", id);
-
-            using var reader = cmd.ExecuteReader();
+            cmd.Parameters.AddWithValue("id", id);
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             return reader.Read() ? ReadEntry(reader) : null;
         }, nameof(Get), null);
     }
@@ -133,32 +139,32 @@ public class AuditLogStore : IAuditLogStore
 
         if (from.HasValue)
         {
-            sql += " AND timestamp >= @from";
-            parameters.Add(new OracleParameter("@from", from.Value.ToString("O")));
+            sql += " AND timestamp >= @p_from";
+            parameters.Add(new OracleParameter("p_from", from.Value.ToString("O")));
         }
 
         if (to.HasValue)
         {
-            sql += " AND timestamp <= @to";
-            parameters.Add(new OracleParameter("@to", to.Value.ToString("O")));
+            sql += " AND timestamp <= @p_to";
+            parameters.Add(new OracleParameter("p_to", to.Value.ToString("O")));
         }
 
         if (!string.IsNullOrEmpty(userId))
         {
             sql += " AND user_id = @user_id";
-            parameters.Add(new OracleParameter("@user_id", userId));
+            parameters.Add(new OracleParameter("user_id", userId));
         }
 
         if (!string.IsNullOrEmpty(action))
         {
             sql += " AND action = @action";
-            parameters.Add(new OracleParameter("@action", action));
+            parameters.Add(new OracleParameter("action", action));
         }
 
         if (!string.IsNullOrEmpty(category))
         {
             sql += " AND category = @category";
-            parameters.Add(new OracleParameter("@category", category));
+            parameters.Add(new OracleParameter("category", category));
         }
 
         if (archivedOnly)
@@ -166,9 +172,9 @@ public class AuditLogStore : IAuditLogStore
             sql += " AND action IN ('DocumentArchived','LegalHoldApplied','LegalHoldReleased','ArchiveExported','HashVerificationFailed')";
         }
 
-        sql += " ORDER BY timestamp DESC LIMIT @limit OFFSET @offset";
-        parameters.Add(new OracleParameter("@limit", limit));
-        parameters.Add(new OracleParameter("@offset", offset));
+        sql += " ORDER BY timestamp DESC OFFSET @p_offset ROWS FETCH NEXT @p_limit ROWS ONLY";
+        parameters.Add(new OracleParameter("p_limit", limit));
+        parameters.Add(new OracleParameter("p_offset", offset));
 
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
@@ -176,7 +182,7 @@ public class AuditLogStore : IAuditLogStore
         cmd.CommandText = sql;
         foreach (var p in parameters) cmd.Parameters.Add(p);
 
-        using var reader = cmd.ExecuteReader();
+        Prep(cmd); using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
             entries.Add(ReadEntry(reader));
@@ -195,11 +201,10 @@ public class AuditLogStore : IAuditLogStore
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM audit_log WHERE entity_type = @type AND entity_id = @id ORDER BY timestamp DESC";
-            cmd.Parameters.AddWithValue("@type", entityType);
-            cmd.Parameters.AddWithValue("@id", entityId);
-
-            using var reader = cmd.ExecuteReader();
+            cmd.CommandText = "SELECT * FROM audit_log WHERE entity_type = @p_type AND entity_id = @id ORDER BY timestamp DESC";
+            cmd.Parameters.AddWithValue("p_type", entityType);
+            cmd.Parameters.AddWithValue("id", entityId);
+            Prep(cmd); using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
                 entries.Add(ReadEntry(reader));
@@ -221,18 +226,18 @@ public class AuditLogStore : IAuditLogStore
 
             if (from.HasValue)
             {
-                sql += " AND timestamp >= @from";
-                cmd.Parameters.AddWithValue("@from", from.Value.ToString("O"));
+                sql += " AND timestamp >= @p_from";
+                cmd.Parameters.AddWithValue("p_from", from.Value.ToString("O"));
             }
 
             if (to.HasValue)
             {
-                sql += " AND timestamp <= @to";
-                cmd.Parameters.AddWithValue("@to", to.Value.ToString("O"));
+                sql += " AND timestamp <= @p_to";
+                cmd.Parameters.AddWithValue("p_to", to.Value.ToString("O"));
             }
 
             cmd.CommandText = sql;
-            return Convert.ToInt32(cmd.ExecuteScalar());
+            Prep(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
         }, nameof(Count), 0);
     }
 
@@ -244,9 +249,8 @@ public class AuditLogStore : IAuditLogStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM audit_log WHERE timestamp < @date";
-            cmd.Parameters.AddWithValue("@date", olderThan.ToString("O"));
-
-            var deleted = cmd.ExecuteNonQuery();
+            cmd.Parameters.AddWithValue("date", olderThan.ToString("O"));
+            Prep(cmd); var deleted = cmd.ExecuteNonQuery();
             _log.Information("Cleaned up {Count} old audit log entries", deleted);
         }, nameof(Cleanup));
     }
