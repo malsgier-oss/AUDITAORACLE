@@ -1,0 +1,45 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <Import Project="..\build\WorkAudit.Version.props" />
+
+  <PropertyGroup>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <OutputName>Audita</OutputName>
+    <DefineConstants>PackageVersion=$(Version)</DefineConstants>
+    <!-- ICE validation requires admin; suppress for local/CI builds. Set false for a full validation pass. -->
+    <SuppressValidation>true</SuppressValidation>
+    <PublishDir>$(MSBuildThisFileDirectory)..\artifacts\msi-app\</PublishDir>
+    <!-- Set SkipPublishApp=true if you already published to artifacts\msi-app -->
+    <SkipPublishApp>false</SkipPublishApp>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <BindVariable Include="WixUILicenseRtf=$(MSBuildThisFileDirectory)License.rtf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Package.wxs" />
+  </ItemGroup>
+
+  <Target Name="PublishWorkAuditForMsi" BeforeTargets="BeforeBuild" Condition="'$(SkipPublishApp)'!='true'">
+    <MakeDir Directories="$(PublishDir)" />
+    <Exec
+      Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\WorkAudit.csproj&quot; -c Release -r win-x64 -p:WorkAuditPortable=true -o &quot;$(PublishDir.TrimEnd('\'))&quot;"
+      WorkingDirectory="$(MSBuildThisFileDirectory).." />
+  </Target>
+
+  <!-- Helpers next to Audita.msi (Win 11 often hides Run as admin on .msi in the short menu) -->
+  <Target Name="CopyInstallElevatedScript" AfterTargets="Build">
+    <ItemGroup>
+      <_InstallHelpers Include="$(MSBuildThisFileDirectory)Install-WorkAudit-Elevated.cmd" />
+      <_InstallHelpers Include="$(MSBuildThisFileDirectory)Install-WorkAudit-Elevated.ps1" />
+    </ItemGroup>
+    <Copy SkipUnchangedFiles="true"
+          SourceFiles="@(_InstallHelpers)"
+          DestinationFolder="$(MSBuildThisFileDirectory)bin\$(Configuration)\" />
+  </Target>
+</Project>

@@ -1,0 +1,27 @@
+<Window x:Class="WorkAudit.Views.DocumentPreviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Document Preview - AUDITA" Height="600" Width="800" MinHeight="300" MinWidth="400"
+        WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
+        Background="{DynamicResource ContentBackground}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Border x:Name="PreviewHeader" Grid.Row="0" Background="{DynamicResource PanelBackground}" Padding="8,4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="PreviewHeader_MouseLeftButtonDown" Cursor="Arrow">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Document Preview" Foreground="{DynamicResource PrimaryForeground}" FontWeight="Bold" VerticalAlignment="Center"/>
+                <TextBlock x:Name="DocumentNameText" Text="" Foreground="{DynamicResource SecondaryForeground}" Margin="12,0,0,0"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="400"/>
+            </StackPanel>
+        </Border>
+        <Border Grid.Row="1" Background="{DynamicResource ContentBackground}" Padding="8">
+            <Viewbox Stretch="Uniform" StretchDirection="Both">
+                <Image x:Name="DocumentPreviewImage" Stretch="None"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Viewbox>
+        </Border>
+    </Grid>
+</Window>

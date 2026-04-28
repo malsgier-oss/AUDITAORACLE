@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="WorkAudit"
+    Language="1033"
+    Version="2.0.0.0"
+    Manufacturer="YourCompany"
+    UpgradeCode="c7e73590-3de9-4a7d-9b7b-1c4eac5d5f90">
+    
+    <Package
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine" />
+
+    <MediaTemplate />
+
+    <!-- Custom action to launch WorkAudit after a successful install -->
+    <CustomAction Id="LaunchWorkAudit"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="WorkAudit.exe"
+                  Return="asyncNoWait"
+                  Impersonate="yes" />
+
+    <Feature Id="MainFeature" Title="WorkAudit" Level="1">
+      <!-- All application binaries harvested from the build output -->
+      <ComponentGroupRef Id="ApplicationFiles" />
+      <!-- Shortcuts and related registry entries -->
+      <ComponentGroupRef Id="AppComponents" />
+    </Feature>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="WorkAudit" />
+      </Directory>
+
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="WorkAudit" />
+      </Directory>
+    </Directory>
+
+    <!-- Schedule the launch after install completes, only on first install -->
+    <InstallExecuteSequence>
+      <Custom Action="LaunchWorkAudit" After="InstallFinalize">
+        NOT Installed AND NOT REMOVE~="ALL"
+      </Custom>
+    </InstallExecuteSequence>
+  </Product>
+</Wix>
+

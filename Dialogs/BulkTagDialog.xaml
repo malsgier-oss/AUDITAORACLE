@@ -1,0 +1,32 @@
+<Window x:Class="WorkAudit.Dialogs.BulkTagDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Bulk Tag Documents"
+        Width="420" Height="280"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource ContentBackground}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Add tags (comma-separated):" Margin="0,0,0,4" Foreground="{DynamicResource PrimaryForeground}"/>
+        <TextBox x:Name="AddTagsBox" Grid.Row="1" Margin="0,0,0,12" Padding="8,6"
+                 ToolTip="e.g. follow-up, audit-2024"/>
+        <TextBlock Grid.Row="2" Text="Remove tags (comma-separated):" Margin="0,0,0,4" Foreground="{DynamicResource PrimaryForeground}"/>
+        <TextBox x:Name="RemoveTagsBox" Grid.Row="3" Margin="0,0,0,12" Padding="8,6"
+                 ToolTip="e.g. draft, obsolete"/>
+        <TextBlock Grid.Row="4" x:Name="InfoText" Text="" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Top"/>
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="OkBtn" Content="Apply" Width="80" Height="28" Margin="0,0,8,0"
+                    Click="OkBtn_Click" IsDefault="True"/>
+            <Button x:Name="CancelBtn" Content="Cancel" Width="80" Height="28"
+                    Click="CancelBtn_Click" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

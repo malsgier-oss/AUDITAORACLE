@@ -1,0 +1,99 @@
+<UserControl x:Class="WorkAudit.Views.Admin.AssignmentManagementView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{DynamicResource PanelBackground}" Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Assignment Management" FontSize="20" FontWeight="SemiBold" Foreground="#212529" Margin="0,0,0,16"/>
+        <TextBlock Grid.Row="0" Text="View and manage all document assignments across users" FontSize="12" Foreground="#6C757D" Margin="0,28,0,-32" VerticalAlignment="Top"/>
+
+        <Border Grid.Row="1" Background="{DynamicResource ContentBackground}" Padding="16" Margin="0,0,0,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+            <StackPanel>
+                <TextBlock Text="Filter" FontSize="14" FontWeight="SemiBold" Foreground="#333333" Margin="0,0,0,8"/>
+                <WrapPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,8">
+                        <TextBlock Text="Assigned to:" Width="80" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="UserFilterCombo" Width="180" SelectionChanged="Filter_Changed"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,8">
+                        <TextBlock Text="Status:" Width="50" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="StatusFilterCombo" Width="140" SelectionChanged="Filter_Changed"/>
+                    </StackPanel>
+                    <Button x:Name="RefreshBtn" Content="Refresh" Padding="12,6" Margin="0,0,0,8" Click="RefreshBtn_Click"
+                            Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource DimForeground}" BorderThickness="0" Cursor="Hand"/>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="180"/>
+            </Grid.ColumnDefinitions>
+        <DataGrid x:Name="AssignmentsGrid" Grid.Column="0" AutoGenerateColumns="False" IsReadOnly="True"
+                  SelectionMode="Extended" SelectionChanged="AssignmentsGrid_SelectionChanged"
+                  Background="{DynamicResource ContentBackground}" RowBackground="{DynamicResource ContentBackground}" AlternatingRowBackground="{DynamicResource AlternateRowBackground}"
+                  Foreground="{DynamicResource DimForeground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                  PreviewMouseLeftButtonDown="AssignmentsGrid_PreviewMouseLeftButtonDown"
+                  AllowDrop="True" Drop="AssignmentsGrid_Drop" DragOver="AssignmentsGrid_DragOver">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Document" Binding="{Binding DocumentName}" Width="*" MinWidth="150"/>
+                <DataGridTextColumn Header="Assigned To" Binding="{Binding AssignedToUsername}" Width="120"/>
+                <DataGridTextColumn Header="Priority" Binding="{Binding PriorityDisplay}" Width="90"/>
+                <DataGridTemplateColumn Header="Due Date" Width="130">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DueDateDisplay}" Foreground="{Binding DueDateForeground, Converter={StaticResource HexToBrushConverter}}" FontWeight="SemiBold"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Status" Width="130">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding StatusBadgeColor, Converter={StaticResource HexToBrushConverter}}" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding StatusDisplay}" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Assigned By" Binding="{Binding AssignedByUsername}" Width="120"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+            <Border Grid.Column="2" Background="{DynamicResource AlternateRowBackground}" Padding="12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                <StackPanel>
+                    <TextBlock Text="Drag to reassign" FontSize="12" FontWeight="SemiBold" Foreground="#333333" Margin="0,0,0,8"/>
+                    <TextBlock Text="Drag an assignment row and drop on a user below to reassign." FontSize="10" Foreground="{DynamicResource DimForeground}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <ListBox x:Name="UserDropTargetList" Height="300" BorderThickness="0" Background="Transparent"
+                             AllowDrop="True" Drop="UserDropTarget_Drop" DragOver="UserDropTarget_DragOver">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="UserItemBorder" Padding="10,8" Margin="0,0,0,4" Background="{DynamicResource ContentBackground}" CornerRadius="4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                    <TextBlock Text="{Binding}" FontSize="12"/>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0">
+            <Button x:Name="ReassignBtn" Content="Reassign" Padding="16,8" Margin="0,0,8,0" Click="ReassignBtn_Click"
+                    Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+            <Button x:Name="CancelAssignBtn" Content="Cancel Assignment" Padding="16,8" Margin="0,0,8,0" Click="CancelAssignBtn_Click"
+                    Background="#DC3545" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+            <Button x:Name="BulkAssignBtn" Content="Bulk Assign" Padding="16,8" Margin="0,0,8,0" Click="BulkAssignBtn_Click"
+                    Background="#28A745" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+            <Button x:Name="ViewDocumentBtn" Content="View Document" Padding="16,8" Margin="0,0,8,0" Click="ViewDocumentBtn_Click"
+                    Background="#6C757D" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

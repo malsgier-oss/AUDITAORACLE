@@ -1,0 +1,101 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="build\WorkAudit.Version.props" />
+  <Import Project="build\WorkAudit.WpfMarkupFix.targets" />
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatform>windows10.0.19041.0</SupportedOSPlatform>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Audita</AssemblyName>
+    <RootNamespace>WorkAudit</RootNamespace>
+    <ApplicationIcon>Resources\Branding\Audita.ico</ApplicationIcon>
+    <Company>CertisTech.com</Company>
+    <Product>AUDITA</Product>
+    <Authors>CertisTech.com</Authors>
+    <AssemblyTitle>AUDITA</AssemblyTitle>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+  </PropertyGroup>
+
+  <!-- Offline / pilot deployment: dotnet publish -c Release -r win-x64 -p:WorkAuditPortable=true -->
+  <PropertyGroup Condition="'$(WorkAuditPortable)'=='true'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Core Data -->
+    <PackageReference Include="DirectShowLib.Standard" Version="2.1.0" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.26.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+
+    <!-- Dependency Injection -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="PdfiumViewer.Net.WPF" Version="3.0.4" />
+    <PackageReference Include="PDFsharp" Version="6.2.0" />
+
+    <!-- Logging -->
+    <PackageReference Include="Serilog" Version="4.3.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+
+    <!-- Security -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
+
+    <!-- Image Processing -->
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260214" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260214" />
+    <PackageReference Include="OpenCvSharp4.WpfExtensions" Version="4.13.0.20260214" />
+
+    <!-- PDF & Reporting -->
+    <PackageReference Include="QuestPDF" Version="2026.2.1" />
+    <PackageReference Include="PdfPig" Version="0.1.13" />
+    <PackageReference Include="PDFtoImage" Version="5.2.0" />
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+
+    <!-- UI Components -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" />
+    <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
+
+    <!-- InputBox -->
+    <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
+    <PackageReference Include="Tesseract" Version="5.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="SetupVision\**" />
+    <Compile Remove="WorkAudit.Tests\**" />
+    <Compile Remove="scripts\**" />
+    <None Include="scripts\**" />
+    <Compile Remove="WorkAudit.CSharp\**" />
+    <Compile Remove="installer\**" />
+    <EmbeddedResource Remove="installer\**" />
+    <None Remove="installer\**" />
+    <Page Remove="MainWindow_restore.xaml" />
+    <Page Remove="WorkAudit.CSharp\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Tesseract\tessdata\*.traineddata">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WorkAudit.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\Branding\Audita.ico" />
+  </ItemGroup>
+
+</Project>

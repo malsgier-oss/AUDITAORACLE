@@ -1,0 +1,91 @@
+using Oracle.ManagedDataAccess.Client;
+using Serilog;
+using WorkAudit.Core.Services;
+using WorkAudit.Domain;
+
+namespace WorkAudit.Storage;
+
+/// <summary>
+/// Storage for report distribution/access tracking.
+/// </summary>
+public interface IReportDistributionStore
+{
+    long Log(string reportPath, string reportType, string eventType, string userId, string username, string? details = null);
+    List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? to = null, int limit = 500);
+}
+
+public class ReportDistributionStore : IReportDistributionStore
+{
+    private readonly ILogger _log = LoggingService.ForContext<ReportDistributionStore>();
+    private readonly string _connectionString;
+
+    public ReportDistributionStore(AppConfiguration config)
+    {
+        _connectionString = config.OracleConnectionString;
+    }
+
+    public long Log(string reportPath, string reportType, string eventType, string userId, string username, string? details = null)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            INSERT INTO report_distributions (uuid, report_path, report_type, event_type, user_id, username, timestamp, details)
+            VALUES (@uuid, @report_path, @report_type, @event_type, @user_id, @username, @timestamp, @details)";
+        cmd.Parameters.AddWithValue("@uuid", Guid.NewGuid().ToString("N"));
+        cmd.Parameters.AddWithValue("@report_path", reportPath);
+        cmd.Parameters.AddWithValue("@report_type", reportType);
+        cmd.Parameters.AddWithValue("@event_type", eventType);
+        cmd.Parameters.AddWithValue("@user_id", userId);
+        cmd.Parameters.AddWithValue("@username", username);
+        cmd.Parameters.AddWithValue("@timestamp", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@details", details ?? (object)DBNull.Value);
+        cmd.ExecuteNonQuery();
+
+        using var idCmd = conn.CreateCommand();
+        idCmd.CommandText = "SELECT last_insert_rowid()";
+        return Convert.ToInt64(idCmd.ExecuteScalar());
+    }
+
+    public List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? to = null, int limit = 500)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+        var sql = "SELECT * FROM report_distributions WHERE 1=1";
+        if (!string.IsNullOrEmpty(reportPath)) sql += " AND report_path = @report_path";
+        if (!string.IsNullOrEmpty(userId)) sql += " AND user_id = @user_id";
+        if (from.HasValue) sql += " AND timestamp >= @from";
+        if (to.HasValue) sql += " AND timestamp <= @to";
+        sql += " ORDER BY id DESC LIMIT @limit";
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        if (!string.IsNullOrEmpty(reportPath)) cmd.Parameters.AddWithValue("@report_path", reportPath);
+        if (!string.IsNullOrEmpty(userId)) cmd.Parameters.AddWithValue("@user_id", userId);
+        if (from.HasValue) cmd.Parameters.AddWithValue("@from", from.Value.ToString("O"));
+        if (to.HasValue) cmd.Parameters.AddWithValue("@to", to.Value.ToString("O"));
+        cmd.Parameters.AddWithValue("@limit", limit);
+
+        var list = new List<ReportDistribution>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+            list.Add(ReadDistribution(reader));
+        return list;
+    }
+
+    private static ReportDistribution ReadDistribution(OracleDataReader r)
+    {
+        return new ReportDistribution
+        {
+            Id = r.GetInt64(r.GetOrdinal("id")),
+            Uuid = r.GetString(r.GetOrdinal("uuid")),
+            ReportPath = r.GetString(r.GetOrdinal("report_path")),
+            ReportType = r.GetString(r.GetOrdinal("report_type")),
+            EventType = r.GetString(r.GetOrdinal("event_type")),
+            UserId = r.GetString(r.GetOrdinal("user_id")),
+            Username = r.GetString(r.GetOrdinal("username")),
+            Timestamp = r.GetString(r.GetOrdinal("timestamp")),
+            Details = r.IsDBNull(r.GetOrdinal("details")) ? null : r.GetString(r.GetOrdinal("details"))
+        };
+    }
+}

@@ -1,0 +1,12 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- .NET 10 SDK: WPF markup temp projects (*_wpftmp) inherit generated assembly sources from the outer project and also
+       run assembly-info / TFM attribute generation, producing CS0579. Evaluated here so MSBuildProjectName is correct. -->
+  <Target Name="WorkAuditDisableExtraAssemblyMetadataForWpftmp"
+          BeforeTargets="PrepareForBuild"
+          Condition="$([System.String]::Copy('$(MSBuildProjectFile)').Contains('_wpftmp.csproj'))">
+    <PropertyGroup>
+      <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+      <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    </PropertyGroup>
+  </Target>
+</Project>

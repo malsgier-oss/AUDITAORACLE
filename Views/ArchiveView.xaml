@@ -1,0 +1,214 @@
+<UserControl x:Class="WorkAudit.Views.ArchiveView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctrl="clr-namespace:WorkAudit.Controls"
+             xmlns:pdfViewer="clr-namespace:PdfiumViewer;assembly=PdfiumViewer"
+             Focusable="True"
+             KeyDown="ArchiveView_KeyDown">
+    <UserControl.Resources>
+        <Style x:Key="FilterLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource DimForeground}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource AlternateRowBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DimForeground}"/>
+            <Setter Property="Padding" Value="8,6"/>
+        </Style>
+        <Style TargetType="DataGridRow" x:Key="LegalHoldRowStyle">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding LegalHold}" Value="True">
+                    <Setter Property="Background" Value="#3D3820"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+    <Grid Background="{DynamicResource PanelBackground}" Margin="8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="228"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="560"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Filter panel (fixed width, always visible) -->
+        <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                Background="{DynamicResource ContentBackground}" Padding="8" Margin="0,0,8,0"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <StackPanel>
+                <TextBlock x:Name="FiltersHeaderLabel" Text="Filters" Foreground="{DynamicResource PrimaryForeground}"
+                           FontWeight="Bold" FontSize="13" Margin="0,0,0,10"/>
+                <TextBlock x:Name="BranchLabel" Text="Branch" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="BranchFilter" MinWidth="160" Margin="0,0,0,8"/>
+                <TextBlock x:Name="SectionLabel" Text="Section" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="SectionFilter" MinWidth="160" Margin="0,0,0,8"/>
+                <TextBlock x:Name="TypeLabel" Text="Type" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="TypeFilter" MinWidth="160" Margin="0,0,0,8"/>
+                <TextBlock x:Name="LegalHoldLabel" Text="Legal Hold" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="LegalHoldFilter" MinWidth="160" Margin="0,0,0,8"/>
+                <TextBlock x:Name="CaptureDateFromLabel" Text="Document Date From" Style="{StaticResource FilterLabel}"/>
+                <DatePicker x:Name="DateFromFilter" Margin="0,0,0,8"/>
+                <TextBlock x:Name="CaptureDateToLabel" Text="Document Date To" Style="{StaticResource FilterLabel}"/>
+                <DatePicker x:Name="DateToFilter" Margin="0,0,0,8"/>
+                <TextBlock x:Name="ExpiringWithinLabel" Text="Expiring Within" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="ExpiringWithinFilter" MinWidth="160" Margin="0,0,0,8"/>
+                <TextBlock x:Name="TagLabel" Text="Tag" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="TagFilter" MinWidth="160" IsEditable="True" Margin="0,0,0,8"
+                          ToolTip="Filter by tag (comma-separated tags supported)"/>
+                <TextBlock x:Name="CustodianLabel" Text="Custodian" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="CustodianFilter" MinWidth="160" Margin="0,0,0,8"
+                          DisplayMemberPath="DisplayName" ToolTip="Filter by document custodian"/>
+                <TextBlock x:Name="DisposalLabel" Text="Disposal" Style="{StaticResource FilterLabel}"/>
+                <ComboBox x:Name="DisposalFilter" MinWidth="160" Margin="0,0,0,8"
+                          ToolTip="Filter by disposal status"/>
+                <TextBlock x:Name="TextSearchLabel" Text="Text Search" Style="{StaticResource FilterLabel}"/>
+                <TextBox x:Name="SearchBox" Padding="6,4" Margin="0,0,0,4" KeyDown="SearchBox_KeyDown"
+                         ToolTip="Matches OCR, metadata, file path, tags, and document ID (numeric)."/>
+                <Button x:Name="SearchBtn" Content="Search" Padding="12,6" Margin="0,0,0,4"
+                        Click="SearchBtn_Click" Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button x:Name="ClearBtn" Content="Clear" Padding="12,6"
+                        Click="ClearBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main grid -->
+        <Grid Grid.Row="0" Grid.RowSpan="2" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0" Background="{DynamicResource ContentBackground}" Padding="8" Margin="0,0,0,4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                <StackPanel>
+                    <StackPanel x:Name="ArchiveStatsRow" Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock x:Name="ArchiveStatsLabel" Text="Archive stats: " Foreground="{DynamicResource SecondaryForeground}" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ArchiveStatsText" Text="—" Foreground="{DynamicResource PrimaryForeground}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,-4,0,0">
+                        <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="ResultCountText" Text="" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <ComboBox x:Name="SavedSearchesCombo" MinWidth="140" Margin="0,0,8,0" VerticalAlignment="Center"
+                              ToolTip="Load saved search (F5=Search, Ctrl+E=Export)"/>
+                    <Button x:Name="SaveSearchBtn" Content="Save Search" Padding="12,6" Margin="0,0,8,0"
+                            Click="SaveSearchBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Save current filters as named search"/>
+                    <Button x:Name="ColumnsBtn" Content="Columns" Padding="12,6" Margin="0,0,8,0"
+                            Click="ColumnsBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Show/hide columns"/>
+                    <Button x:Name="ApplyHoldBtn" Content="Apply Legal Hold" Padding="12,6" Margin="0,0,8,0"
+                            Click="ApplyHoldBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Place selected documents under legal hold"/>
+                    <Button x:Name="ReleaseHoldBtn" Content="Release Legal Hold" Padding="12,6" Margin="0,0,8,0"
+                            Click="ReleaseHoldBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Release legal hold from selected documents"/>
+                    <Button x:Name="BulkTagBtn" Content="Bulk Tag" Padding="12,6" Margin="0,0,8,0"
+                            Click="BulkTagBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Add or remove tags from selected documents"/>
+                    <Button x:Name="AssignCustodianBtn" Content="Assign Custodian" Padding="12,6" Margin="0,0,8,0"
+                            Click="AssignCustodianBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Assign custodian to selected documents"/>
+                    <Button x:Name="RequestDisposalBtn" Content="Request Disposal" Padding="12,6" Margin="0,0,8,0"
+                            Click="RequestDisposalBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Request disposal approval for selected documents"/>
+                    <Button x:Name="ApproveDisposalBtn" Content="Approve Disposal" Padding="12,6" Margin="0,0,8,0"
+                            Click="ApproveDisposalBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Approve disposal of selected documents"/>
+                    <Button x:Name="RejectDisposalBtn" Content="Reject Disposal" Padding="12,6" Margin="0,0,8,0"
+                            Click="RejectDisposalBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="#C50F1F" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Reject disposal request"/>
+                    <Button x:Name="ExportBtn" Content="Export" Padding="12,6" Margin="0,0,8,0"
+                            Click="ExportBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+                    <CheckBox x:Name="EncryptExportCheck" Content="Encrypt" Margin="0,0,8,0" VerticalAlignment="Center"
+                              ToolTip="Encrypt export with password (AES-256). File will be saved as .encrypted"/>
+                    <Button x:Name="ChainOfCustodyBtn" Content="Chain of Custody" Padding="12,6"
+                            Click="ChainOfCustodyBtn_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Generate chain of custody report for selected document(s). Single = Excel; Multiple = ZIP"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Background="#3D3820" Padding="8" Margin="0,0,0,4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <TextBlock Text="Application-level immutability. NOT hardware-certified WORM. Hash verification detects tampering." 
+                           Foreground="#E8D48B" FontSize="12" TextWrapping="Wrap"/>
+            </Border>
+            <TextBlock Grid.Row="2" x:Name="BulkActionLabel" Text="Use Ctrl+Click / Shift+Click for multi-select" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" Margin="0,0,0,4"/>
+            <DataGrid Grid.Row="3" x:Name="ResultsGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Extended" SelectionChanged="ResultsGrid_SelectionChanged"
+                      Background="{DynamicResource ContentBackground}" RowBackground="{DynamicResource ContentBackground}" AlternatingRowBackground="{DynamicResource AlternateRowBackground}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
+                      HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                      EnableRowVirtualization="True" VirtualizingStackPanel.IsVirtualizing="True"
+                      RowStyle="{StaticResource LegalHoldRowStyle}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn x:Name="ColId" Header="ID" Binding="{Binding Id}" Width="50"/>
+                    <DataGridTextColumn x:Name="ColType" Header="Type" Binding="{Binding DocumentType}" Width="*"/>
+                    <DataGridTextColumn x:Name="ColDocumentDate" Header="Document Date" Binding="{Binding DateDisplay}" Width="110"/>
+                    <DataGridTextColumn x:Name="ColArchived" Header="Archived" Binding="{Binding ArchivedAt}" Width="120"/>
+                    <DataGridTextColumn x:Name="ColRetention" Header="Retention Expiry" Binding="{Binding RetentionExpiryDate}" Width="100"/>
+                    <DataGridTextColumn x:Name="ColTags" Header="Tags" Binding="{Binding Tags}" Width="120"/>
+                    <DataGridTextColumn x:Name="ColDisposal" Header="Disposal" Binding="{Binding DisposalStatus}" Width="80"/>
+                    <DataGridTemplateColumn x:Name="ColHold" Header="Hold" Width="50">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock>
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value=""/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding LegalHold}" Value="True">
+                                                    <Setter Property="Text" Value="Yes"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn x:Name="ColSize" Header="Size" Binding="{Binding FileSizeDisplay}" Width="70"/>
+                    <DataGridTextColumn x:Name="ColSection" Header="Section" Binding="{Binding Section}" Width="80"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <!-- Preview panel -->
+        <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Background="{DynamicResource ContentBackground}" Padding="8" Margin="8,0,0,0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Document Details" Foreground="{DynamicResource PrimaryForeground}" FontWeight="Bold" Margin="0,0,0,4"/>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="180">
+                    <TextBlock x:Name="DetailText" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" LineHeight="18" FontSize="12"
+                               Text="Select a document to view details. Hash verification runs on selection."/>
+                </ScrollViewer>
+                <Grid Grid.Row="2" Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Document Preview" Foreground="{DynamicResource PrimaryForeground}" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <ctrl:PdfPreviewToolsPanel x:Name="ArchivePdfPreviewTools" Grid.Row="1" Visibility="Collapsed"/>
+                    <Grid Grid.Row="2">
+                        <ctrl:DocumentViewer x:Name="DocumentPreviewViewer" Visibility="Collapsed"/>
+                        <pdfViewer:PDFViewer x:Name="PdfPreviewViewer" Visibility="Collapsed"/>
+                        <Border x:Name="PreviewPlaceholder" Background="{DynamicResource AlternateRowBackground}">
+                            <TextBlock x:Name="PreviewPlaceholderText" Text="Select a document to preview." Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="16"/>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

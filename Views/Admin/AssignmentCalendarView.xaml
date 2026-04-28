@@ -1,0 +1,63 @@
+<UserControl x:Class="WorkAudit.Views.Admin.AssignmentCalendarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{DynamicResource PanelBackground}" Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Assignment Calendar" FontSize="20" FontWeight="SemiBold" Foreground="#212529" Margin="0,0,0,16"/>
+        <TextBlock Grid.Row="0" Text="Assignments by due date" FontSize="12" Foreground="#6C757D" Margin="0,28,0,-32" VerticalAlignment="Top"/>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button x:Name="PrevMonthBtn" Content="◀ Prev" Padding="12,6" Margin="0,0,8,0" Click="PrevMonthBtn_Click"
+                    Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource DimForeground}" BorderThickness="0" Cursor="Hand"/>
+            <TextBlock x:Name="MonthYearText" Text="January 2026" FontSize="16" FontWeight="SemiBold" Foreground="#333333" VerticalAlignment="Center" Margin="0,0,16,0"/>
+            <Button x:Name="NextMonthBtn" Content="Next ▶" Padding="12,6" Margin="0,0,8,0" Click="NextMonthBtn_Click"
+                    Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource DimForeground}" BorderThickness="0" Cursor="Hand"/>
+            <Button x:Name="TodayBtn" Content="Today" Padding="12,6" Click="TodayBtn_Click"
+                    Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="CalendarDaysPanel">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{DynamicResource ContentBackground}" Padding="12" Margin="0,0,0,8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                            <StackPanel>
+                                <TextBlock Text="{Binding DateDisplay}" FontSize="14" FontWeight="SemiBold" Foreground="#333333" Margin="0,0,0,8"/>
+                                <ItemsControl ItemsSource="{Binding Assignments}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#F8F9FA" Padding="8,6" Margin="0,0,0,4" CornerRadius="4">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DocumentName}" FontWeight="SemiBold" FontSize="12" Foreground="#333333"/>
+                                                        <TextBlock FontSize="11" Foreground="#6C757D">
+                                                            <Run Text="{Binding AssignedToUsername, Mode=OneWay}"/>
+                                                            <Run Text=" • "/>
+                                                            <Run Text="{Binding StatusDisplay, Mode=OneWay}"/>
+                                                            <Run Text=" • "/>
+                                                            <Run Text="{Binding PriorityDisplay, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="" FontSize="12" Foreground="#999" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

@@ -1,0 +1,39 @@
+<Window x:Class="WorkAudit.Dialogs.BackupDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Backup to External Drive" Height="280" Width="480" WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize" Background="{DynamicResource ContentBackground}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Choose a destination folder (e.g. USB drive or network path) for the backup." 
+                   Foreground="{DynamicResource PrimaryForeground}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="1" Text="Destination folder:" Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,4"/>
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="PathBox" Grid.Column="0" Padding="8,6" VerticalContentAlignment="Center"
+                     IsReadOnly="True"/>
+            <Button Grid.Column="1" Content="Browse..." Margin="8,0,0,0" Padding="12,6" Click="Browse_Click"
+                    Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+        </Grid>
+        <CheckBox x:Name="IncludeDocumentsCheck" Grid.Row="3" Content="Include documents (recommended)" 
+                  IsChecked="True" Margin="0,12,0,0"/>
+        <TextBlock x:Name="StatusText" Grid.Row="4" Text="" Foreground="{DynamicResource SecondaryForeground}" Margin="0,12,0,0" 
+                   TextWrapping="Wrap" Visibility="Collapsed"/>
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button x:Name="CreateBackupBtn" Content="Create Backup" Width="120" Height="32" Click="CreateBackup_Click"
+                    Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Cancel" Width="80" Height="32" Margin="12,0,0,0" Click="Cancel_Click"
+                    Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+    </Grid>
+</Window>

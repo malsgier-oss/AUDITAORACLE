@@ -1,0 +1,58 @@
+<Window x:Class="WorkAudit.Dialogs.AssignDocumentDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Assign Documents" Height="520" MinHeight="400" Width="500" MinWidth="480"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" Background="{DynamicResource ContentBackground}" Loaded="AssignDocumentDialog_Loaded">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Scrollable form so the action bar is never clipped on small windows or large fonts -->
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,0,8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" x:Name="SelectedCountText" Text="Selected documents: 0" Margin="0,0,0,8" Foreground="{DynamicResource PrimaryForeground}"/>
+                <ListBox Grid.Row="1" x:Name="DocumentList" Height="80" Margin="0,0,0,12" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                <TextBlock Grid.Row="2" x:Name="BranchFilterLabel" Text="Branch:" Margin="0,0,0,4" Foreground="{DynamicResource PrimaryForeground}"/>
+                <ComboBox x:Name="BranchFilterCombo" Grid.Row="3" Margin="0,0,0,8" Padding="8,6" SelectionChanged="BranchFilterCombo_SelectionChanged"/>
+                <TextBlock Grid.Row="4" x:Name="AssignToLabel" Text="Assign to:" Margin="0,0,0,4" Foreground="{DynamicResource PrimaryForeground}"/>
+                <ComboBox x:Name="UserCombo" Grid.Row="5" Margin="0,0,0,8" Padding="8,6" DisplayMemberPath="DisplayNameAndBranch"/>
+                <TextBlock Grid.Row="6" x:Name="DueDateLabel" Text="Due date (optional):" Margin="0,0,0,4" Foreground="{DynamicResource PrimaryForeground}"/>
+                <DatePicker x:Name="DueDatePicker" Grid.Row="7" Margin="0,0,0,8" HorizontalAlignment="Left"/>
+                <TextBlock Grid.Row="8" x:Name="PriorityLabel" Text="Priority:" Margin="0,0,0,4" Foreground="{DynamicResource PrimaryForeground}"/>
+                <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,0,0,8">
+                    <RadioButton x:Name="RbLow" Content="Low" GroupName="Priority" Margin="0,0,16,0" Foreground="{DynamicResource PrimaryForeground}"/>
+                    <RadioButton x:Name="RbNormal" Content="Normal" GroupName="Priority" IsChecked="True" Margin="0,0,16,0" Foreground="{DynamicResource PrimaryForeground}"/>
+                    <RadioButton x:Name="RbHigh" Content="High" GroupName="Priority" Margin="0,0,16,0" Foreground="{DynamicResource PrimaryForeground}"/>
+                    <RadioButton x:Name="RbUrgent" Content="Urgent" GroupName="Priority" Foreground="{DynamicResource PrimaryForeground}"/>
+                </StackPanel>
+                <TextBlock Grid.Row="10" x:Name="NotesLabel" Text="Notes:" Margin="0,0,0,4" Foreground="{DynamicResource PrimaryForeground}"/>
+                <TextBox x:Name="NotesBox" Grid.Row="11" MinHeight="60" Height="60" Margin="0,0,0,0" Padding="8,6" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+            </Grid>
+        </ScrollViewer>
+
+        <Border Grid.Row="1" Padding="0,12,0,0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="AssignBtn" Content="Assign" MinWidth="90" Height="34" Padding="12,4" Click="AssignBtn_Click" IsDefault="True"
+                        Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button x:Name="CancelBtn" Content="Cancel" MinWidth="88" Height="34" Padding="12,4" Margin="12,0,0,0" Click="CancelBtn_Click" IsCancel="True"
+                        Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" Cursor="Hand"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

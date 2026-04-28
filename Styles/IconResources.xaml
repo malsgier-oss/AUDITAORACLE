@@ -1,0 +1,128 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    
+    <!-- Icon Font -->
+    <FontFamily x:Key="IconFont">Segoe MDL2 Assets</FontFamily>
+    
+    <!-- Common Action Icons -->
+    <sys:String x:Key="IconAdd">&#xE710;</sys:String>
+    <sys:String x:Key="IconEdit">&#xE70F;</sys:String>
+    <sys:String x:Key="IconDelete">&#xE74D;</sys:String>
+    <sys:String x:Key="IconSave">&#xE74E;</sys:String>
+    <sys:String x:Key="IconCancel">&#xE711;</sys:String>
+    <sys:String x:Key="IconAccept">&#xE8FB;</sys:String>
+    <sys:String x:Key="IconRefresh">&#xE72C;</sys:String>
+    <sys:String x:Key="IconClose">&#xE8BB;</sys:String>
+    
+    <!-- Navigation Icons -->
+    <sys:String x:Key="IconBack">&#xE72B;</sys:String>
+    <sys:String x:Key="IconForward">&#xE72A;</sys:String>
+    <sys:String x:Key="IconUp">&#xE74A;</sys:String>
+    <sys:String x:Key="IconDown">&#xE74B;</sys:String>
+    <sys:String x:Key="IconHome">&#xE80F;</sys:String>
+    <sys:String x:Key="IconMenu">&#xE700;</sys:String>
+    <sys:String x:Key="IconMore">&#xE712;</sys:String>
+    
+    <!-- File & Folder Icons -->
+    <sys:String x:Key="IconFolder">&#xE8B7;</sys:String>
+    <sys:String x:Key="IconOpenFolder">&#xE838;</sys:String>
+    <sys:String x:Key="IconFile">&#xE8A5;</sys:String>
+    <sys:String x:Key="IconDocument">&#xE8A5;</sys:String>
+    <sys:String x:Key="IconPdf">&#xEA90;</sys:String>
+    <sys:String x:Key="IconImage">&#xEB9F;</sys:String>
+    <sys:String x:Key="IconAttach">&#xE723;</sys:String>
+    
+    <!-- Search & Filter Icons -->
+    <sys:String x:Key="IconSearch">&#xE721;</sys:String>
+    <sys:String x:Key="IconFilter">&#xE71C;</sys:String>
+    <sys:String x:Key="IconSort">&#xE8CB;</sys:String>
+    <sys:String x:Key="IconZoom">&#xE71E;</sys:String>
+    <sys:String x:Key="IconZoomIn">&#xE8A3;</sys:String>
+    <sys:String x:Key="IconZoomOut">&#xE71F;</sys:String>
+    
+    <!-- Communication Icons -->
+    <sys:String x:Key="IconMail">&#xE715;</sys:String>
+    <sys:String x:Key="IconMailSend">&#xE724;</sys:String>
+    <sys:String x:Key="IconNotification">&#xEA8F;</sys:String>
+    <sys:String x:Key="IconMessage">&#xE8BD;</sys:String>
+    <sys:String x:Key="IconComment">&#xE90A;</sys:String>
+    
+    <!-- Settings & Tools Icons -->
+    <sys:String x:Key="IconSettings">&#xE713;</sys:String>
+    <sys:String x:Key="IconGear">&#xE713;</sys:String>
+    <sys:String x:Key="IconTools">&#xE90F;</sys:String>
+    <sys:String x:Key="IconLock">&#xE72E;</sys:String>
+    <sys:String x:Key="IconUnlock">&#xE785;</sys:String>
+    <sys:String x:Key="IconViewPassword">&#xE890;</sys:String>
+    <sys:String x:Key="IconHidePassword">&#xE8F1;</sys:String>
+    
+    <!-- User & People Icons -->
+    <sys:String x:Key="IconUser">&#xE77B;</sys:String>
+    <sys:String x:Key="IconPeople">&#xE716;</sys:String>
+    <sys:String x:Key="IconContact">&#xE77B;</sys:String>
+    <sys:String x:Key="IconAdmin">&#xE7EF;</sys:String>
+    
+    <!-- Status Icons -->
+    <sys:String x:Key="IconCheckmark">&#xE73E;</sys:String>
+    <sys:String x:Key="IconError">&#xE783;</sys:String>
+    <sys:String x:Key="IconWarning">&#xE7BA;</sys:String>
+    <sys:String x:Key="IconInfo">&#xE946;</sys:String>
+    <sys:String x:Key="IconStatusCircle">&#xEA3A;</sys:String>
+    
+    <!-- Media & Playback Icons -->
+    <sys:String x:Key="IconPlay">&#xE768;</sys:String>
+    <sys:String x:Key="IconPause">&#xE769;</sys:String>
+    <sys:String x:Key="IconStop">&#xE71A;</sys:String>
+    <sys:String x:Key="IconCamera">&#xE722;</sys:String>
+    <sys:String x:Key="IconVideo">&#xE714;</sys:String>
+    
+    <!-- Data & Chart Icons -->
+    <sys:String x:Key="IconChart">&#xE9D2;</sys:String>
+    <sys:String x:Key="IconBarChart">&#xE9D2;</sys:String>
+    <sys:String x:Key="IconPieChart">&#xEB05;</sys:String>
+    <sys:String x:Key="IconTable">&#xE8EC;</sys:String>
+    <sys:String x:Key="IconDashboard">&#xE9D1;</sys:String>
+    
+    <!-- Export & Print Icons -->
+    <sys:String x:Key="IconExport">&#xEDE1;</sys:String>
+    <sys:String x:Key="IconImport">&#xE8B5;</sys:String>
+    <sys:String x:Key="IconPrint">&#xE749;</sys:String>
+    <sys:String x:Key="IconDownload">&#xE896;</sys:String>
+    <sys:String x:Key="IconUpload">&#xE898;</sys:String>
+    
+    <!-- Calendar & Time Icons -->
+    <sys:String x:Key="IconCalendar">&#xE787;</sys:String>
+    <sys:String x:Key="IconClock">&#xE917;</sys:String>
+    <sys:String x:Key="IconAlarm">&#xE919;</sys:String>
+    <sys:String x:Key="IconDate">&#xE787;</sys:String>
+    
+    <!-- Archive & History Icons -->
+    <sys:String x:Key="IconArchive">&#xE7B8;</sys:String>
+    <sys:String x:Key="IconHistory">&#xE81C;</sys:String>
+    <sys:String x:Key="IconRestore">&#xE7A7;</sys:String>
+    <sys:String x:Key="IconRecycle">&#xE75D;</sys:String>
+    
+    <!-- View Mode Icons -->
+    <sys:String x:Key="IconList">&#xE8FD;</sys:String>
+    <sys:String x:Key="IconGrid">&#xE80A;</sys:String>
+    <sys:String x:Key="IconTile">&#xE80A;</sys:String>
+    <sys:String x:Key="IconPreview">&#xE7C5;</sys:String>
+    
+    <!-- Tag & Label Icons -->
+    <sys:String x:Key="IconTag">&#xE8EC;</sys:String>
+    <sys:String x:Key="IconBookmark">&#xE734;</sys:String>
+    <sys:String x:Key="IconFlag">&#xE7C1;</sys:String>
+    <sys:String x:Key="IconPin">&#xE718;</sys:String>
+    
+    <!-- Additional Utility Icons -->
+    <sys:String x:Key="IconHelp">&#xE897;</sys:String>
+    <sys:String x:Key="IconLink">&#xE71B;</sys:String>
+    <sys:String x:Key="IconCopy">&#xE8C8;</sys:String>
+    <sys:String x:Key="IconPaste">&#xE77F;</sys:String>
+    <sys:String x:Key="IconCut">&#xE8C6;</sys:String>
+    <sys:String x:Key="IconUndo">&#xE7A7;</sys:String>
+    <sys:String x:Key="IconRedo">&#xE7A6;</sys:String>
+    <sys:String x:Key="IconShare">&#xE72D;</sys:String>
+    
+</ResourceDictionary>

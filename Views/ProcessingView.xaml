@@ -1,0 +1,166 @@
+<UserControl x:Class="WorkAudit.Views.ProcessingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctrl="clr-namespace:WorkAudit.Controls"
+             xmlns:pdfViewer="clr-namespace:PdfiumViewer;assembly=PdfiumViewer"
+             PreviewKeyDown="ProcessingView_PreviewKeyDown">
+    <Grid Background="{DynamicResource PanelBackground}" Margin="8">
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <!-- Fixed-width sidebar; main area gets all remaining space -->
+                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="*" MinWidth="200"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left sidebar: Shown, actions, filters -->
+            <Border Grid.Column="0" Background="{DynamicResource ContentBackground}" Padding="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <!-- Shown section -->
+                        <Border Background="{DynamicResource AlternateRowBackground}" Padding="8,6" Margin="0,0,0,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                            <StackPanel>
+                                <TextBlock x:Name="ShownSectionLabel" Text="Shown" Foreground="{DynamicResource SecondaryForeground}" FontSize="10" Margin="0,0,0,2"/>
+                                <TextBlock x:Name="QueueCountLabel" Text="0 documents" Foreground="{DynamicResource PrimaryForeground}" FontSize="13" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Actions -->
+                        <TextBlock Text="Actions" Foreground="{DynamicResource SecondaryForeground}" FontSize="10" Margin="0,0,0,6"/>
+                        <Button x:Name="RefreshBtn" Content="Refresh" Padding="10,6" Margin="0,0,0,6" Click="RefreshBtn_Click"
+                                Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                        <Button x:Name="SelectAllSidebarBtn" Content="Select all" Padding="10,6" Margin="0,0,0,6" Click="SelectAllBtn_Click"
+                                Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"
+                                ToolTip="Check all rows in the list for bulk actions"/>
+                        <Button x:Name="SetTypeSectionBtn" Content="Set type/section..." Padding="10,6" Margin="0,0,0,6" Click="SetTypeSectionBtn_Click" IsEnabled="False"
+                                Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch" ToolTip="Manually set document type and section"/>
+                        <Button x:Name="MergeToPdfBtn" Content="Merge to PDF…" Padding="10,6" Margin="0,0,0,6" Click="MergeToPdfBtn_Click" IsEnabled="False"
+                                Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch" ToolTip="Combine selected PDFs and images into one document in this list"/>
+                        <Button x:Name="DeleteSelectedBtn" Content="Delete selected" Padding="10,6" Margin="0,0,0,12" Click="DeleteSelectedBtn_Click" IsEnabled="False"
+                                Background="{DynamicResource ButtonSecondaryBackground}" Foreground="#C50F1F" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch" ToolTip="Permanently delete selected documents (cannot be undone)"/>
+                        <!-- Filters -->
+                        <TextBlock x:Name="FiltersLabel" Text="Filter by type" Foreground="{DynamicResource SecondaryForeground}" FontSize="10" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="FilterType" Padding="6,4" Margin="0,0,0,6" SelectionChanged="Filter_Changed"/>
+                        <Button x:Name="ClearFiltersBtn" Content="Clear filter" Padding="8,4" Margin="0,0,0,12" Click="ClearFiltersBtn_Click"
+                                Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                        <!-- Summary -->
+                        <TextBlock x:Name="SummaryLabel" Text="Summary" Foreground="{DynamicResource SecondaryForeground}" FontSize="10" Margin="0,0,0,6"/>
+                        <TextBlock x:Name="CompletedCountLabel" Text="0 completed (last 7 days)" Foreground="{DynamicResource PrimaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                        <TextBlock x:Name="DraftCountLabel" Text="Draft: 0" Foreground="{DynamicResource SecondaryForeground}" FontSize="11" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ReviewedCountLabel" Text="Reviewed: 0" Foreground="{DynamicResource SecondaryForeground}" FontSize="11" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="NeedReviewCountLabel" Text="Need Review: 0" Foreground="{DynamicResource SecondaryForeground}" FontSize="11" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="TotalCountLabel" Text="Total: 0" Foreground="{DynamicResource SecondaryForeground}" FontSize="11" Margin="0,0,0,12"/>
+                        <Button x:Name="FinishBtn" Content="Move to Workspace" Padding="10,6" Click="FinishBtn_Click"
+                                Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"
+                                ToolTip="Move selected documents to Workspace for review"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+            <!-- Document queue + preview split -->
+            <Border Grid.Column="1" Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="ListColumn" Width="2*" MinWidth="200"/>
+                    <ColumnDefinition Width="4"/>
+                    <ColumnDefinition x:Name="PreviewColumn" Width="3*" MinWidth="0"/>
+                </Grid.ColumnDefinitions>
+                <!-- Left: list -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="RecentlyProcessedLabel" Grid.Column="0" Text="Recently Processed Documents" Foreground="{DynamicResource PrimaryForeground}" FontSize="12" VerticalAlignment="Center"/>
+                        <Button x:Name="MergeToPdfToolbarBtn" Grid.Column="1" Content="Merge to PDF…" Padding="10,6" Margin="12,0,0,0"
+                                Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center"
+                                Click="MergeToPdfBtn_Click" IsEnabled="False" MinWidth="128"/>
+                    </Grid>
+                    <Grid Grid.Row="1">
+                        <DataGrid x:Name="QueueGrid" AutoGenerateColumns="False" IsReadOnly="False"
+                              Background="{DynamicResource ContentBackground}" RowBackground="{DynamicResource ContentBackground}" AlternatingRowBackground="{DynamicResource ContentBackground}"
+                              Foreground="{DynamicResource PrimaryForeground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
+                              HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                              SelectionMode="Single" SelectionChanged="QueueGrid_SelectionChanged"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True"
+                              KeyDown="QueueGrid_KeyDown" PreviewMouseLeftButtonDown="QueueGrid_PreviewMouseLeftButtonDown">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMergeHighlight}" Value="True">
+                                        <Setter Property="Background" Value="#AA147ABC"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn x:Name="QueueSelectColumn" Width="40" Header="">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Checked="QueueRowCheckbox_Changed" Unchecked="QueueRowCheckbox_Changed"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*" MinWidth="120" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Type" Binding="{Binding DocumentType}" Width="140" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Section" Binding="{Binding Section}" Width="100" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Date" Binding="{Binding ExtractedDate}" Width="*" MinWidth="100" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                        <Border x:Name="EmptyStateOverlay" Background="{DynamicResource ContentBackground}" Visibility="Collapsed">
+                            <TextBlock x:Name="EmptyStateText" Text="No documents in the last 7 days. Use Input to import or capture documents." Foreground="{DynamicResource SecondaryForeground}" FontSize="13"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="24"/>
+                        </Border>
+                    </Grid>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
+                        <Button x:Name="SelectAllBtn" Content="Select All" Padding="8,4" Margin="0,0,8,0" Click="SelectAllBtn_Click"
+                                Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="ClearSelectionBtn" Content="Clear" Padding="8,4" Margin="0,0,8,0" Click="ClearSelectionBtn_Click"
+                                Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock x:Name="SelectedCountLabel" Text="" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+                <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" ResizeDirection="Columns"/>
+                <!-- Right: preview panel -->
+                <Border Grid.Column="2" x:Name="PreviewPanel" Background="{DynamicResource ContentBackground}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="{DynamicResource PanelBackground}" Padding="6,4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="TogglePreviewBtn" Content="◀" ToolTip="Hide preview" Width="28" Height="24" Click="TogglePreviewBtn_Click"
+                                        Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+                                <TextBlock x:Name="DocumentPreviewLabel" Text="Document Preview" Foreground="{DynamicResource PrimaryForeground}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Grid Grid.Row="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <ctrl:PdfPreviewToolsPanel x:Name="ProcessingPdfPreviewTools" Grid.Row="0" Visibility="Collapsed"/>
+                            <Grid Grid.Row="1">
+                                <ctrl:DocumentViewer x:Name="DocumentPreviewViewer" Visibility="Collapsed"/>
+                                <pdfViewer:PDFViewer x:Name="PdfPreviewViewer" Visibility="Collapsed"/>
+                                <Border x:Name="PreviewPlaceholder" Background="{DynamicResource ContentBackground}">
+                                    <TextBlock x:Name="PreviewPlaceholderText" Text="Select a document to preview." Foreground="{DynamicResource SecondaryForeground}" FontSize="13"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="16"/>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

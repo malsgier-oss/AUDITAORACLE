@@ -1,0 +1,173 @@
+<Window x:Class="WorkAudit.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Icon="pack://application:,,,/Resources/Branding/Audita.ico"
+        Title="AUDITA v1.0 – Audit Workspace"
+        Height="700" Width="1100" MinHeight="500" MinWidth="800"
+        ResizeMode="CanResize"
+        WindowStyle="None" AllowsTransparency="True"
+        Background="Transparent"
+        PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown"
+        PreviewMouseMove="Window_PreviewMouseMove"
+        PreviewKeyDown="MainWindow_PreviewKeyDown">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+    <Border x:Name="RootChromeBorder" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="0" Background="{DynamicResource ContentBackground}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>
+                <RowDefinition x:Name="ProgressBarRow" Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="24"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title bar (frameless) - theme: drag and double-click handled in code-behind -->
+            <Border x:Name="TitleBar" Grid.Row="0" Background="{DynamicResource TitleBarBackground}" Cursor="Arrow">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Menu x:Name="MainMenu" VerticalAlignment="Center" Margin="4,0" Background="Transparent"
+                              Foreground="{DynamicResource PrimaryForeground}">
+                        <MenuItem x:Name="MenuFile" Header="File">
+                            <MenuItem x:Name="MenuOpenFiles" Header="Open File(s)..." InputGestureText="Ctrl+O" Click="FileOpen_Click"/>
+                            <MenuItem x:Name="MenuOpenFolder" Header="Open Folder..." InputGestureText="Ctrl+Shift+O" Click="FileOpenFolder_Click"/>
+                            <Separator/>
+                            <MenuItem x:Name="FileLogout" Header="Sign Out" Click="FileLogout_Click"/>
+                            <Separator/>
+                            <MenuItem x:Name="MenuExit" Header="Exit" InputGestureText="Ctrl+Q" Click="FileExit_Click"/>
+                        </MenuItem>
+                        <MenuItem x:Name="MenuEdit" Header="Edit">
+                            <MenuItem x:Name="MenuPreferences" Header="Preferences" InputGestureText="Ctrl+," Click="EditPreferences_Click"/>
+                            <MenuItem x:Name="MenuControlPanel" Header="Control Panel..." Click="ToolsControlPanel_Click"/>
+                        </MenuItem>
+                        <MenuItem x:Name="MenuView" Header="View">
+                            <MenuItem x:Name="MenuProperties" Header="Properties" InputGestureText="Ctrl+P" Click="ViewProperties_Click"/>
+                            <MenuItem x:Name="MenuGoTo" Header="Go to">
+                                <MenuItem x:Name="MenuGoDashboard" Header="Dashboard" Click="GoDashboard_Click" Visibility="Collapsed"/>
+                                <Separator x:Name="MenuGoDashboardSeparator" Visibility="Collapsed"/>
+                                <MenuItem x:Name="MenuGoInput" Header="Input" Click="GoInput_Click"/>
+                                <MenuItem x:Name="MenuGoProcessing" Header="Processing" Click="GoProcessing_Click"/>
+                                <MenuItem x:Name="MenuGoWorkspace" Header="Workspace" Click="GoWorkspace_Click"/>
+                                <MenuItem x:Name="MenuGoArchive" Header="Archive" Click="GoArchive_Click"/>
+                                <MenuItem x:Name="MenuGoDocumentPreview" Header="Document Preview" Click="GoDocumentPreview_Click"/>
+                                <MenuItem x:Name="MenuGoReports" Header="Reports" Click="GoReports_Click"/>
+                                <MenuItem x:Name="MenuGoAssignments" Header="My Assignments" Click="GoAssignments_Click"/>
+                            </MenuItem>
+                            <Separator/>
+                            <MenuItem x:Name="MenuToggleSidebar" Header="Toggle Sidebar" InputGestureText="Ctrl+B" Click="ToggleSidebar_Click"/>
+                        </MenuItem>
+                        <MenuItem x:Name="AdminMenu" Header="Admin" Visibility="Collapsed">
+                            <MenuItem x:Name="MenuUserManagement" Header="User Management" Click="AdminUserManagement_Click"/>
+                            <MenuItem x:Name="MenuAssignmentManagement" Header="Assignment Management" Click="AdminAssignmentManagement_Click"/>
+                            <MenuItem x:Name="MenuTeamTaskManagement" Header="Team Tasks..." Click="AdminTeamTaskManagement_Click"/>
+                            <MenuItem x:Name="MenuAuditLog" Header="Audit Log" Click="AdminAuditLog_Click"/>
+                        </MenuItem>
+                        <MenuItem x:Name="MenuHelp" Header="Help">
+                            <MenuItem x:Name="MenuAbout" Header="About" Click="HelpAbout_Click"/>
+                        </MenuItem>
+                    </Menu>
+                        <Button x:Name="BtnToggleInputMetadata"
+                                Visibility="Collapsed"
+                                Padding="6,2"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                Foreground="{DynamicResource PrimaryForeground}"
+                                BorderThickness="0"
+                                ToolTip="Hide Branch, Date, and classification fields for more preview space."
+                                Click="BtnToggleInputMetadata_Click">
+                            <TextBlock x:Name="ToggleInputMetadataIcon"
+                                       FontFamily="{DynamicResource IconFont}"
+                                       FontSize="14"
+                                       Text="&#xE74A;"
+                                       VerticalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="UserDisplay" VerticalAlignment="Center" Foreground="{DynamicResource DimForeground}" Margin="0,0,12,0" FontSize="12"/>
+                        <Button x:Name="BtnMinimize" Content="—" Width="46" Height="36" Background="Transparent"
+                                Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" FontSize="14" Click="BtnMinimize_Click"/>
+                        <Button x:Name="BtnMaximize" Content="□" Width="46" Height="36" Background="Transparent"
+                                Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" FontSize="14" Click="BtnMaximize_Click"/>
+                        <Button x:Name="BtnClose" Content="✕" Width="46" Height="36" Background="Transparent"
+                                Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" FontSize="14" Click="BtnClose_Click"
+                                MouseEnter="BtnClose_MouseEnter" MouseLeave="BtnClose_MouseLeave"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Inline processing progress bar (thin green, shown during bulk processing) -->
+            <Border x:Name="ProgressBarContainer" Grid.Row="1" Visibility="Collapsed" Background="{DynamicResource ActivityBarBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ProgressBar x:Name="ProcessingProgressBar" Grid.Column="0" Height="4" Margin="0,2" Minimum="0" Maximum="100" Value="0"
+                                 Foreground="#107C10" Background="{DynamicResource BorderBrush}"/>
+                    <Button x:Name="ProgressCancelBtn" Grid.Column="1" Content="Cancel" Margin="8,0,0,0" Padding="8,2" FontSize="11"
+                            Click="ProgressCancelBtn_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- Main content: Activity bar + stacked views -->
+            <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition x:Name="ActivityBarRow" Height="40" MinHeight="40" MaxHeight="40"/>
+                    <RowDefinition x:Name="ActivityBarSplitterRow" Height="1"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Activity bar (Horizontal) -->
+                <Border x:Name="ActivityBar" Grid.Row="0" Background="{DynamicResource ActivityBarBackground}" Padding="4,2">
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="ActDashboard" Content="Dashboard" Margin="2,0" Padding="12,6" Foreground="{DynamicResource PrimaryForeground}"
+                                Style="{StaticResource DarkButtonStyle}" Click="ActDashboard_Click" Tag="0"
+                                ToolTip="Admin/Manager Dashboard" Visibility="Collapsed"/>
+                        <Separator x:Name="ActivityBarDashboardSeparator" Margin="4,4" Background="{DynamicResource BorderBrush}" Visibility="Collapsed"/>
+                        <Button x:Name="ActInput" Content="Input" Margin="2,0" Padding="12,6" Foreground="{DynamicResource PrimaryForeground}"
+                                Style="{StaticResource DarkButtonStyle}" Click="ActInput_Click" Tag="1"
+                                ToolTip="Import files or capture via webcam"/>
+                        <Button x:Name="ActProcessing" Content="Processing" Margin="2,0" Padding="12,6" Foreground="{DynamicResource PrimaryForeground}"
+                                Style="{StaticResource DarkButtonStyle}" Click="ActProcessing_Click" Tag="2"
+                                ToolTip="Document pipeline"/>
+                        <Button x:Name="ActWorkspace" Content="Workspace" Margin="2,0" Padding="12,6" Foreground="{DynamicResource PrimaryForeground}"
+                                Style="{StaticResource DarkButtonStyle}" Click="ActWorkspace_Click" Tag="3"
+                                ToolTip="Review documents"/>
+                        <Button x:Name="ActArchive" Content="Archive" Margin="2,0" Padding="12,6" Foreground="{DynamicResource PrimaryForeground}"
+                                Style="{StaticResource DarkButtonStyle}" Click="ActArchive_Click" Tag="4"
+                                ToolTip="Search and export"/>
+                        <Separator x:Name="ActivityBarReportsSeparator" Margin="8,4" Background="{DynamicResource BorderBrush}" Visibility="Collapsed"/>
+                        <Button x:Name="ActReports" Content="Reports" Margin="2,0" Padding="12,6" Foreground="{DynamicResource DimForeground}"
+                                Style="{StaticResource DarkButtonStyle}" Click="ActReports_Click" Tag="6"
+                                ToolTip="Reports"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Fixed separator only (no GridSplitter — activity bar height must not be user-resizable). -->
+                <Border x:Name="ActivityBarSeparator" Grid.Row="1" Height="1" HorizontalAlignment="Stretch"
+                        Background="{DynamicResource BorderBrush}"/>
+                
+                <!-- Central content -->
+                <Grid Grid.Row="2" Background="{DynamicResource ContentBackground}">
+                    <ContentControl x:Name="ContentHost"/>
+                </Grid>
+            </Grid>
+
+            <!-- Status bar -->
+            <Border Grid.Row="3" Background="{DynamicResource ActivityBarBackground}" Padding="8,2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                <TextBlock x:Name="StatusText" Text="Ready" Foreground="{DynamicResource DimForeground}" VerticalAlignment="Center"/>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

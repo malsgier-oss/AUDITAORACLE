@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <!-- Start menu shortcut -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="f2d9b6c1-4b7d-4e9c-9f3d-1a2b3c4d5e6f">
+        <Shortcut Id="StartMenuWorkAudit"
+                  Name="WorkAudit"
+                  Target="[INSTALLFOLDER]WorkAudit.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\WorkAudit"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Group the shortcut component into a feature -->
+    <ComponentGroup Id="AppComponents">
+      <ComponentRef Id="StartMenuShortcut" />
+    </ComponentGroup>
+  </Fragment>
+</Wix>
+

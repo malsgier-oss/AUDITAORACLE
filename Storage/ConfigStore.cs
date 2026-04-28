@@ -1,0 +1,527 @@
+using Oracle.ManagedDataAccess.Client;
+using Serilog;
+using WorkAudit.Core.Services;
+using WorkAudit.Core.Security;
+using WorkAudit.Domain;
+
+namespace WorkAudit.Storage;
+
+/// <summary>
+/// Storage service for configuration entities (document types, branches, settings).
+/// Supports encryption for sensitive configuration values.
+/// </summary>
+public interface IConfigStore
+{
+    // Document Types
+    List<ConfigDocumentType> GetDocumentTypes(bool includeInactive = false);
+    ConfigDocumentType? GetDocumentType(int id);
+    int InsertDocumentType(ConfigDocumentType docType);
+    bool UpdateDocumentType(ConfigDocumentType docType);
+    bool DeleteDocumentType(int id);
+
+    // Branches
+    List<ConfigBranch> GetBranches(bool includeInactive = false);
+    ConfigBranch? GetBranch(int id);
+    int InsertBranch(ConfigBranch branch);
+    bool UpdateBranch(ConfigBranch branch);
+    bool DeleteBranch(int id);
+
+    // Categories
+    List<ConfigCategory> GetCategories(bool includeInactive = false);
+    ConfigCategory? GetCategory(int id);
+    int InsertCategory(ConfigCategory category);
+    bool UpdateCategory(ConfigCategory category);
+    bool DeleteCategory(int id);
+
+    // App Settings
+    List<AppSetting> GetSettings(string? category = null);
+    AppSetting? GetSetting(string key);
+    string? GetSettingValue(string key, string? defaultValue = null);
+    int GetSettingInt(string key, int defaultValue = 0);
+    bool GetSettingBool(string key, bool defaultValue = false);
+    float GetSettingFloat(string key, float defaultValue = 0f);
+    bool SetSetting(string key, string? value, string? updatedBy = null);
+    bool SetSettingInt(string key, int value, string? updatedBy = null);
+    bool SetSettingBool(string key, bool value, string? updatedBy = null);
+    bool DeleteSetting(string key);
+    
+    /// <summary>Gets a secure setting value and decrypts it if encrypted.</summary>
+    string? GetSecureSettingValue(string key, string? defaultValue = null);
+    
+    /// <summary>Sets a secure setting value with automatic encryption.</summary>
+    bool SetSecureSetting(string key, string? value, string? updatedBy = null);
+}
+
+public class ConfigStore : IConfigStore
+{
+    private readonly ILogger _log = LoggingService.ForContext<ConfigStore>();
+    private static readonly ILogger s_log = LoggingService.ForContext(typeof(ConfigStore));
+    private readonly string _connectionString;
+    private readonly ISecureConfigService? _secureConfig;
+
+    public ConfigStore(string dbPath, ISecureConfigService? secureConfig = null)
+    {
+        _connectionString = dbPath;
+        _secureConfig = secureConfig;
+    }
+
+    #region Document Types
+
+    public List<ConfigDocumentType> GetDocumentTypes(bool includeInactive = false)
+    {
+        var types = new List<ConfigDocumentType>();
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = includeInactive
+            ? "SELECT * FROM config_document_types ORDER BY COALESCE(branch,''), COALESCE(section,''), display_order, name"
+            : "SELECT * FROM config_document_types WHERE is_active = 1 ORDER BY COALESCE(branch,''), COALESCE(section,''), display_order, name";
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            types.Add(ReadDocumentType(reader));
+        }
+        return types;
+    }
+
+    public ConfigDocumentType? GetDocumentType(int id)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM config_document_types WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", id);
+
+        using var reader = cmd.ExecuteReader();
+        return reader.Read() ? ReadDocumentType(reader) : null;
+    }
+
+    public int InsertDocumentType(ConfigDocumentType docType)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"INSERT INTO config_document_types (name, category, keywords, is_active, display_order, created_at, branch, section)
+                            VALUES (@name, @category, @keywords, @active, @order, @created, @branch, @section);
+                            SELECT last_insert_rowid();";
+        cmd.Parameters.AddWithValue("@name", docType.Name);
+        cmd.Parameters.AddWithValue("@category", docType.Category);
+        cmd.Parameters.AddWithValue("@keywords", (object?)docType.Keywords ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@active", docType.IsActive ? 1 : 0);
+        cmd.Parameters.AddWithValue("@order", docType.DisplayOrder);
+        cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@branch", (object?)docType.Branch ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@section", (object?)docType.Section ?? DBNull.Value);
+
+        return Convert.ToInt32(cmd.ExecuteScalar());
+    }
+
+    public bool UpdateDocumentType(ConfigDocumentType docType)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"UPDATE config_document_types
+                            SET name = @name, category = @category, keywords = @keywords,
+                                is_active = @active, display_order = @order, updated_at = @updated,
+                                branch = @branch, section = @section
+                            WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", docType.Id);
+        cmd.Parameters.AddWithValue("@name", docType.Name);
+        cmd.Parameters.AddWithValue("@category", docType.Category);
+        cmd.Parameters.AddWithValue("@keywords", (object?)docType.Keywords ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@active", docType.IsActive ? 1 : 0);
+        cmd.Parameters.AddWithValue("@order", docType.DisplayOrder);
+        cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@branch", (object?)docType.Branch ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@section", (object?)docType.Section ?? DBNull.Value);
+
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    public bool DeleteDocumentType(int id)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM config_document_types WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", id);
+
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    private static ConfigDocumentType ReadDocumentType(OracleDataReader reader)
+    {
+        var doc = new ConfigDocumentType
+        {
+            Id = reader.GetInt32(reader.GetOrdinal("id")),
+            Name = reader.GetString(reader.GetOrdinal("name")),
+            Category = reader.GetString(reader.GetOrdinal("category")),
+            Keywords = reader.IsDBNull(reader.GetOrdinal("keywords")) ? null : reader.GetString(reader.GetOrdinal("keywords")),
+            IsActive = reader.GetInt32(reader.GetOrdinal("is_active")) == 1,
+            DisplayOrder = reader.GetInt32(reader.GetOrdinal("display_order")),
+            CreatedAt = reader.GetString(reader.GetOrdinal("created_at")),
+            UpdatedAt = reader.IsDBNull(reader.GetOrdinal("updated_at")) ? null : reader.GetString(reader.GetOrdinal("updated_at"))
+        };
+        try
+        {
+            var branchOrd = reader.GetOrdinal("branch");
+            doc.Branch = reader.IsDBNull(branchOrd) ? null : reader.GetString(branchOrd);
+        }
+        catch (Exception ex) { s_log.Warning(ex, "Failed to read branch field from config: {Message}", ex.Message); }
+        try
+        {
+            var sectionOrd = reader.GetOrdinal("section");
+            doc.Section = reader.IsDBNull(sectionOrd) ? null : reader.GetString(sectionOrd);
+        }
+        catch (Exception ex) { s_log.Warning(ex, "Failed to read section field from config: {Message}", ex.Message); }
+        return doc;
+    }
+
+    #endregion
+
+    #region Branches
+
+    public List<ConfigBranch> GetBranches(bool includeInactive = false)
+    {
+        var branches = new List<ConfigBranch>();
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = includeInactive
+            ? "SELECT * FROM config_branches ORDER BY display_order, name"
+            : "SELECT * FROM config_branches WHERE is_active = 1 ORDER BY display_order, name";
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            branches.Add(ReadBranch(reader));
+        }
+        return branches;
+    }
+
+    public ConfigBranch? GetBranch(int id)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM config_branches WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", id);
+
+        using var reader = cmd.ExecuteReader();
+        return reader.Read() ? ReadBranch(reader) : null;
+    }
+
+    public int InsertBranch(ConfigBranch branch)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"INSERT INTO config_branches (name, code, is_active, display_order, created_at)
+                            VALUES (@name, @code, @active, @order, @created);
+                            SELECT last_insert_rowid();";
+        cmd.Parameters.AddWithValue("@name", branch.Name);
+        cmd.Parameters.AddWithValue("@code", (object?)branch.Code ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@active", branch.IsActive ? 1 : 0);
+        cmd.Parameters.AddWithValue("@order", branch.DisplayOrder);
+        cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
+
+        return Convert.ToInt32(cmd.ExecuteScalar());
+    }
+
+    public bool UpdateBranch(ConfigBranch branch)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"UPDATE config_branches
+                            SET name = @name, code = @code, is_active = @active,
+                                display_order = @order, updated_at = @updated
+                            WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", branch.Id);
+        cmd.Parameters.AddWithValue("@name", branch.Name);
+        cmd.Parameters.AddWithValue("@code", (object?)branch.Code ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@active", branch.IsActive ? 1 : 0);
+        cmd.Parameters.AddWithValue("@order", branch.DisplayOrder);
+        cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
+
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    public bool DeleteBranch(int id)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM config_branches WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", id);
+
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    private static ConfigBranch ReadBranch(OracleDataReader reader) => new()
+    {
+        Id = reader.GetInt32(reader.GetOrdinal("id")),
+        Name = reader.GetString(reader.GetOrdinal("name")),
+        Code = reader.IsDBNull(reader.GetOrdinal("code")) ? null : reader.GetString(reader.GetOrdinal("code")),
+        IsActive = reader.GetInt32(reader.GetOrdinal("is_active")) == 1,
+        DisplayOrder = reader.GetInt32(reader.GetOrdinal("display_order")),
+        CreatedAt = reader.GetString(reader.GetOrdinal("created_at")),
+        UpdatedAt = reader.IsDBNull(reader.GetOrdinal("updated_at")) ? null : reader.GetString(reader.GetOrdinal("updated_at"))
+    };
+
+    #endregion
+
+    #region Categories
+
+    public List<ConfigCategory> GetCategories(bool includeInactive = false)
+    {
+        var categories = new List<ConfigCategory>();
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = includeInactive
+            ? "SELECT * FROM config_categories ORDER BY display_order, name"
+            : "SELECT * FROM config_categories WHERE is_active = 1 ORDER BY display_order, name";
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            categories.Add(ReadCategory(reader));
+        }
+        return categories;
+    }
+
+    public ConfigCategory? GetCategory(int id)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM config_categories WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", id);
+
+        using var reader = cmd.ExecuteReader();
+        return reader.Read() ? ReadCategory(reader) : null;
+    }
+
+    public int InsertCategory(ConfigCategory category)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"INSERT INTO config_categories (name, description, is_active, display_order, created_at)
+                            VALUES (@name, @description, @active, @order, @created);
+                            SELECT last_insert_rowid();";
+        cmd.Parameters.AddWithValue("@name", category.Name);
+        cmd.Parameters.AddWithValue("@description", (object?)category.Description ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@active", category.IsActive ? 1 : 0);
+        cmd.Parameters.AddWithValue("@order", category.DisplayOrder);
+        cmd.Parameters.AddWithValue("@created", DateTime.UtcNow.ToString("O"));
+
+        return Convert.ToInt32(cmd.ExecuteScalar());
+    }
+
+    public bool UpdateCategory(ConfigCategory category)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"UPDATE config_categories
+                            SET name = @name, description = @description, is_active = @active,
+                                display_order = @order, updated_at = @updated
+                            WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", category.Id);
+        cmd.Parameters.AddWithValue("@name", category.Name);
+        cmd.Parameters.AddWithValue("@description", (object?)category.Description ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@active", category.IsActive ? 1 : 0);
+        cmd.Parameters.AddWithValue("@order", category.DisplayOrder);
+        cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
+
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    public bool DeleteCategory(int id)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM config_categories WHERE id = @id";
+        cmd.Parameters.AddWithValue("@id", id);
+
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    private static ConfigCategory ReadCategory(OracleDataReader reader) => new()
+    {
+        Id = reader.GetInt32(reader.GetOrdinal("id")),
+        Name = reader.GetString(reader.GetOrdinal("name")),
+        Description = reader.IsDBNull(reader.GetOrdinal("description")) ? null : reader.GetString(reader.GetOrdinal("description")),
+        IsActive = reader.GetInt32(reader.GetOrdinal("is_active")) == 1,
+        DisplayOrder = reader.GetInt32(reader.GetOrdinal("display_order")),
+        CreatedAt = reader.GetString(reader.GetOrdinal("created_at")),
+        UpdatedAt = reader.IsDBNull(reader.GetOrdinal("updated_at")) ? null : reader.GetString(reader.GetOrdinal("updated_at"))
+    };
+
+    #endregion
+
+    #region App Settings
+
+    public List<AppSetting> GetSettings(string? category = null)
+    {
+        var settings = new List<AppSetting>();
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = category == null
+            ? "SELECT * FROM app_settings ORDER BY category, key"
+            : "SELECT * FROM app_settings WHERE category = @category ORDER BY key";
+        if (category != null)
+            cmd.Parameters.AddWithValue("@category", category);
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            settings.Add(ReadSetting(reader));
+        }
+        return settings;
+    }
+
+    public AppSetting? GetSetting(string key)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM app_settings WHERE key = @key";
+        cmd.Parameters.AddWithValue("@key", key);
+
+        using var reader = cmd.ExecuteReader();
+        return reader.Read() ? ReadSetting(reader) : null;
+    }
+
+    public string? GetSettingValue(string key, string? defaultValue = null)
+    {
+        var setting = GetSetting(key);
+        return setting?.Value ?? defaultValue;
+    }
+
+    public int GetSettingInt(string key, int defaultValue = 0)
+    {
+        var setting = GetSetting(key);
+        return setting?.GetInt(defaultValue) ?? defaultValue;
+    }
+
+    public bool GetSettingBool(string key, bool defaultValue = false)
+    {
+        var setting = GetSetting(key);
+        return setting?.GetBool(defaultValue) ?? defaultValue;
+    }
+
+    public float GetSettingFloat(string key, float defaultValue = 0f)
+    {
+        var setting = GetSetting(key);
+        return setting?.GetFloat(defaultValue) ?? defaultValue;
+    }
+
+    public bool SetSetting(string key, string? value, string? updatedBy = null)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+
+        // Use UPSERT: INSERT new keys with required category; UPDATE existing keys
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"INSERT INTO app_settings (key, value, category, description, value_type, updated_at, updated_by)
+                            VALUES (@key, @value, @category, @description, @valueType, @updated, @updatedBy)
+                            ON CONFLICT(key) DO UPDATE SET
+                                value = excluded.value,
+                                updated_at = excluded.updated_at,
+                                updated_by = excluded.updated_by";
+        cmd.Parameters.AddWithValue("@key", key);
+        cmd.Parameters.AddWithValue("@value", (object?)value ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@category", "general");
+        cmd.Parameters.AddWithValue("@description", (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@valueType", "string");
+        cmd.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("@updatedBy", (object?)updatedBy ?? DBNull.Value);
+
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    public bool SetSettingInt(string key, int value, string? updatedBy = null) =>
+        SetSetting(key, value.ToString(), updatedBy);
+
+    public bool SetSettingBool(string key, bool value, string? updatedBy = null) =>
+        SetSetting(key, value.ToString().ToLowerInvariant(), updatedBy);
+
+    public bool DeleteSetting(string key)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM app_settings WHERE key = @key";
+        cmd.Parameters.AddWithValue("@key", key);
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
+    private static AppSetting ReadSetting(OracleDataReader reader) => new()
+    {
+        Key = reader.GetString(reader.GetOrdinal("key")),
+        Value = reader.IsDBNull(reader.GetOrdinal("value")) ? null : reader.GetString(reader.GetOrdinal("value")),
+        Category = reader.GetString(reader.GetOrdinal("category")),
+        Description = reader.IsDBNull(reader.GetOrdinal("description")) ? null : reader.GetString(reader.GetOrdinal("description")),
+        ValueType = reader.GetString(reader.GetOrdinal("value_type")),
+        UpdatedAt = reader.IsDBNull(reader.GetOrdinal("updated_at")) ? null : reader.GetString(reader.GetOrdinal("updated_at")),
+        UpdatedBy = reader.IsDBNull(reader.GetOrdinal("updated_by")) ? null : reader.GetString(reader.GetOrdinal("updated_by"))
+    };
+
+    public string? GetSecureSettingValue(string key, string? defaultValue = null)
+    {
+        var encryptedValue = GetSettingValue(key, defaultValue);
+        if (encryptedValue == null)
+            return defaultValue;
+
+        if (_secureConfig == null)
+        {
+            _log.Warning("SecureConfigService not available, returning encrypted value as-is for key: {Key}", key);
+            return encryptedValue;
+        }
+
+        return _secureConfig.IsEncrypted(encryptedValue) 
+            ? _secureConfig.Decrypt(encryptedValue) ?? defaultValue 
+            : encryptedValue;
+    }
+
+    public bool SetSecureSetting(string key, string? value, string? updatedBy = null)
+    {
+        if (string.IsNullOrEmpty(value))
+            return SetSetting(key, value, updatedBy);
+
+        if (_secureConfig == null)
+        {
+            _log.Error("SecureConfigService not available, cannot encrypt setting: {Key}", key);
+            return false;
+        }
+
+        var encryptedValue = _secureConfig.Encrypt(value);
+        return SetSetting(key, encryptedValue, updatedBy);
+    }
+
+    #endregion
+}

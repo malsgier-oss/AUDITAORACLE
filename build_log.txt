@@ -1,0 +1,12 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  SetupVision -> F:\WorkAudit.CSharpOld\SetupVision\bin\Debug\net8.0\SetupVision.dll
+F:\WorkAudit.CSharpOld\Views\WebcamView.xaml.cs(632,62): error CS0246: The type or namespace name 'IOcrService' could not be found (are you missing a using directive or an assembly reference?) [F:\WorkAudit.CSharpOld\WorkAudit_lkx1dyod_wpftmp.csproj]
+
+Build FAILED.
+
+F:\WorkAudit.CSharpOld\Views\WebcamView.xaml.cs(632,62): error CS0246: The type or namespace name 'IOcrService' could not be found (are you missing a using directive or an assembly reference?) [F:\WorkAudit.CSharpOld\WorkAudit_lkx1dyod_wpftmp.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:02.85

@@ -1,0 +1,45 @@
+<UserControl x:Class="WorkAudit.Views.ImportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{DynamicResource PanelBackground}" Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar (Branch and Date are shared in InputView) -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="BtnImportFiles" Content="Import from file(s)..." Padding="12,6" Click="BtnImportFiles_Click"/>
+                <Button x:Name="BtnImportFolder" Content="Import from folder..." Padding="12,6" Margin="8,0,0,0" Click="BtnImportFolder_Click"/>
+                <Button x:Name="BtnCancelImport" Content="Cancel import" Padding="12,6" Margin="8,0,0,0" Click="BtnCancelImport_Click"
+                        Visibility="Collapsed" Foreground="#C50F1F" ToolTip="Stop the current import"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Drop zone -->
+        <Border x:Name="DropZone" Grid.Row="1" Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="2"
+                CornerRadius="8" Margin="0,0,0,12"
+                AllowDrop="True" DragOver="DropZone_DragOver" Drop="DropZone_Drop">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Import View" FontSize="18" Foreground="{DynamicResource PrimaryForeground}" HorizontalAlignment="Center"/>
+                <TextBlock Text="Drag and drop PNG, JPG, JPEG, GIF, BMP, WEBP, PDF" Foreground="{DynamicResource SecondaryForeground}"
+                           Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                <TextBlock Text="— or click Import from file(s) above —" Foreground="{DynamicResource DisabledForeground}"
+                           Margin="0,16,0,0" HorizontalAlignment="Center" FontSize="12"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Progress and status -->
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <ProgressBar x:Name="ProgressBar" Grid.Row="0" Height="8" Margin="0,0,0,8"
+                         Visibility="Collapsed" Minimum="0" Maximum="100"/>
+            <TextBlock x:Name="StatusText" Grid.Row="1" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
+        </Grid>
+    </Grid>
+</UserControl>

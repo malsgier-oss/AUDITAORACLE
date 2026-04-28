@@ -1,0 +1,14 @@
+<UserControl x:Class="WorkAudit.Views.ToolsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{DynamicResource PanelBackground}" Margin="8">
+        <TabControl x:Name="ToolsTabs">
+            <TabItem Header="Backup">
+                <ContentControl x:Name="BackupHost"/>
+            </TabItem>
+            <TabItem Header="Control">
+                <ContentControl x:Name="ControlHost"/>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

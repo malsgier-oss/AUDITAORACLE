@@ -1,0 +1,4 @@
+  Determining projects to restore...
+F:\WorkAudit.CSharpOld\WorkAudit.Tests\WorkAudit.Tests.csproj : error NU1201: Project WorkAudit is not compatible with net8.0-windows7.0 (.NETCoreApp,Version=v8.0). Project WorkAudit supports: net8.0-windows10.0.19041 (.NETCoreApp,Version=v8.0) [F:\WorkAudit.CSharpOld\WorkAudit.sln]
+  Failed to restore F:\WorkAudit.CSharpOld\WorkAudit.Tests\WorkAudit.Tests.csproj (in 326 ms).
+  2 of 3 projects are up-to-date for restore.

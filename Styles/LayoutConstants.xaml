@@ -1,0 +1,45 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    
+    <!-- Spacing Constants -->
+    <sys:Double x:Key="SpacingXSmall">4</sys:Double>
+    <sys:Double x:Key="SpacingSmall">8</sys:Double>
+    <sys:Double x:Key="SpacingMedium">16</sys:Double>
+    <sys:Double x:Key="SpacingLarge">24</sys:Double>
+    <sys:Double x:Key="SpacingXLarge">32</sys:Double>
+
+    <!-- Grid Margins -->
+    <Thickness x:Key="CardMargin">16,16,16,16</Thickness>
+    <Thickness x:Key="SectionMargin">0,0,0,24</Thickness>
+    <Thickness x:Key="ControlMargin">0,0,8,0</Thickness>
+    <Thickness x:Key="PageMargin">16</Thickness>
+    <Thickness x:Key="PanelMargin">8</Thickness>
+
+    <!-- Padding Standards -->
+    <Thickness x:Key="CardPadding">16</Thickness>
+    <Thickness x:Key="ButtonPadding">16,8</Thickness>
+    <Thickness x:Key="InputPadding">8,6</Thickness>
+    <Thickness x:Key="GroupPadding">12</Thickness>
+    <Thickness x:Key="ContainerPadding">20</Thickness>
+
+    <!-- Border Radius -->
+    <CornerRadius x:Key="SmallCornerRadius">2</CornerRadius>
+    <CornerRadius x:Key="MediumCornerRadius">4</CornerRadius>
+    <CornerRadius x:Key="LargeCornerRadius">8</CornerRadius>
+
+    <!-- Font Sizes -->
+    <sys:Double x:Key="FontSizeSmall">11</sys:Double>
+    <sys:Double x:Key="FontSizeNormal">13</sys:Double>
+    <sys:Double x:Key="FontSizeMedium">14</sys:Double>
+    <sys:Double x:Key="FontSizeLarge">16</sys:Double>
+    <sys:Double x:Key="FontSizeXLarge">20</sys:Double>
+    <sys:Double x:Key="FontSizeTitle">24</sys:Double>
+
+    <!-- Icon Sizes -->
+    <sys:Double x:Key="IconSizeSmall">12</sys:Double>
+    <sys:Double x:Key="IconSizeMedium">16</sys:Double>
+    <sys:Double x:Key="IconSizeLarge">20</sys:Double>
+    <sys:Double x:Key="IconSizeXLarge">24</sys:Double>
+
+</ResourceDictionary>

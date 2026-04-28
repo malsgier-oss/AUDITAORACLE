@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    Single source of truth for shipping version. Bump <Version> for each MSI/app release.
+    The MSI ProductVersion comes from <Version> (wired as PackageVersion in the WiX project).
+    Windows Installer compares only the first three version fields for upgrades; bump <Version>
+    (e.g. 1.0.0 -> 1.0.1) for every shipped MSI that must replace a prior install.
+    Keep AssemblyVersion/FileVersion in sync with your release policy (see Bump-VersionAndRebuildMsi.ps1).
+  -->
+  <PropertyGroup>
+    <Version>1.0.2</Version>
+  </PropertyGroup>
+</Project>
