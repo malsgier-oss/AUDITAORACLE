@@ -81,9 +81,11 @@ This guide covers deploying WorkAudit for production use.
 
 ## Backup
 
-- **Automatic:** Enable in Control Panel → Backup.
-- **Manual:** Use Backup → Create Backup Now.
-- **Restore:** Backup → Restore from Backup.
+- **Automatic:** Control Panel → Backup → enable scheduled backups; optional **Include Oracle schema** uses Data Pump (`expdp`) and requires `oracle_datapump_local_folder` plus a matching Oracle `DIRECTORY`.
+- **Manual:** Control Panel → **Create Backup Now**, or Tools → Backup → **Backup to external drive…**.
+- **Restore:** Tools → Backup → **Restore from backup file…**, or Control Panel → **Restore from Backup…**.
+
+See **DisasterRecovery.md** for Oracle DIRECTORY / `impdp` prerequisites.
 
 ---
 

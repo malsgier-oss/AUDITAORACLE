@@ -11,6 +11,11 @@
     <PublishDir>$(MSBuildThisFileDirectory)..\artifacts\msi-app\</PublishDir>
     <!-- Set SkipPublishApp=true if you already published to artifacts\msi-app -->
     <SkipPublishApp>false</SkipPublishApp>
+    <InstallerValidationProfile>false</InstallerValidationProfile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(InstallerValidationProfile)'=='true'">
+    <SuppressValidation>false</SuppressValidation>
   </PropertyGroup>
 
   <ItemGroup>

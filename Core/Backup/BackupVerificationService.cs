@@ -28,7 +28,7 @@ public class BackupVerificationService : IBackupVerificationService
 
     public async Task<BackupVerificationResult> VerifyAsync(string backupPath, CancellationToken ct = default)
     {
-        return await _backupService.VerifyBackupAsync(backupPath);
+        return await _backupService.VerifyBackupAsync(backupPath, ct).ConfigureAwait(false);
     }
 
     public async Task<(int Valid, int Total, List<BackupVerificationResult> Results)> VerifyRecentBackupsAsync(int count = 5, CancellationToken ct = default)
@@ -40,7 +40,7 @@ public class BackupVerificationService : IBackupVerificationService
         foreach (var backup in toVerify)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await _backupService.VerifyBackupAsync(backup.Path);
+            var result = await _backupService.VerifyBackupAsync(backup.Path, ct).ConfigureAwait(false);
             results.Add(result);
         }
 

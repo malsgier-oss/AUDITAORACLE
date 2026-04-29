@@ -52,6 +52,6 @@ public class RecoveryService : IRecoveryService
 
         _log.Information("Restoring to point-in-time {TargetDate:yyyy-MM-dd} using backup: {Name} ({CreatedAt})",
             targetDate, backup.Name, backup.CreatedAt);
-        return await _backupService.RestoreBackupAsync(backup.Path);
+        return await _backupService.RestoreBackupAsync(backup.Path, null, null, ct).ConfigureAwait(false);
     }
 }

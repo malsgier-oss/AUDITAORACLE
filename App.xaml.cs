@@ -48,87 +48,24 @@ public partial class App : Application
                 Log.Information("Setup wizard completed: base dir={BaseDir}", wizard.BaseDirectory);
             }
 
-            var envBaseDir = Environment.GetEnvironmentVariable("WORKAUDIT_BASE_DIR");
-            var userBaseDir = UserSettings.Get<string>("base_directory");
-            var preferredBase = !string.IsNullOrWhiteSpace(envBaseDir) ? envBaseDir.Trim() : userBaseDir;
-            var baseDir = Defaults.ResolveBaseDirectory(preferredBase);
-
-            if (string.IsNullOrWhiteSpace(envBaseDir) && !string.IsNullOrWhiteSpace(userBaseDir) &&
-                !Defaults.IsBaseDirectoryAccessible(userBaseDir))
+            var startup = new StartupCoordinator();
+            var boot = startup.Initialize(
+                promptForConnectionString: PromptForOracleConnectionString,
+                resolveOracleConnectionString: ResolveOracleConnectionString,
+                ensureArchiveSchema: EnsureArchiveSchema);
+            if (!boot.Success)
             {
-                Log.Warning(
-                    "Saved base directory is not available ({BadPath}); using {Fallback} and updating settings.",
-                    userBaseDir,
-                    baseDir);
-                UserSettings.Set("base_directory", baseDir);
+                Log.Fatal("Startup bootstrap failed ({ErrorCode}): {ErrorMessage}", boot.ErrorCode, boot.ErrorMessage);
+                MessageBox.Show(
+                    "AUDITA could not initialize startup prerequisites.\n\n" +
+                    $"Error: {boot.ErrorCode}\n" +
+                    $"{boot.ErrorMessage}",
+                    "AUDITA - Startup Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                Shutdown(1);
+                return;
             }
-            else if (!string.IsNullOrWhiteSpace(envBaseDir) && !Defaults.IsBaseDirectoryAccessible(envBaseDir))
-            {
-                Log.Warning(
-                    "WORKAUDIT_BASE_DIR is not available ({BadPath}); using {Fallback}.",
-                    envBaseDir,
-                    baseDir);
-            }
-
-            try
-            {
-                Directory.CreateDirectory(baseDir);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
-            {
-                Log.Warning(ex, "Could not create base directory {Path}; falling back to default documents folder", baseDir);
-                baseDir = Defaults.GetDefaultBaseDir();
-                Directory.CreateDirectory(baseDir);
-                if (string.IsNullOrWhiteSpace(envBaseDir))
-                    UserSettings.Set("base_directory", baseDir);
-            }
-
-            var envOracle = Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION")
-                ?? Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONN")
-                ?? Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING")
-                ?? Environment.GetEnvironmentVariable("WORKAUDIT_TEST_ORACLE");
-            var userOracle = UserSettings.Get<string>("oracle_connection_string");
-            var oracleConnectionString = !string.IsNullOrWhiteSpace(envOracle)
-                ? envOracle.Trim()
-                : (userOracle ?? "").Trim();
-
-            if (string.IsNullOrWhiteSpace(oracleConnectionString))
-            {
-                oracleConnectionString = PromptForOracleConnectionString();
-                if (string.IsNullOrWhiteSpace(oracleConnectionString))
-                {
-                    Log.Fatal("Oracle connection string is not configured. Set WORKAUDIT_ORACLE_CONNECTION or user setting oracle_connection_string.");
-                    MessageBox.Show(
-                        "AUDITA requires an Oracle database connection string.\n\n" +
-                        "Set one of these environment variables:\n" +
-                        "- WORKAUDIT_ORACLE_CONNECTION\n" +
-                        "- WORKAUDIT_ORACLE_CONN\n" +
-                        "- ORACLE_CONNECTION_STRING\n" +
-                        "- WORKAUDIT_TEST_ORACLE\n\n" +
-                        "or add oracle_connection_string in application settings.",
-                        "AUDITA - Configuration Required",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
-                    Shutdown(1);
-                    return;
-                }
-
-                UserSettings.Set("oracle_connection_string", oracleConnectionString);
-                UserSettings.Set("first_run_completed", true);
-            }
-
-            var effectiveOracleConnectionString = ResolveOracleConnectionString(oracleConnectionString);
-            ServiceContainer.Initialize(effectiveOracleConnectionString, baseDir);
-            Log.Information("Service container initialized (Base: {BaseDir}); Oracle database configured", baseDir);
-
-            var migrationService = ServiceContainer.GetService<IMigrationService>();
-            migrationService.Migrate();
-            Log.Information("Database migrations applied, version {Version}", migrationService.GetCurrentVersion());
-
-            EnsureArchiveSchema(effectiveOracleConnectionString);
-
-            var envService = ServiceContainer.GetService<IEnvironmentService>();
-            _ = envService.GetEnvironmentInfo();
 
             EnsureDefaultAdminUser();
 

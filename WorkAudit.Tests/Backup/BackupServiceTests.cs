@@ -13,6 +13,7 @@ using Xunit;
 
 namespace WorkAudit.Tests.Backup;
 
+[Collection("BackupTests")]
 public class BackupServiceTests : IDisposable
 {
     private readonly Mock<IExportEncryptionService> _encryptionMock;

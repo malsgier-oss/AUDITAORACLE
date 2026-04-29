@@ -42,6 +42,7 @@ public partial class ArchiveView : UserControl
     private readonly ICustodianService _custodianService;
     private readonly IDisposalService _disposalService;
     private readonly ISessionService _sessionService;
+    private readonly ILocalizationApplier _localization;
     private List<Document> _currentResults = new();
     private readonly PdfPreviewLoadCoordinator _pdfPreviewLoad = new();
 
@@ -100,6 +101,7 @@ public partial class ArchiveView : UserControl
         _custodianService = custodianService;
         _disposalService = disposalService;
         _sessionService = sessionService;
+        _localization = ServiceContainer.GetService<ILocalizationApplier>();
 
         Loaded += OnLoaded;
     }
@@ -132,11 +134,11 @@ public partial class ArchiveView : UserControl
     private void ApplyLocalization()
     {
         var config = ServiceContainer.GetService<IConfigStore>();
-        if (FiltersHeaderLabel != null) FiltersHeaderLabel.Text = ReportLocalizationService.GetString("Filters", config);
-        if (BranchLabel != null) BranchLabel.Text = ReportLocalizationService.GetString("Branch", config);
-        if (SectionLabel != null) SectionLabel.Text = ReportLocalizationService.GetString("Section", config);
-        if (TypeLabel != null) TypeLabel.Text = ReportLocalizationService.GetString("Type", config);
-        if (LegalHoldLabel != null) LegalHoldLabel.Text = ReportLocalizationService.GetString("LegalHold", config);
+        if (FiltersHeaderLabel != null) FiltersHeaderLabel.Text = _localization.Get(config, "Filters");
+        if (BranchLabel != null) BranchLabel.Text = _localization.Get(config, "Branch");
+        if (SectionLabel != null) SectionLabel.Text = _localization.Get(config, "Section");
+        if (TypeLabel != null) TypeLabel.Text = _localization.Get(config, "Type");
+        if (LegalHoldLabel != null) LegalHoldLabel.Text = _localization.Get(config, "LegalHold");
         if (CaptureDateFromLabel != null) CaptureDateFromLabel.Text = ReportLocalizationService.GetString("DocumentDateFrom", config);
         if (CaptureDateToLabel != null) CaptureDateToLabel.Text = ReportLocalizationService.GetString("DocumentDateTo", config);
         if (ExpiringWithinLabel != null) ExpiringWithinLabel.Text = ReportLocalizationService.GetString("ExpiringWithin", config);

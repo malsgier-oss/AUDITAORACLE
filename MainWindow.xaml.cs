@@ -33,6 +33,9 @@ public partial class MainWindow : Window
     private ResizeMode _resizeModeBeforeFullscreen = ResizeMode.CanResize;
     private DispatcherTimer? _inactivityTimer;
     private DateTime _lastActivityRecorded = DateTime.MinValue;
+    private readonly IShellPolicyService _shellPolicy = null!;
+    private readonly ILocalizationApplier _localization = null!;
+    private readonly IShellNavigationService _navigation = null!;
     public static bool LogoutRequested { get; set; }
 
     public MainWindow()
@@ -50,6 +53,9 @@ public partial class MainWindow : Window
         _baseDir = config.BaseDirectory;
         Directory.CreateDirectory(_baseDir);
         _store = ServiceContainer.GetService<IDocumentStore>();
+        _shellPolicy = ServiceContainer.GetService<IShellPolicyService>();
+        _localization = ServiceContainer.GetService<ILocalizationApplier>();
+        _navigation = ServiceContainer.GetService<IShellNavigationService>();
         if (UserDisplay != null)
             UserDisplay.Text = config?.CurrentUserName != null ? $"Signed in as {config.CurrentUserName}" : "";
 
@@ -67,15 +73,15 @@ public partial class MainWindow : Window
         var disposalService = ServiceContainer.GetService<IDisposalService>();
         var sessionService = ServiceContainer.GetService<ISessionService>();
         
-        // Determine which dashboard to show based on role
-        var roleLevel = Roles.GetRoleLevel(config?.CurrentUserRole ?? Roles.Viewer);
+        // Determine dashboard and shell behavior from centralized policy.
+        var shellConfig = _shellPolicy.BuildForRole(config?.CurrentUserRole);
         UserControl dashboardView;
         
-        if (roleLevel >= 4) // Manager or Administrator
+        if (shellConfig.IsManagerOrAdmin)
         {
             dashboardView = new DashboardView(); // Manager/Admin Dashboard
         }
-        else if (roleLevel >= 2) // Auditor or Reviewer
+        else if (shellConfig.CanAccessDashboard)
         {
             dashboardView = new AuditorDashboardView(); // Auditor Dashboard
         }
@@ -97,8 +103,8 @@ public partial class MainWindow : Window
             new ReportEditorView()                                                           // 8: Report Editor (draft HTML)
         };
 
-        // Start at Dashboard for users with role >= Auditor, otherwise start at Input
-        var canAccessDashboard = roleLevel >= 2;
+        // Start at Dashboard for users with dashboard access, otherwise start at Input
+        var canAccessDashboard = shellConfig.CanAccessDashboard;
         ContentHost.Content = canAccessDashboard ? _views[0] : _views[1];
         _currentView = canAccessDashboard ? 0 : 1;
         UpdateActivityButtons();
@@ -142,14 +148,14 @@ public partial class MainWindow : Window
         // Keep shell layout fixed in LTR; language selection only changes localized strings.
         FlowDirection = ReportLocalizationService.ShellFlowDirection;
 
-        Title = ReportLocalizationService.GetString("AppTitle", config);
-        if (StatusText != null) StatusText.Text = ReportLocalizationService.GetString("Ready", config);
+        Title = _localization.Get(config, "AppTitle");
+        if (StatusText != null) StatusText.Text = _localization.Get(config, "Ready");
 
-        if (MenuFile != null) MenuFile.Header = ReportLocalizationService.GetString("File", config);
-        if (MenuOpenFiles != null) MenuOpenFiles.Header = ReportLocalizationService.GetString("OpenFiles", config);
-        if (MenuOpenFolder != null) MenuOpenFolder.Header = ReportLocalizationService.GetString("OpenFolder", config);
-        if (FileLogout != null) FileLogout.Header = ReportLocalizationService.GetString("SignOut", config);
-        if (MenuExit != null) MenuExit.Header = ReportLocalizationService.GetString("Exit", config);
+        if (MenuFile != null) MenuFile.Header = _localization.Get(config, "File");
+        if (MenuOpenFiles != null) MenuOpenFiles.Header = _localization.Get(config, "OpenFiles");
+        if (MenuOpenFolder != null) MenuOpenFolder.Header = _localization.Get(config, "OpenFolder");
+        if (FileLogout != null) FileLogout.Header = _localization.Get(config, "SignOut");
+        if (MenuExit != null) MenuExit.Header = _localization.Get(config, "Exit");
 
         if (MenuEdit != null) MenuEdit.Header = ReportLocalizationService.GetString("Edit", config);
         if (MenuPreferences != null) MenuPreferences.Header = ReportLocalizationService.GetString("Preferences", config);
@@ -186,11 +192,11 @@ public partial class MainWindow : Window
         if (ActReports != null) { ActReports.Content = ReportLocalizationService.GetString("Reports", config); ActReports.ToolTip = ReportLocalizationService.GetString("TooltipReports", config); }
 
 
-        if (ProgressCancelBtn != null) ProgressCancelBtn.Content = ReportLocalizationService.GetString("Cancel", config);
+        if (ProgressCancelBtn != null) ProgressCancelBtn.Content = _localization.Get(config, "Cancel");
 
         var appConfig = ServiceContainer.GetService<AppConfiguration>();
         if (UserDisplay != null && appConfig?.CurrentUserName != null)
-            UserDisplay.Text = ReportLocalizationService.GetString("SignedInAs", config, appConfig.CurrentUserName);
+            UserDisplay.Text = _localization.Get(config, "SignedInAs", appConfig.CurrentUserName);
     }
 
     private void OnProcessingProgressChanged(object? sender, ProcessingProgressEventArgs e)
@@ -313,9 +319,14 @@ public partial class MainWindow : Window
 
     private void SwitchToView(int index)
     {
-        if (index < 0 || index >= _views.Length) return;
-        _currentView = index;
-        ContentHost.Content = _views[index];
+        if (!_navigation.TryActivateView(index, _views.Length, activeIndex =>
+            {
+                _currentView = activeIndex;
+                ContentHost.Content = _views[activeIndex];
+            }))
+        {
+            return;
+        }
         if (index == 4 && _views[4] is ArchiveView archiveView)
             archiveView.Refresh();
         UpdateActivityButtons();

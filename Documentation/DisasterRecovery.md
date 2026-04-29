@@ -19,8 +19,11 @@ This guide explains how to recover WorkAudit data after a failure (disk loss, co
 
 Each backup ZIP contains:
 
-- **manifest.json** — Version, creation time, machine name, whether documents are included.
+- **manifest.json** — Version, creation time, machine name, whether documents are included, and (if enabled) Oracle export metadata (`IncludesOracleSchema`, dump/log file names, DIRECTORY name).
 - **Documents/** — Copy of the document base directory (if “Include documents” was selected).
+- **Oracle/** (optional) — Copies of Data Pump `.dmp` / `.log` files produced when **Include Oracle schema** is enabled. This requires Oracle client `expdp`/`impdp` on the workstation, an Oracle `DIRECTORY` object, and app setting **oracle_datapump_local_folder** pointing to the same physical path the database uses for that DIRECTORY (often a UNC share or mapped drive).
+
+When Oracle is **not** included in the ZIP, treat RMAN / DBA `expdp` on the server as the authoritative database backup; the app ZIP still protects document files and configuration workflow.
 
 ---
 
@@ -30,10 +33,10 @@ Each backup ZIP contains:
 
 1. Close WorkAudit.
 2. Locate the backup ZIP (e.g. in `%APPDATA%\WORKAUDIT\Backups` or on USB/network).
-3. Use **Tools → Backup** (or the restore flow in the app, if available) and choose **Restore**.
+3. Use **Tools → Backup** → **Restore from backup file…** (or **Control Panel** → **Backup** → **Restore from Backup…**).
 4. Select the `.zip` file. The app will:
-   - Create a safety backup of the current state.
-   - Replace the database and (if present) documents with the backup contents.
+   - Optionally create a safety backup of the current state (documents and, if configured, Oracle).
+   - If the backup contains **Oracle/** and you confirm schema restore, run **impdp** into the current schema, then replace document files from **Documents/**.
 5. Restart WorkAudit and verify data.
 
 ### Option B: Point-in-time recovery
@@ -59,7 +62,7 @@ If the app supports **point-in-time recovery**:
 
 Before relying on a backup:
 
-- Use **Backup Verification** (if available in Tools/Admin) to check that the ZIP contains a valid manifest and document snapshot.
+- Use **Tools → Backup → Verify recent backups** (or verify via API) to check manifest and, for Oracle-enabled backups, that the `Oracle/*.dmp` entry exists in the ZIP. Encrypted backups must be decrypted before ZIP verification.
 - Periodically **restore to a test location** and open WorkAudit against it to confirm the backup is usable.
 
 ---

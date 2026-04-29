@@ -1,0 +1,48 @@
+<Window x:Class="WorkAudit.Dialogs.RestoreBackupDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Restore from backup" Height="420" Width="560" WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize" Background="{DynamicResource ContentBackground}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,12"
+                   Text="Select a WorkAudit backup ZIP. If the backup includes an Oracle schema, impdp will run using your configured DIRECTORY and oracle_datapump_local_folder."/>
+
+        <TextBlock Grid.Row="1" Text="Backup file:" Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,4"/>
+        <Grid Grid.Row="2" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="PathBox" Grid.Column="0" Padding="8,6" VerticalContentAlignment="Center" IsReadOnly="True"/>
+            <Button Grid.Column="1" Content="Browse..." Margin="8,0,0,0" Padding="12,6" Click="Browse_Click"
+                    Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+        </Grid>
+
+        <TextBlock Grid.Row="3" Text="Decryption password (only if backup is encrypted):" Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,4"/>
+        <PasswordBox x:Name="DecryptPasswordBox" Grid.Row="4" Padding="8,6" Margin="0,0,0,12"/>
+
+        <StackPanel Grid.Row="5" Margin="0,0,0,12">
+            <CheckBox x:Name="RestoreOracleCheck" Content="Restore Oracle schema when backup contains a dump" IsChecked="True" Margin="0,0,0,8"/>
+            <CheckBox x:Name="SafetyBackupCheck" Content="Create safety backup of current state first" IsChecked="True"/>
+        </StackPanel>
+
+        <TextBlock x:Name="StatusText" Grid.Row="6" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Top"/>
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="RestoreBtn" Content="Restore" Width="100" Height="32" Click="Restore_Click"
+                    Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Close" Width="80" Height="32" Margin="12,0,0,0" Click="Close_Click"
+                    Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+    </Grid>
+</Window>

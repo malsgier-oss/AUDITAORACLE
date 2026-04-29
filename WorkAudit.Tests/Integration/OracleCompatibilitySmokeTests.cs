@@ -21,7 +21,7 @@ public sealed class OracleCompatibilitySmokeTests : IClassFixture<OracleTestFixt
 
         var migrationService = new MigrationService(_fx.ConnectionString!);
         migrationService.Migrate();
-        migrationService.GetCurrentVersion().Should().BeGreaterThanOrEqualTo(51);
+        migrationService.GetCurrentVersion().Should().BeGreaterThanOrEqualTo(52);
 
         using var conn = new OracleConnection(_fx.ConnectionString);
         conn.Open();

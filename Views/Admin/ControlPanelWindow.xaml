@@ -461,6 +461,15 @@
                             <CheckBox Grid.Row="2" Grid.Column="1" x:Name="BackupIncludeDocsCheck" VerticalAlignment="Center" Margin="0,8,0,0"/>
                         </Grid>
 
+                        <TextBlock Text="Oracle schema backup (Data Pump)" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource DimForeground}" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="BackupIncludeOracleCheck" Content="Include Oracle schema in backups (requires expdp/impdp on PATH or path below)" Margin="0,0,0,8"/>
+                        <TextBlock Text="DIRECTORY object name" Foreground="{DynamicResource DimForeground}" FontSize="11" Margin="0,0,0,2"/>
+                        <TextBox x:Name="OracleDatapumpDirectoryBox" Padding="6,4" Margin="0,0,0,8"/>
+                        <TextBlock Text="Local or UNC folder (must match Oracle DIRECTORY physical path for .dmp/.log)" Foreground="{DynamicResource DimForeground}" FontSize="11" Margin="0,0,0,2"/>
+                        <TextBox x:Name="OracleDatapumpLocalFolderBox" Padding="6,4" Margin="0,0,0,8"/>
+                        <TextBlock Text="Optional: full path to expdp.exe or folder containing expdp/impdp" Foreground="{DynamicResource DimForeground}" FontSize="11" Margin="0,0,0,2"/>
+                        <TextBox x:Name="OracleDumpToolPathBox" Padding="6,4" Margin="0,0,0,16"/>
+
                         <Separator Margin="0,8,0,16"/>
                         <TextBlock Text="Manual Backup" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource DimForeground}" Margin="0,0,0,12"/>
                         <StackPanel Orientation="Horizontal">

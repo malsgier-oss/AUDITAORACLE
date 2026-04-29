@@ -47,7 +47,9 @@ public static class ServiceContainer
 
             var services = new ServiceCollection();
             ConfigureServices(services, oracleConnectionString, baseDir, currentUserId);
+            ServiceRegistrationDiagnostics.LogRegistrationSummary(services);
             _provider = services.BuildServiceProvider();
+            ServiceRegistrationDiagnostics.ValidateProvider(_provider);
 
             LoggingService.Info("ServiceContainer initialized with {ServiceCount} services", services.Count);
         }
@@ -134,6 +136,8 @@ public static class ServiceContainer
         });
 
         // Core Services
+        services.AddWorkAuditStartupModule();
+        services.AddWorkAuditShellModule();
         services.AddSingleton<ICurrentDocumentContextService, CurrentDocumentContextService>();
         services.AddSingleton<IProcessingProgressService, ProcessingProgressService>();
         services.AddSingleton<IProcessingMergeQueueService, ProcessingMergeQueueService>();
@@ -141,11 +145,14 @@ public static class ServiceContainer
         services.AddSingleton<IEnvironmentService, EnvironmentService>();
         services.AddSingleton<IDashboardCacheService, DashboardCacheService>();
         services.AddSingleton<IErrorMessageService, ErrorMessageService>();
+        services.AddSingleton<IOracleBackupGateway, OracleDataPumpGateway>();
         services.AddSingleton<IBackupService>(sp =>
         {
             var config = sp.GetRequiredService<AppConfiguration>();
             var encryptionService = sp.GetService<IExportEncryptionService>();
-            return new BackupService(config, encryptionService);
+            var oracleGateway = sp.GetService<IOracleBackupGateway>();
+            var configStore = sp.GetService<IConfigStore>();
+            return new BackupService(config, encryptionService, oracleGateway, configStore);
         });
         services.AddSingleton<IBackupVerificationService, BackupVerificationService>();
         services.AddSingleton<IRecoveryService, RecoveryService>();
@@ -157,7 +164,8 @@ public static class ServiceContainer
         services.AddSingleton<IAuditExportService, AuditExportService>();
         services.AddSingleton<IErasureService, ErasureService>();
         services.AddSingleton<IRetentionService, RetentionService>();
-        services.AddSingleton<IScheduledBackupService, ScheduledBackupService>();
+        services.AddSingleton<IScheduledBackupService>(sp =>
+            new ScheduledBackupService(sp.GetRequiredService<IBackupService>(), sp.GetRequiredService<IConfigStore>()));
         services.AddSingleton<IReportEmailService, ReportEmailService>();
         services.AddSingleton<IAutoUpdateService>(sp =>
         {

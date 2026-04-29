@@ -14,6 +14,7 @@ using WorkAudit.Core.Security;
 using WorkAudit.Core.Reports;
 using WorkAudit.Core.Services;
 using WorkAudit.Core.TextExtraction;
+using WorkAudit.Dialogs;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
 
@@ -624,6 +625,10 @@ public partial class ControlPanelWindow : Window
         BackupIntervalBox.Text = _configStore.GetSettingInt("backup_interval_hours", 24).ToString();
         BackupRetentionBox.Text = _configStore.GetSettingInt("backup_retention_count", 10).ToString();
         BackupIncludeDocsCheck.IsChecked = _configStore.GetSettingBool("backup_include_documents", true);
+        BackupIncludeOracleCheck.IsChecked = _configStore.GetSettingBool("include_oracle_data", false);
+        OracleDatapumpDirectoryBox.Text = _configStore.GetSettingValue("oracle_datapump_directory", "DATA_PUMP_DIR") ?? "DATA_PUMP_DIR";
+        OracleDatapumpLocalFolderBox.Text = _configStore.GetSettingValue("oracle_datapump_local_folder", "") ?? "";
+        OracleDumpToolPathBox.Text = _configStore.GetSettingValue("oracle_backup_dump_tool_path", "") ?? "";
 
         var backups = _backupService.GetBackupHistory();
         var lastBackup = backups.OrderByDescending(b => b.CreatedAt).FirstOrDefault();
@@ -644,6 +649,10 @@ public partial class ControlPanelWindow : Window
         if (int.TryParse(BackupRetentionBox.Text, out var retention))
             _configStore.SetSettingInt("backup_retention_count", retention, user);
         _configStore.SetSettingBool("backup_include_documents", BackupIncludeDocsCheck.IsChecked == true, user);
+        _configStore.SetSettingBool("include_oracle_data", BackupIncludeOracleCheck.IsChecked == true, user);
+        _configStore.SetSetting("oracle_datapump_directory", OracleDatapumpDirectoryBox.Text?.Trim() ?? "DATA_PUMP_DIR", user);
+        _configStore.SetSetting("oracle_datapump_local_folder", OracleDatapumpLocalFolderBox.Text?.Trim() ?? "", user);
+        _configStore.SetSetting("oracle_backup_dump_tool_path", OracleDumpToolPathBox.Text?.Trim() ?? "", user);
     }
 
     private async void BackupNow_Click(object sender, RoutedEventArgs e)
@@ -652,7 +661,12 @@ public partial class ControlPanelWindow : Window
         {
             BackupNowBtn.IsEnabled = false;
             StatusLabel.Text = "Creating backup...";
-            var result = await _backupService.CreateBackupAsync(includeDocuments: BackupIncludeDocsCheck.IsChecked == true);
+            var includeOracle = BackupIncludeOracleCheck.IsChecked == true;
+            var result = await _backupService.CreateBackupAsync(
+                destinationPath: null,
+                includeDocuments: BackupIncludeDocsCheck.IsChecked == true,
+                encryptionPassword: null,
+                includeOracleData: includeOracle);
             if (result.Success)
             {
                 LoadBackupSettings();
@@ -692,8 +706,8 @@ public partial class ControlPanelWindow : Window
 
     private void RestoreBackup_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show("Restore from backup is available from the Tools view.", "Restore Backup",
-            MessageBoxButton.OK, MessageBoxImage.Information);
+        var dlg = new RestoreBackupDialog { Owner = this };
+        dlg.ShowDialog();
     }
 
     #endregion

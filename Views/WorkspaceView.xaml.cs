@@ -70,6 +70,7 @@ public partial class WorkspaceView : UserControl
     private string? _pdfTextOnImageTempPath;
     private bool _syncingPreviewTextToggle;
     private DispatcherTimer? _workspaceOcrBackfillTimer;
+    private readonly ILocalizationApplier _localization = ServiceContainer.GetService<ILocalizationApplier>();
 
     private bool IsManagerOrAdmin => ServiceContainer.GetService<IPermissionService>().HasMinimumRole(Roles.Manager);
     private bool CanPickAnyBranch => IsManagerOrAdmin || Branches.ScopesToAllBranches(ServiceContainer.GetService<ISessionService>().CurrentUser?.Branch);
@@ -1184,15 +1185,15 @@ public partial class WorkspaceView : UserControl
     {
         var config = ServiceContainer.IsInitialized ? ServiceContainer.GetService<IConfigStore>() : null;
         if (config == null) return;
-        if (AssignmentFilterLabel != null) AssignmentFilterLabel.Text = ReportLocalizationService.GetString("Filter", config);
-        if (RbAssignmentPending != null) RbAssignmentPending.Content = ReportLocalizationService.GetString("Pending", config);
-        if (RbAssignmentInProgress != null) RbAssignmentInProgress.Content = ReportLocalizationService.GetString("InProgress", config);
-        if (RbAssignmentCompleted != null) RbAssignmentCompleted.Content = ReportLocalizationService.GetString("Completed", config);
-        if (AssignmentOverdueOnlyCheck != null) AssignmentOverdueOnlyCheck.Content = ReportLocalizationService.GetString("ShowOverdueOnly", config);
-        if (MarkCompleteBtn != null) MarkCompleteBtn.ToolTip = ReportLocalizationService.GetString("MarkComplete", config);
-        if (ViewDocumentBtn != null) ViewDocumentBtn.ToolTip = ReportLocalizationService.GetString("ViewDocument", config);
-        if (CancelAssignmentBtn != null) CancelAssignmentBtn.ToolTip = ReportLocalizationService.GetString("CancelAssignment", config);
-        if (MoveToArchiveBtn != null) MoveToArchiveBtn.ToolTip = ReportLocalizationService.GetString("MoveToArchiveTooltip", config);
+        if (AssignmentFilterLabel != null) AssignmentFilterLabel.Text = _localization.Get(config, "Filter");
+        if (RbAssignmentPending != null) RbAssignmentPending.Content = _localization.Get(config, "Pending");
+        if (RbAssignmentInProgress != null) RbAssignmentInProgress.Content = _localization.Get(config, "InProgress");
+        if (RbAssignmentCompleted != null) RbAssignmentCompleted.Content = _localization.Get(config, "Completed");
+        if (AssignmentOverdueOnlyCheck != null) AssignmentOverdueOnlyCheck.Content = _localization.Get(config, "ShowOverdueOnly");
+        if (MarkCompleteBtn != null) MarkCompleteBtn.ToolTip = _localization.Get(config, "MarkComplete");
+        if (ViewDocumentBtn != null) ViewDocumentBtn.ToolTip = _localization.Get(config, "ViewDocument");
+        if (CancelAssignmentBtn != null) CancelAssignmentBtn.ToolTip = _localization.Get(config, "CancelAssignment");
+        if (MoveToArchiveBtn != null) MoveToArchiveBtn.ToolTip = _localization.Get(config, "MoveToArchiveTooltip");
     }
 
     private void AssignmentFilter_Changed(object sender, RoutedEventArgs e)

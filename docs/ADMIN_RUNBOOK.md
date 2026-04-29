@@ -225,7 +225,7 @@ From **Control Panel** → **Backup & Recovery**:
 2. Choose encryption password
 3. Select backup location
 4. Wait for completion
-5. Verify backup file created (`.workaudit` extension)
+5. Verify backup file created (`.zip` under `%APPDATA%\WORKAUDIT\Backups` or your chosen folder). Optional Oracle schema adds `Oracle\*.dmp` inside the ZIP when Data Pump is configured.
 
 ### Backup Best Practices
 

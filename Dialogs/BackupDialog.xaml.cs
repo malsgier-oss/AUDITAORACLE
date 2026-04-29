@@ -12,11 +12,14 @@ namespace WorkAudit.Dialogs;
 public partial class BackupDialog : Window
 {
     private readonly IBackupService _backupService;
+    private readonly IConfigStore _configStore;
 
     public BackupDialog()
     {
         InitializeComponent();
         _backupService = ServiceContainer.GetService<IBackupService>();
+        _configStore = ServiceContainer.GetService<IConfigStore>();
+        IncludeOracleCheck.IsChecked = _configStore.GetSettingBool("include_oracle_data", false);
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -48,8 +51,9 @@ public partial class BackupDialog : Window
             return;
         }
 
-        var includeDocuments = IncludeDocumentsCheck?.IsChecked == true;
-        var backupPath = Path.Combine(folder, $"WorkAudit_Backup_{DateTime.UtcNow:yyyyMMdd_HHmmss}.zip");
+            var includeDocuments = IncludeDocumentsCheck?.IsChecked == true;
+            var includeOracle = IncludeOracleCheck?.IsChecked == true;
+            var backupPath = Path.Combine(folder, $"WorkAudit_Backup_{DateTime.UtcNow:yyyyMMdd_HHmmss}.zip");
 
         CreateBackupBtn.IsEnabled = false;
         StatusText.Visibility = Visibility.Visible;
@@ -58,7 +62,7 @@ public partial class BackupDialog : Window
 
         try
         {
-            var result = await _backupService.CreateBackupAsync(backupPath, includeDocuments);
+            var result = await _backupService.CreateBackupAsync(backupPath, includeDocuments, null, includeOracle);
 
             if (result.Success)
             {

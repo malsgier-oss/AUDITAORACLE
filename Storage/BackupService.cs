@@ -1,48 +1,67 @@
 using System.IO;
 using System.IO.Compression;
 using Serilog;
+using WorkAudit.Core.Backup;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
 
 namespace WorkAudit.Storage;
 
 /// <summary>
-/// Service for backing up and restoring application files (documents + manifest) in Oracle-only mode.
+/// Service for backing up and restoring application files (documents + manifest) and optional Oracle schema exports.
 /// </summary>
 public interface IBackupService
 {
-    Task<BackupResult> CreateBackupAsync(string? destinationPath = null, bool includeDocuments = true, string? encryptionPassword = null);
-    Task<RestoreResult> RestoreBackupAsync(string backupPath, string? decryptionPassword = null);
-    Task<BackupVerificationResult> VerifyBackupAsync(string backupPath);
+    Task<BackupResult> CreateBackupAsync(string? destinationPath = null, bool includeDocuments = true,
+        string? encryptionPassword = null, bool includeOracleData = false, CancellationToken cancellationToken = default);
+
+    Task<RestoreResult> RestoreBackupAsync(string backupPath, string? decryptionPassword = null,
+        RestoreBackupOptions? options = null, CancellationToken cancellationToken = default);
+
+    Task<BackupVerificationResult> VerifyBackupAsync(string backupPath, CancellationToken cancellationToken = default);
+
     List<BackupInfo> GetBackupHistory();
+
     Task CleanupOldBackupsAsync(int keepCount = 10);
 }
 
 public class BackupService : IBackupService
 {
+    public const string OracleZipFolder = "Oracle";
+
     private readonly ILogger _log = LoggingService.ForContext<BackupService>();
     private readonly AppConfiguration _config;
     private readonly IExportEncryptionService? _encryptionService;
+    private readonly IOracleBackupGateway? _oracleGateway;
+    private readonly IConfigStore? _configStore;
     private readonly string _backupDirectory;
 
-    public BackupService(AppConfiguration config, IExportEncryptionService? encryptionService = null)
+    public BackupService(
+        AppConfiguration config,
+        IExportEncryptionService? encryptionService = null,
+        IOracleBackupGateway? oracleGateway = null,
+        IConfigStore? configStore = null)
     {
         _config = config;
         _encryptionService = encryptionService;
+        _oracleGateway = oracleGateway;
+        _configStore = configStore;
         _backupDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "WORKAUDIT", "Backups");
         Directory.CreateDirectory(_backupDirectory);
     }
 
-    public async Task<BackupResult> CreateBackupAsync(string? destinationPath = null, bool includeDocuments = true, string? encryptionPassword = null)
+    public async Task<BackupResult> CreateBackupAsync(string? destinationPath = null, bool includeDocuments = true,
+        string? encryptionPassword = null, bool includeOracleData = false, CancellationToken cancellationToken = default)
     {
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
         var backupName = $"WorkAudit_Backup_{timestamp}";
         var backupPath = destinationPath ?? Path.Combine(_backupDirectory, $"{backupName}.zip");
         var shouldEncrypt = !string.IsNullOrEmpty(encryptionPassword) && _encryptionService != null;
 
-        _log.Information("Creating backup: {BackupPath} (Encrypted: {Encrypted})", backupPath, shouldEncrypt);
+        _log.Information("Creating backup: {BackupPath} (Encrypted: {Encrypted}, Oracle: {Oracle})", backupPath, shouldEncrypt,
+            includeOracleData);
 
         var skippedFiles = new List<string>();
         try
@@ -50,46 +69,106 @@ public class BackupService : IBackupService
             var tempDir = Path.Combine(Path.GetTempPath(), backupName);
             Directory.CreateDirectory(tempDir);
 
-            // Copy documents if requested
+            string? oracleSchema = null;
+            string? oracleDirectory = null;
+            string? dumpFileName = null;
+            string? logFileName = null;
+            long oracleArtifactBytes = 0;
+
+            if (includeOracleData)
+            {
+                if (_oracleGateway == null || _configStore == null)
+                    throw new InvalidOperationException("Oracle backup is not available (gateway or configuration store missing).");
+
+                oracleDirectory = (_configStore.GetSettingValue("oracle_datapump_directory", "DATA_PUMP_DIR") ?? "DATA_PUMP_DIR")
+                    .Trim();
+                var localFolder = (_configStore.GetSettingValue("oracle_datapump_local_folder", "") ?? "").Trim();
+                if (string.IsNullOrEmpty(localFolder))
+                    throw new InvalidOperationException(
+                        "Oracle backup requires app setting oracle_datapump_local_folder: a folder path that matches your Oracle DIRECTORY object and is visible to this PC (often a UNC share or mapped drive where expdp writes the .dmp file).");
+
+                if (!OracleBackupConnectionParser.TryParse(_config.OracleConnectionString, out oracleSchema, out _, out _))
+                    throw new InvalidOperationException("Cannot parse Oracle User Id from the connection string for schema export.");
+
+                dumpFileName = $"wa_{timestamp}.dmp";
+                logFileName = $"wa_{timestamp}.log";
+                var expdpPath = _configStore.GetSettingValue("oracle_backup_dump_tool_path", "")?.Trim();
+                if (string.IsNullOrEmpty(expdpPath))
+                    expdpPath = null;
+
+                var exportReq = new OraclePumpExportRequest
+                {
+                    ConnectionString = _config.OracleConnectionString,
+                    SchemaName = oracleSchema,
+                    OracleDirectoryName = oracleDirectory,
+                    DumpFileName = dumpFileName,
+                    LogFileName = logFileName,
+                    ExpdpExecutablePath = expdpPath,
+                    WorkingDirectory = localFolder
+                };
+
+                var pumpResult = await _oracleGateway.ExportSchemaAsync(exportReq, cancellationToken).ConfigureAwait(false);
+                if (!pumpResult.Success)
+                    throw new IOException(pumpResult.ErrorMessage ?? "Oracle expdp failed.");
+
+                var dumpOnDisk = Path.Combine(localFolder, dumpFileName);
+                await WaitForDumpFileAsync(dumpOnDisk, cancellationToken).ConfigureAwait(false);
+
+                var oracleDest = Path.Combine(tempDir, OracleZipFolder);
+                Directory.CreateDirectory(oracleDest);
+                var destDump = Path.Combine(oracleDest, dumpFileName);
+                File.Copy(dumpOnDisk, destDump, overwrite: true);
+                oracleArtifactBytes += new FileInfo(destDump).Length;
+
+                var logOnDisk = Path.Combine(localFolder, logFileName);
+                if (File.Exists(logOnDisk))
+                {
+                    var destLog = Path.Combine(oracleDest, logFileName);
+                    File.Copy(logOnDisk, destLog, overwrite: true);
+                    oracleArtifactBytes += new FileInfo(destLog).Length;
+                }
+            }
+
             if (includeDocuments && Directory.Exists(_config.BaseDirectory))
             {
                 var docsBackupDir = Path.Combine(tempDir, "Documents");
-                await CopyDirectoryAsync(_config.BaseDirectory, docsBackupDir, _config.BaseDirectory, skippedFiles);
+                await CopyDirectoryAsync(_config.BaseDirectory, docsBackupDir, _config.BaseDirectory, skippedFiles)
+                    .ConfigureAwait(false);
                 _log.Debug("Documents copied to backup");
             }
 
-            // Create backup manifest
             var manifest = new BackupManifest
             {
                 Version = Config.Defaults.AppVersion,
                 CreatedAt = DateTime.UtcNow.ToString("O"),
                 MachineName = Environment.MachineName,
                 IncludesDocuments = includeDocuments,
-                DatabaseSize = 0,
-                IsEncrypted = shouldEncrypt
+                DatabaseSize = oracleArtifactBytes,
+                IsEncrypted = shouldEncrypt,
+                IncludesOracleSchema = includeOracleData,
+                OracleSchemaName = oracleSchema,
+                OracleDirectoryName = oracleDirectory,
+                OracleDumpFileName = dumpFileName,
+                OracleLogFileName = logFileName,
+                OracleExportTool = "expdp"
             };
 
             var manifestPath = Path.Combine(tempDir, "manifest.json");
             await File.WriteAllTextAsync(manifestPath,
-                Newtonsoft.Json.JsonConvert.SerializeObject(manifest, Newtonsoft.Json.Formatting.Indented));
+                Newtonsoft.Json.JsonConvert.SerializeObject(manifest, Newtonsoft.Json.Formatting.Indented), cancellationToken)
+                .ConfigureAwait(false);
 
-            // Create ZIP archive
             var tempZipPath = backupPath;
             if (shouldEncrypt)
-            {
-                // If encrypting, create temp ZIP first
                 tempZipPath = Path.Combine(Path.GetTempPath(), $"{backupName}_temp.zip");
-            }
 
             if (File.Exists(tempZipPath))
                 File.Delete(tempZipPath);
 
-            await CreateZipFromDirectoryResilientAsync(tempDir, tempZipPath, skippedFiles);
+            await CreateZipFromDirectoryResilientAsync(tempDir, tempZipPath, skippedFiles).ConfigureAwait(false);
 
-            // Staging folder can still be locked (AV, indexer) after zipping; a failed delete must not fail the backup.
-            await TryDeleteStagingDirectoryAsync(tempDir);
+            await TryDeleteStagingDirectoryAsync(tempDir).ConfigureAwait(false);
 
-            // Encrypt if password provided
             if (shouldEncrypt && !string.IsNullOrEmpty(encryptionPassword))
             {
                 if (File.Exists(backupPath))
@@ -110,7 +189,8 @@ public class BackupService : IBackupService
                 SizeBytes = fileInfo.Length,
                 CreatedAt = DateTime.UtcNow,
                 IsEncrypted = shouldEncrypt,
-                SkippedFiles = skippedFiles
+                SkippedFiles = skippedFiles,
+                OracleExportIncluded = includeOracleData
             };
         }
         catch (Exception ex)
@@ -119,19 +199,20 @@ public class BackupService : IBackupService
             return new BackupResult
             {
                 Success = false,
-                Error = ex.Message
+                Error = ex.Message,
+                OracleExportIncluded = includeOracleData
             };
         }
     }
 
-    public async Task<RestoreResult> RestoreBackupAsync(string backupPath, string? decryptionPassword = null)
+    public async Task<RestoreResult> RestoreBackupAsync(string backupPath, string? decryptionPassword = null,
+        RestoreBackupOptions? options = null, CancellationToken cancellationToken = default)
     {
+        options ??= new RestoreBackupOptions();
         _log.Information("Restoring backup from: {BackupPath}", backupPath);
 
         if (!File.Exists(backupPath))
-        {
             return new RestoreResult { Success = false, Error = "Backup file not found" };
-        }
 
         try
         {
@@ -140,7 +221,6 @@ public class BackupService : IBackupService
 
             var zipPath = backupPath;
 
-            // Check if file is encrypted
             if (IsEncryptedBackup(backupPath))
             {
                 if (string.IsNullOrEmpty(decryptionPassword))
@@ -155,7 +235,6 @@ public class BackupService : IBackupService
                     return new RestoreResult { Success = false, Error = "Encryption service not available." };
                 }
 
-                // Decrypt to temp location
                 zipPath = Path.Combine(Path.GetTempPath(), $"WorkAudit_Decrypted_{Guid.NewGuid():N}.zip");
                 try
                 {
@@ -171,16 +250,11 @@ public class BackupService : IBackupService
                 }
             }
 
-            // Extract backup
             ZipFile.ExtractToDirectory(zipPath, tempDir);
 
-            // Cleanup decrypted temp file if it exists
             if (zipPath != backupPath && File.Exists(zipPath))
-            {
                 File.Delete(zipPath);
-            }
 
-            // Verify manifest
             var manifestPath = Path.Combine(tempDir, "manifest.json");
             if (!File.Exists(manifestPath))
             {
@@ -188,22 +262,115 @@ public class BackupService : IBackupService
                 return new RestoreResult { Success = false, Error = "Invalid backup: manifest not found" };
             }
 
-            var manifestJson = await File.ReadAllTextAsync(manifestPath);
+            var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false);
             var manifest = Newtonsoft.Json.JsonConvert.DeserializeObject<BackupManifest>(manifestJson);
 
-            // Create backup of current state before restoring
-            await CreateBackupAsync(null, true, null);
-            _log.Information("Created safety backup before restore");
+            if (options.CreateSafetyBackup)
+            {
+                var wantSafetyOracle = options.SafetyBackupIncludeOracle && manifest is { IncludesOracleSchema: true };
+                var canSafetyOracle = wantSafetyOracle && _configStore != null &&
+                                      !string.IsNullOrWhiteSpace(_configStore.GetSettingValue("oracle_datapump_local_folder", ""));
+                await CreateBackupAsync(null, true, null, canSafetyOracle, cancellationToken).ConfigureAwait(false);
+                _log.Information("Created safety backup before restore (Oracle: {Oracle})", canSafetyOracle);
+            }
 
-            // Restore documents
+            if (manifest is { IncludesOracleSchema: true } && options.RestoreOracleSchema)
+            {
+                if (_oracleGateway == null || _configStore == null)
+                {
+                    Directory.Delete(tempDir, true);
+                    return new RestoreResult { Success = false, Error = "Oracle restore is not available (gateway or configuration store missing)." };
+                }
+
+                var localFolder = (_configStore.GetSettingValue("oracle_datapump_local_folder", "") ?? "").Trim();
+                if (string.IsNullOrEmpty(localFolder))
+                {
+                    Directory.Delete(tempDir, true);
+                    return new RestoreResult
+                    {
+                        Success = false,
+                        Error = "oracle_datapump_local_folder is not configured; cannot copy dump files for impdp."
+                    };
+                }
+
+                var oracleSrc = Path.Combine(tempDir, OracleZipFolder);
+                if (!Directory.Exists(oracleSrc) ||
+                    string.IsNullOrEmpty(manifest.OracleDumpFileName))
+                {
+                    Directory.Delete(tempDir, true);
+                    return new RestoreResult { Success = false, Error = "Backup manifest claims Oracle data but Oracle folder or dump file name is missing." };
+                }
+
+                Directory.CreateDirectory(localFolder);
+                var srcDump = Path.Combine(oracleSrc, manifest.OracleDumpFileName);
+                if (!File.Exists(srcDump))
+                {
+                    Directory.Delete(tempDir, true);
+                    return new RestoreResult { Success = false, Error = $"Dump file not found in backup: {manifest.OracleDumpFileName}" };
+                }
+
+                var destDump = Path.Combine(localFolder, manifest.OracleDumpFileName);
+                File.Copy(srcDump, destDump, overwrite: true);
+
+                if (!string.IsNullOrEmpty(manifest.OracleLogFileName))
+                {
+                    var srcLog = Path.Combine(oracleSrc, manifest.OracleLogFileName);
+                    if (File.Exists(srcLog))
+                        File.Copy(srcLog, Path.Combine(localFolder, manifest.OracleLogFileName), overwrite: true);
+                }
+
+                var oracleDirectory = string.IsNullOrEmpty(manifest.OracleDirectoryName)
+                    ? "DATA_PUMP_DIR"
+                    : manifest.OracleDirectoryName;
+
+                var schema = manifest.OracleSchemaName;
+                if (string.IsNullOrEmpty(schema))
+                {
+                    if (!OracleBackupConnectionParser.TryParse(_config.OracleConnectionString, out schema, out _, out _))
+                    {
+                        Directory.Delete(tempDir, true);
+                        return new RestoreResult { Success = false, Error = "Cannot determine Oracle schema for import." };
+                    }
+                }
+
+                var impLog = $"wa_restore_{DateTime.UtcNow:yyyyMMddHHmmss}.log";
+                var impdpPath = _configStore.GetSettingValue("oracle_backup_dump_tool_path", "")?.Trim();
+                if (string.IsNullOrEmpty(impdpPath))
+                    impdpPath = null;
+
+                var importReq = new OraclePumpImportRequest
+                {
+                    ConnectionString = _config.OracleConnectionString,
+                    SchemaName = schema,
+                    OracleDirectoryName = oracleDirectory,
+                    DumpFileName = manifest.OracleDumpFileName,
+                    LogFileName = impLog,
+                    ImpdpExecutablePath = impdpPath,
+                    WorkingDirectory = localFolder,
+                    ReplaceExistingObjects = true
+                };
+
+                var impResult = await _oracleGateway.ImportSchemaAsync(importReq, cancellationToken).ConfigureAwait(false);
+                if (!impResult.Success)
+                {
+                    Directory.Delete(tempDir, true);
+                    return new RestoreResult
+                    {
+                        Success = false,
+                        Error = impResult.ErrorMessage ?? "Oracle impdp failed."
+                    };
+                }
+
+                _log.Information("Oracle schema import completed");
+            }
+
             var docsBackupDir = Path.Combine(tempDir, "Documents");
             if (Directory.Exists(docsBackupDir))
             {
-                await CopyDirectoryAsync(docsBackupDir, _config.BaseDirectory);
+                await CopyDirectoryAsync(docsBackupDir, _config.BaseDirectory).ConfigureAwait(false);
                 _log.Information("Documents restored");
             }
 
-            // Cleanup
             Directory.Delete(tempDir, true);
 
             _log.Information("Restore completed successfully");
@@ -224,10 +391,18 @@ public class BackupService : IBackupService
         }
     }
 
-    public async Task<BackupVerificationResult> VerifyBackupAsync(string backupPath)
+    public async Task<BackupVerificationResult> VerifyBackupAsync(string backupPath,
+        CancellationToken cancellationToken = default)
     {
         if (!File.Exists(backupPath))
             return new BackupVerificationResult { Valid = false, Error = "Backup file not found" };
+
+        if (IsEncryptedBackup(backupPath))
+            return new BackupVerificationResult
+            {
+                Valid = false,
+                Error = "Encrypted backups cannot be verified as a ZIP without decryption. Decrypt or verify from the restore wizard."
+            };
 
         try
         {
@@ -238,10 +413,51 @@ public class BackupService : IBackupService
 
             using var stream = manifestEntry.Open();
             using var reader = new StreamReader(stream);
-            var json = await reader.ReadToEndAsync();
+            var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
             var manifest = Newtonsoft.Json.JsonConvert.DeserializeObject<BackupManifest>(json);
             if (manifest == null)
                 return new BackupVerificationResult { Valid = false, Error = "Invalid manifest" };
+
+            string? oracleNote = null;
+            if (manifest.IncludesOracleSchema)
+            {
+                var dumpName = manifest.OracleDumpFileName;
+                if (string.IsNullOrEmpty(dumpName))
+                {
+                    oracleNote = "Manifest marks Oracle backup but dump file name is missing.";
+                    return new BackupVerificationResult
+                    {
+                        Valid = false,
+                        Error = oracleNote,
+                        Version = manifest.Version,
+                        CreatedAt = manifest.CreatedAt,
+                        IncludesDocuments = manifest.IncludesDocuments,
+                        DatabaseSize = manifest.DatabaseSize,
+                        IncludesOracleSchema = true,
+                        OracleVerificationNote = oracleNote
+                    };
+                }
+
+                var dumpEntry = archive.GetEntry($"{OracleZipFolder}/{dumpName}") ??
+                                archive.GetEntry($"{OracleZipFolder}\\{dumpName}");
+                if (dumpEntry == null)
+                {
+                    oracleNote = $"Oracle dump entry not found in archive: {OracleZipFolder}/{dumpName}";
+                    return new BackupVerificationResult
+                    {
+                        Valid = false,
+                        Error = oracleNote,
+                        Version = manifest.Version,
+                        CreatedAt = manifest.CreatedAt,
+                        IncludesDocuments = manifest.IncludesDocuments,
+                        DatabaseSize = manifest.DatabaseSize,
+                        IncludesOracleSchema = true,
+                        OracleVerificationNote = oracleNote
+                    };
+                }
+
+                oracleNote = "Oracle dump file present in archive.";
+            }
 
             _log.Information("Backup verification passed: {Path} (Version: {Version}, Created: {Created})",
                 backupPath, manifest.Version, manifest.CreatedAt);
@@ -251,7 +467,9 @@ public class BackupService : IBackupService
                 Version = manifest.Version,
                 CreatedAt = manifest.CreatedAt,
                 IncludesDocuments = manifest.IncludesDocuments,
-                DatabaseSize = manifest.DatabaseSize
+                DatabaseSize = manifest.DatabaseSize,
+                IncludesOracleSchema = manifest.IncludesOracleSchema,
+                OracleVerificationNote = oracleNote
             };
         }
         catch (Exception ex)
@@ -304,7 +522,33 @@ public class BackupService : IBackupService
         await Task.CompletedTask;
     }
 
-    private async Task CopyDirectoryAsync(string sourceDir, string destDir, string? pathRootForRelative = null, List<string>? skippedFiles = null)
+    private static async Task WaitForDumpFileAsync(string path, CancellationToken cancellationToken)
+    {
+        for (var i = 0; i < 120; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                if (File.Exists(path))
+                {
+                    using var fs = File.OpenRead(path);
+                    if (fs.Length > 0)
+                        return;
+                }
+            }
+            catch (IOException)
+            {
+                // still writing
+            }
+
+            await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+        }
+
+        throw new IOException($"Timed out waiting for Oracle dump file at {path}. Ensure expdp completed and oracle_datapump_local_folder matches the DIRECTORY path.");
+    }
+
+    private async Task CopyDirectoryAsync(string sourceDir, string destDir, string? pathRootForRelative = null,
+        List<string>? skippedFiles = null)
     {
         Directory.CreateDirectory(destDir);
 
@@ -329,7 +573,7 @@ public class BackupService : IBackupService
         foreach (var dir in Directory.GetDirectories(sourceDir))
         {
             var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
-            await CopyDirectoryAsync(dir, destSubDir, pathRootForRelative, skippedFiles);
+            await CopyDirectoryAsync(dir, destSubDir, pathRootForRelative, skippedFiles).ConfigureAwait(false);
         }
     }
 
@@ -344,7 +588,7 @@ public class BackupService : IBackupService
 
         using var zipStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None);
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: false);
-        await AddDirectoryToZipAsync(archive, sourceDir, skippedFiles);
+        await AddDirectoryToZipAsync(archive, sourceDir, skippedFiles).ConfigureAwait(false);
     }
 
     private static bool IsCriticalBackupZipEntry(string relativePath)
@@ -374,14 +618,14 @@ public class BackupService : IBackupService
                         FileShare.ReadWrite | FileShare.Delete);
                     var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
                     await using var entryStream = entry.Open();
-                    await input.CopyToAsync(entryStream);
+                    await input.CopyToAsync(entryStream).ConfigureAwait(false);
                     added = true;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     if (attempt == 0)
                     {
-                        await Task.Delay(200);
+                        await Task.Delay(200).ConfigureAwait(false);
                         continue;
                     }
 
@@ -414,7 +658,7 @@ public class BackupService : IBackupService
                 if (attempt < 2)
                 {
                     _log.Debug(ex, "Temp directory delete attempt {Attempt} failed, retrying: {Path}", attempt + 1, path);
-                    await Task.Delay(400 * (attempt + 1));
+                    await Task.Delay(400 * (attempt + 1)).ConfigureAwait(false);
                 }
                 else
                     _log.Debug(ex, "Temp directory delete attempt {Attempt} failed: {Path}", attempt + 1, path);
@@ -471,9 +715,9 @@ public class BackupService : IBackupService
             var header = new byte[4];
             if (fs.Read(header, 0, 4) == 4)
             {
-                // Check for WorkAudit Encrypted eXport header "WAEX"
                 return header[0] == 0x57 && header[1] == 0x41 && header[2] == 0x45 && header[3] == 0x58;
             }
+
             return false;
         }
         catch
@@ -491,8 +735,10 @@ public class BackupResult
     public DateTime CreatedAt { get; set; }
     public bool IsEncrypted { get; set; }
     public string? Error { get; set; }
-    /// <summary>Relative paths or notes for files that were not copied or not zipped (e.g. access denied).</summary>
     public List<string> SkippedFiles { get; set; } = new();
+
+    /// <summary>True when this backup run requested Oracle export (success or failure).</summary>
+    public bool OracleExportIncluded { get; set; }
 }
 
 public class RestoreResult
@@ -518,6 +764,13 @@ public class BackupManifest
     public bool IncludesDocuments { get; set; }
     public long DatabaseSize { get; set; }
     public bool IsEncrypted { get; set; }
+
+    public bool IncludesOracleSchema { get; set; }
+    public string? OracleSchemaName { get; set; }
+    public string? OracleDirectoryName { get; set; }
+    public string? OracleDumpFileName { get; set; }
+    public string? OracleLogFileName { get; set; }
+    public string OracleExportTool { get; set; } = "expdp";
 }
 
 public class BackupVerificationResult
@@ -528,4 +781,6 @@ public class BackupVerificationResult
     public string? CreatedAt { get; set; }
     public bool IncludesDocuments { get; set; }
     public long DatabaseSize { get; set; }
+    public bool IncludesOracleSchema { get; set; }
+    public string? OracleVerificationNote { get; set; }
 }

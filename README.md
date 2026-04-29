@@ -232,6 +232,12 @@ Configure before first launch for custom settings:
 dotnet test WorkAudit.Tests\WorkAudit.Tests.csproj -c Release
 ```
 
+### Run Quality Gates (Build + Tests + Installer)
+
+```powershell
+.\scripts\Verify-QualityGates.ps1 -Configuration Release
+```
+
 ### Current Test Coverage
 
 - ✅ Core services (document management, search, export)
@@ -267,6 +273,10 @@ dotnet test WorkAudit.Tests\WorkAudit.Tests.csproj -c Release
 | `scheduled_backups_enabled` | Enable auto backups | false |
 | `scheduled_backup_time` | Backup time (24-hour) | "02:00" |
 | `scheduled_backup_location` | Backup path (UNC supported) | "" |
+| `include_oracle_data` | Include Oracle schema in app backups (Data Pump) | false |
+| `oracle_datapump_directory` | Oracle DIRECTORY object for expdp/impdp | DATA_PUMP_DIR |
+| `oracle_datapump_local_folder` | UNC/local path matching DIRECTORY (for .dmp copy into ZIP) | "" |
+| `oracle_backup_dump_tool_path` | Optional folder or full path to expdp/impdp | "" |
 | `update_server_url` | Update server URL | "" |
 | `report_language` | Report language (en/ar) | "en" |
 

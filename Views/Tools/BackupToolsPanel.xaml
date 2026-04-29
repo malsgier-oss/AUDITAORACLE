@@ -1,0 +1,24 @@
+<UserControl x:Class="WorkAudit.Views.Tools.BackupToolsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+        <StackPanel MaxWidth="720">
+            <TextBlock Text="Backup and recovery" FontSize="18" FontWeight="SemiBold"
+                       Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,8"/>
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource DimForeground}" Margin="0,0,0,16"
+                       Text="Document backups are ZIP files under %APPDATA%\WORKAUDIT\Backups. Optional Oracle schema export uses Data Pump (expdp/impdp); configure oracle_datapump_local_folder in Control Panel → Backup to match your Oracle DIRECTORY."/>
+
+            <TextBlock Text="Quick actions" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryForeground}" Margin="0,8,0,8"/>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <Button x:Name="ExternalBackupBtn" Content="Backup to external drive..." Padding="12,8" Margin="0,0,8,0"
+                        Click="ExternalBackup_Click" Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button x:Name="VerifyRecentBtn" Content="Verify recent backups" Padding="12,8" Margin="0,0,8,0"
+                        Click="VerifyRecent_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+            <Button x:Name="RestoreBtn" Content="Restore from backup file..." Padding="12,8" HorizontalAlignment="Left"
+                    Click="Restore_Click" Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+
+            <TextBlock x:Name="StatusText" Margin="0,16,0,0" TextWrapping="Wrap" Foreground="{DynamicResource DimForeground}"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

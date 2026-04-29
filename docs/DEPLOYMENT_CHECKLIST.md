@@ -9,6 +9,8 @@
 - [x] All compilation errors fixed (0 errors)
 - [x] TODO/FIXME comments cleaned up
 - [x] Code builds successfully in Release mode
+- [x] Quality gate script available (`scripts/Verify-QualityGates.ps1`)
+- [x] Cleanup risk register template available (`docs/CLEANUP_RISK_LOG.md`)
 
 ### Performance Optimization
 - [x] Database indexes added (Migration 034)
@@ -70,6 +72,8 @@
 - [x] Admin Runbook (ADMIN_RUNBOOK.md)
 - [x] User Guide (USER_GUIDE.md)
 - [x] Installer README (installer/README_INSTALLER.md)
+- [x] Installer validation profile documented (`docs/INSTALLER_VALIDATION_PROFILE.md`)
+- [x] Cleanup debt register documented (`docs/CLEANUP_DEBT_REGISTER.md`)
 - [ ] Network architecture diagram (for hybrid sync)
 - [ ] Database schema documentation
 - [ ] API documentation (for central server)
