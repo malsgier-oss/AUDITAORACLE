@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using WorkAudit.Storage;
 
 namespace WorkAudit.Core.Reports;
@@ -105,7 +106,7 @@ Unauthorized distribution of this document is prohibited. If received in error, 
             [ReportDisclaimerTextAr] = configStore.GetSettingValue(ReportDisclaimerTextAr, "") ?? "",
             [ReportDefaultDistributionList] = configStore.GetSettingValue(ReportDefaultDistributionList, "Board, Audit Committee, General Manager, CFO (internal only)") ?? "",
             [ReportSupersedesReportId] = configStore.GetSettingValue(ReportSupersedesReportId, "") ?? "",
-            [ArchiveRetentionYears] = configStore.GetSettingInt(ArchiveRetentionYears, 7).ToString()
+            [ArchiveRetentionYears] = configStore.GetSettingInt(ArchiveRetentionYears, 7).ToString(CultureInfo.InvariantCulture)
         };
     }
 

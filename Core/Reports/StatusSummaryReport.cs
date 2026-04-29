@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -19,8 +20,8 @@ public static class StatusSummaryReport
     public static List<(string Status, int Count)> GetData(IDocumentStore store, DateTime from, DateTime to,
         string? branch = null, string? section = null, string? engagement = null)
     {
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
 
         var byStatus = docs

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Data;
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
@@ -123,7 +124,7 @@ public class UserStore : IUserStore
         var rid = new OracleParameter("rid", OracleDbType.Int64) { Direction = ParameterDirection.Output };
         cmd.Parameters.Add(rid);
         Prep(cmd); cmd.ExecuteNonQuery();
-        var id = Convert.ToInt64(rid.Value?.ToString() ?? "0");
+        var id = Convert.ToInt64(rid.Value?.ToString() ?? "0", CultureInfo.InvariantCulture);
         user.Id = (int)id;
 
         _log.Information("Created user: {Username} ({Role})", user.Username, user.Role);
@@ -316,7 +317,7 @@ public class UserStore : IUserStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM users";
-            Prep(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
+            Prep(cmd); return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }, nameof(Count), 0);
     }
 

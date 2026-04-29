@@ -1,4 +1,5 @@
 using Serilog;
+using System.Globalization;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -60,8 +61,8 @@ public class TeamTaskService : ITeamTaskService
         var assignTo = _userStore.Get(assignedToUserId)
             ?? throw new ArgumentException("Assignee not found.", nameof(assignedToUserId));
 
-        var startStr = startDateLocal.ToString("yyyy-MM-dd");
-        string? endStr = endDateLocal?.ToString("yyyy-MM-dd");
+        var startStr = startDateLocal.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        string? endStr = endDateLocal?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         var t = new TeamTask
         {
@@ -125,14 +126,14 @@ public class TeamTaskService : ITeamTaskService
             return Array.Empty<TeamTaskWithState>();
 
         var today = DateTime.Today;
-        var todayStr = today.ToString("yyyy-MM-dd");
+        var todayStr = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var tasks = _store.ListActiveForAssignee(user.Id, todayStr);
         var result = new List<TeamTaskWithState>();
         foreach (var t in tasks)
         {
             if (!TeamTaskPeriodHelper.IsInActiveWindow(today, t.StartDate, t.EndDate))
                 continue;
-            var periodKey = TeamTaskPeriodHelper.GetPeriodKey(today, t.Recurrence);
+        var periodKey = TeamTaskPeriodHelper.GetPeriodKey(today, t.Recurrence);
             var done = _store.HasCompletion(t.Id, periodKey);
             var hasNote = _store.HasNote(t.Id, user.Id, periodKey);
             result.Add(new TeamTaskWithState
@@ -193,7 +194,7 @@ public class TeamTaskService : ITeamTaskService
             return null;
 
         var today = DateTime.Today;
-        var todayStr = today.ToString("yyyy-MM-dd");
+        var todayStr = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         if (!task.IsActive || !TeamTaskPeriodHelper.IsInActiveWindow(today, task.StartDate, task.EndDate))
             return null;
 

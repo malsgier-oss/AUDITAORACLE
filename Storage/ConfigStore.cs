@@ -2,6 +2,7 @@ using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using Serilog;
 using System.Data;
+using System.Globalization;
 using WorkAudit.Core.Services;
 using WorkAudit.Core.Security;
 using WorkAudit.Domain;
@@ -211,7 +212,7 @@ public class ConfigStore : IConfigStore
             return 0;
         if (value is OracleDecimal oracleDecimal)
             return oracleDecimal.ToInt32();
-        return Convert.ToInt32(value);
+        return Convert.ToInt32(value, CultureInfo.InvariantCulture);
     }
 
     #endregion
@@ -508,7 +509,7 @@ public class ConfigStore : IConfigStore
     }
 
     public bool SetSettingInt(string key, int value, string? updatedBy = null) =>
-        SetSetting(key, value.ToString(), updatedBy);
+        SetSetting(key, value.ToString(CultureInfo.InvariantCulture), updatedBy);
 
     public bool SetSettingBool(string key, bool value, string? updatedBy = null) =>
         SetSetting(key, value.ToString().ToLowerInvariant(), updatedBy);

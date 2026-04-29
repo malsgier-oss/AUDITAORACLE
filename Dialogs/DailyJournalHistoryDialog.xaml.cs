@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using WorkAudit.Core.Services;
@@ -25,7 +26,7 @@ public partial class DailyJournalHistoryDialog : Window
 
     private void LoadJournalEntry(DateTime date)
     {
-        var dateString = date.ToString("yyyy-MM-dd");
+        var dateString = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         var journalEntry = _notesStore.Search(type: NoteType.Journal, limit: 100)
             .FirstOrDefault(n => n.CreatedByUserId == _userId &&

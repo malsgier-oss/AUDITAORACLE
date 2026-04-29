@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace WorkAudit.Domain;
 
 /// <summary>
@@ -80,7 +82,7 @@ public class Note
                 if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays} day(s) ago";
                 if (timeSpan.TotalDays < 30) return $"{(int)(timeSpan.TotalDays / 7)} week(s) ago";
 
-                return resolvedDate.ToString("MMM dd, yyyy");
+                return resolvedDate.ToString("MMM dd, yyyy", CultureInfo.CurrentCulture);
             }
 
             return ResolvedAt;

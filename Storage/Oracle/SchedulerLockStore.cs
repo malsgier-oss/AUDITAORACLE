@@ -1,4 +1,5 @@
 using Oracle.ManagedDataAccess.Client;
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Services;
 
@@ -66,7 +67,7 @@ public sealed class SchedulerLockStore : ISchedulerLockStore
                     using var r = sel.ExecuteReader();
                     if (r.Read())
                     {
-                        existingHolder = r.IsDBNull(0) ? null : Convert.ToString(r.GetValue(0));
+                        existingHolder = r.IsDBNull(0) ? null : Convert.ToString(r.GetValue(0), CultureInfo.InvariantCulture);
                         if (r.IsDBNull(1))
                             existingUntil = null;
                         else

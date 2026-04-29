@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -72,21 +73,21 @@ public class ReportFileOrganizer : IReportFileOrganizer
         {
             var quarter = (now.Month - 1) / 3 + 1;
             subFolder = Path.Combine(
-                now.Year.ToString(),
+                now.Year.ToString(CultureInfo.InvariantCulture),
                 $"Q{quarter}"
             );
         }
         else
         {
             subFolder = Path.Combine(
-                now.Year.ToString(),
-                $"{now.Month:D2}-{now:MMMM}"
+                now.Year.ToString(CultureInfo.InvariantCulture),
+                $"{now.Month.ToString("D2", CultureInfo.InvariantCulture)}-{now:MMMM}"
             );
         }
 
         // Build filename: ReportType_DateRange_Timestamp.ext
         var dateRange = $"{config.DateFrom:yyyyMMdd}_{config.DateTo:yyyyMMdd}";
-        var timestamp = now.ToString("HHmmss");
+        var timestamp = now.ToString("HHmmss", CultureInfo.InvariantCulture);
         var extension = format switch
         {
             ReportFormat.Excel => ".xlsx",

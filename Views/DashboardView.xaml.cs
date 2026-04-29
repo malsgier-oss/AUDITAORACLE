@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -306,12 +307,12 @@ public partial class DashboardView : UserControl
                 activeIssueDocIds.Add(d.Id);
         }
 
-        KpiActiveIssues.Text = activeIssueDocIds.Count.ToString();
+        KpiActiveIssues.Text = activeIssueDocIds.Count.ToString(CultureInfo.InvariantCulture);
         KpiActiveIssuesChange.Text = "";
 
         // Pending Tasks
         var pendingTasks = assignmentsInScope.Count(a => a.Status == AssignmentStatus.Pending);
-        KpiPendingTasks.Text = pendingTasks.ToString();
+        KpiPendingTasks.Text = pendingTasks.ToString(CultureInfo.InvariantCulture);
         KpiPendingTasksChange.Text = "—";
 
         // Overdue Items
@@ -321,7 +322,7 @@ public partial class DashboardView : UserControl
                         a.Status != AssignmentStatus.Cancelled &&
                         !string.IsNullOrEmpty(a.DueDate) &&
                         DateTime.TryParse(a.DueDate, out var due) && due < now);
-        KpiOverdueItems.Text = overdueCount.ToString();
+        KpiOverdueItems.Text = overdueCount.ToString(CultureInfo.InvariantCulture);
         KpiOverdueItemsChange.Text = overdueCount > 0 ? "⚠️ Requires attention" : "Good";
 
         // Completion Rate
@@ -368,16 +369,16 @@ public partial class DashboardView : UserControl
                                            d.ReviewedAt != null &&
                                            DateTime.TryParse(d.ReviewedAt, out var reviewDate) &&
                                            reviewDate.Date == today);
-        KpiDailyThroughput.Text = clearedToday.ToString();
+        KpiDailyThroughput.Text = clearedToday.ToString(CultureInfo.InvariantCulture);
         KpiDailyThroughputChange.Text = $"{docs.Count} total in range";
 
         // Total Documents
-        KpiTotalDocuments.Text = docs.Count.ToString();
+        KpiTotalDocuments.Text = docs.Count.ToString(CultureInfo.InvariantCulture);
         KpiTotalDocumentsChange.Text = $"{_viewModel.GetTotalDocumentCount()} all time";
 
         // Follow-ups Due
         var followUpsDue = docs.Count(d => d.IsFollowUpDue);
-        KpiFollowUpsDue.Text = followUpsDue.ToString();
+        KpiFollowUpsDue.Text = followUpsDue.ToString(CultureInfo.InvariantCulture);
         KpiFollowUpsDueChange.Text = followUpsDue > 0 ? "Needs attention" : "All clear";
     }
 
@@ -571,11 +572,11 @@ public partial class DashboardView : UserControl
 
     private void LoadDocumentPipeline(List<Document> docs)
     {
-        PipelineDraft.Text = docs.Count(d => d.Status == Enums.Status.Draft).ToString();
-        PipelineReviewed.Text = docs.Count(d => d.Status == Enums.Status.Reviewed).ToString();
-        PipelineReady.Text = docs.Count(d => d.Status == Enums.Status.ReadyForAudit).ToString();
-        PipelineIssue.Text = docs.Count(d => d.Status == Enums.Status.Issue).ToString();
-        PipelineCleared.Text = docs.Count(d => d.Status == Enums.Status.Cleared).ToString();
+        PipelineDraft.Text = docs.Count(d => d.Status == Enums.Status.Draft).ToString(CultureInfo.InvariantCulture);
+        PipelineReviewed.Text = docs.Count(d => d.Status == Enums.Status.Reviewed).ToString(CultureInfo.InvariantCulture);
+        PipelineReady.Text = docs.Count(d => d.Status == Enums.Status.ReadyForAudit).ToString(CultureInfo.InvariantCulture);
+        PipelineIssue.Text = docs.Count(d => d.Status == Enums.Status.Issue).ToString(CultureInfo.InvariantCulture);
+        PipelineCleared.Text = docs.Count(d => d.Status == Enums.Status.Cleared).ToString(CultureInfo.InvariantCulture);
     }
 
     private void LoadFollowUps(List<Document> docs)
@@ -833,7 +834,7 @@ public partial class DashboardView : UserControl
         if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
         if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
         
-        return dt.ToLocalTime().ToString("MMM dd");
+        return dt.ToLocalTime().ToString("MMM dd", CultureInfo.CurrentCulture);
     }
 
     // Event Handlers
@@ -888,7 +889,7 @@ public partial class DashboardView : UserControl
             {
                 var config = ServiceContainer.GetService<AppConfiguration>();
                 note.Status = NoteStatus.Resolved;
-                note.ResolvedAt = DateTime.UtcNow.ToString("O");
+                note.ResolvedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 note.ResolvedBy = config?.CurrentUserName ?? "Unknown";
                 _notesStore.Update(note);
                 

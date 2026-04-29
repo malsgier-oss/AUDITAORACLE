@@ -1,6 +1,7 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using System.Data;
+using System.Globalization;
 using WorkAudit.Core.Services;
 using WorkAudit.Storage.Oracle;
 using WorkAudit.Storage.Oracle.Migrations;
@@ -30,7 +31,7 @@ public class MigrationService : IMigrationService
         using var cmd = OracleSql.CreateCommand(conn,
             "SELECT COUNT(*) FROM user_tables WHERE LOWER(table_name) = LOWER(:t)");
         OracleSql.AddParameter(cmd, "t", tableNameLower.Trim('"'));
-        return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
     }
 
     public int GetCurrentVersion()
@@ -44,7 +45,7 @@ public class MigrationService : IMigrationService
 
         using var cmd = OracleSql.CreateCommand(conn, "SELECT NVL(MAX(version), 0) FROM workaudit_migrations");
         var o = cmd.ExecuteScalar();
-        return Convert.ToInt32(o);
+        return Convert.ToInt32(o, CultureInfo.InvariantCulture);
     }
 
     public void Migrate()
@@ -90,7 +91,7 @@ public class MigrationService : IMigrationService
         if (tx != null)
             cmd.Transaction = tx;
         var o = cmd.ExecuteScalar();
-        return Convert.ToInt32(o);
+        return Convert.ToInt32(o, CultureInfo.InvariantCulture);
     }
 
     private static bool IsMigrationRecorded(OracleConnection conn, int version, OracleTransaction? tx = null)
@@ -100,7 +101,7 @@ public class MigrationService : IMigrationService
         if (tx != null)
             cmd.Transaction = tx;
         OracleSql.AddParameter(cmd, "v", version);
-        return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
     }
 
     private static void RecordMigration(OracleConnection conn, int version, string name, OracleTransaction? tx = null)
@@ -198,7 +199,7 @@ public class MigrationService : IMigrationService
         cmd.Transaction = tx;
         OracleSql.AddParameter(cmd, "tableName", tableName);
         OracleSql.AddParameter(cmd, "columnName", columnName);
-        if (Convert.ToInt32(cmd.ExecuteScalar()) == 0)
+        if (Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) == 0)
             throw new InvalidOperationException($"Missing required Oracle column: {tableName}.{columnName}");
     }
 

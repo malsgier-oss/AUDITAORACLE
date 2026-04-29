@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -66,8 +67,8 @@ public class DocumentStore : IDocumentStore
         {
             doc.Uuid = Guid.NewGuid().ToString();
             var now = DateTime.UtcNow;
-            doc.CaptureTime = now.ToString("O");
-            doc.UpdatedAt = now.ToString("O");
+            doc.CaptureTime = now.ToString("O", CultureInfo.InvariantCulture);
+            doc.UpdatedAt = now.ToString("O", CultureInfo.InvariantCulture);
             if (string.IsNullOrEmpty(doc.Status)) doc.Status = Enums.Status.Draft;
 
             // Calculate file hash if file exists
@@ -95,7 +96,7 @@ public class DocumentStore : IDocumentStore
                 { Direction = ParameterDirection.Output };
             cmd.Parameters.Add(rid);
             PrepCmd(cmd); cmd.ExecuteNonQuery();
-            var id = Convert.ToInt64(rid.Value?.ToString() ?? "0");
+            var id = Convert.ToInt64(rid.Value?.ToString() ?? "0", CultureInfo.InvariantCulture);
 
             _log.Information("Document inserted: {Id} ({Type})", id, doc.DocumentType ?? "Unknown");
             return id;
@@ -108,8 +109,8 @@ public class DocumentStore : IDocumentStore
         {
             doc.Uuid = Guid.NewGuid().ToString();
             var now = DateTime.UtcNow;
-            doc.CaptureTime = now.ToString("O");
-            doc.UpdatedAt = now.ToString("O");
+            doc.CaptureTime = now.ToString("O", CultureInfo.InvariantCulture);
+            doc.UpdatedAt = now.ToString("O", CultureInfo.InvariantCulture);
             if (string.IsNullOrEmpty(doc.Status)) doc.Status = Enums.Status.Draft;
 
             if (!string.IsNullOrEmpty(doc.FilePath) && File.Exists(doc.FilePath))
@@ -136,7 +137,7 @@ public class DocumentStore : IDocumentStore
                 { Direction = ParameterDirection.Output };
             cmd.Parameters.Add(rid);
             PrepCmd(cmd); cmd.ExecuteNonQuery();
-            var id = Convert.ToInt64(rid.Value?.ToString() ?? "0");
+            var id = Convert.ToInt64(rid.Value?.ToString() ?? "0", CultureInfo.InvariantCulture);
 
             _log.Information("Document inserted: {Id} ({Type})", id, doc.DocumentType ?? "Unknown");
             return Result<long>.Success(id);
@@ -316,7 +317,7 @@ public class DocumentStore : IDocumentStore
             var likePattern = "%" + trimmedTs.ToLowerInvariant() + "%";
             var idExactClause = "";
             if (trimmedTs.Length > 0 && trimmedTs.All(static c => c >= '0' && c <= '9')
-                && int.TryParse(trimmedTs, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var exactDocId))
+                && int.TryParse(trimmedTs, System.Globalization.NumberStyles.Integer, CultureInfo.InvariantCulture, out var exactDocId))
             {
                 idExactClause = " OR id = @exactDocId";
                 pars.Add(new OracleParameter("exactDocId", exactDocId));
@@ -587,7 +588,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
     {
         return ExecuteDbOperation(() =>
         {
-            doc.UpdatedAt = DateTime.UtcNow.ToString("O");
+            doc.UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
@@ -740,7 +741,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
     {
         try
         {
-            doc.UpdatedAt = DateTime.UtcNow.ToString("O");
+            doc.UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
@@ -1119,7 +1120,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE file_path = @fp";
             cmd.Parameters.AddWithValue("fp", filePath);
-            PrepCmd(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }, nameof(CountDocumentsWithFilePath), 0);
     }
 
@@ -1150,7 +1151,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         }
 
         cmd.CommandText = sql;
-        PrepCmd(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
+        PrepCmd(cmd); return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 
     public int GetTotalDocumentCount()
@@ -1161,7 +1162,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM documents";
-            PrepCmd(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }, nameof(GetTotalDocumentCount), 0);
     }
 
@@ -1178,7 +1179,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         {
             cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE 1=1" + branchFilter;
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
-            PrepCmd(cmd); stats.TotalDocuments = Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); stats.TotalDocuments = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
         // Count by status
@@ -1195,16 +1196,16 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
 
         // Time-based counts
         var now = DateTime.UtcNow;
-        var todayStart = now.Date.ToString("O");
-        var weekStart = now.AddDays(-(int)now.DayOfWeek).Date.ToString("O");
-        var monthStart = new DateTime(now.Year, now.Month, 1).ToString("O");
+        var todayStart = now.Date.ToString("O", CultureInfo.InvariantCulture);
+        var weekStart = now.AddDays(-(int)now.DayOfWeek).Date.ToString("O", CultureInfo.InvariantCulture);
+        var monthStart = new DateTime(now.Year, now.Month, 1).ToString("O", CultureInfo.InvariantCulture);
 
         using (var cmd = conn.CreateCommand())
         {
             cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
             cmd.Parameters.AddWithValue("p_date", todayStart);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
-            PrepCmd(cmd); stats.TodayCount = Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); stats.TodayCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
         using (var cmd = conn.CreateCommand())
@@ -1212,7 +1213,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
             cmd.Parameters.AddWithValue("p_date", weekStart);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
-            PrepCmd(cmd); stats.ThisWeekCount = Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); stats.ThisWeekCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
         using (var cmd = conn.CreateCommand())
@@ -1220,7 +1221,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
             cmd.Parameters.AddWithValue("p_date", monthStart);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
-            PrepCmd(cmd); stats.ThisMonthCount = Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); stats.ThisMonthCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
         // Count by document type
@@ -1244,16 +1245,16 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE status = @status AND legal_hold = 1" + branchFilter;
             cmd.Parameters.AddWithValue("status", Enums.Status.Archived);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
-            PrepCmd(cmd); stats.ArchivedLegalHoldCount = Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); stats.ArchivedLegalHoldCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
         using (var cmd = conn.CreateCommand())
         {
-            var expiry90 = DateTime.UtcNow.AddDays(90).ToString("yyyy-MM-dd");
+            var expiry90 = DateTime.UtcNow.AddDays(90).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE status = @status AND retention_expiry_date IS NOT NULL AND retention_expiry_date <= @expiry" + branchFilter;
             cmd.Parameters.AddWithValue("status", Enums.Status.Archived);
             cmd.Parameters.AddWithValue("expiry", expiry90);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
-            PrepCmd(cmd); stats.ArchivedExpiringWithin90DaysCount = Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); stats.ArchivedExpiringWithin90DaysCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
         try
@@ -1261,7 +1262,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE disposal_status = 'Pending'" + branchFilter;
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
-            PrepCmd(cmd); stats.DisposalPendingCount = Convert.ToInt32(cmd.ExecuteScalar());
+            PrepCmd(cmd); stats.DisposalPendingCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
         catch { stats.DisposalPendingCount = 0; }
 
@@ -1473,3 +1474,5 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         return false;
     }
 }
+
+

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using WorkAudit.Core.Services;
@@ -110,7 +111,7 @@ public class AuditLogStore : IAuditLogStore
         var rid = new OracleParameter("rid", OracleDbType.Int64) { Direction = ParameterDirection.Output };
         cmd.Parameters.Add(rid);
         Prep(cmd); cmd.ExecuteNonQuery();
-        return Convert.ToInt64(rid.Value?.ToString() ?? "0");
+        return Convert.ToInt64(rid.Value?.ToString() ?? "0", CultureInfo.InvariantCulture);
         }, nameof(Insert), -1L);
     }
 
@@ -240,7 +241,7 @@ public class AuditLogStore : IAuditLogStore
             }
 
             cmd.CommandText = sql;
-            Prep(cmd); return Convert.ToInt32(cmd.ExecuteScalar());
+            Prep(cmd); return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }, nameof(Count), 0);
     }
 

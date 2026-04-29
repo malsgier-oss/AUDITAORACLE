@@ -215,7 +215,7 @@ public partial class AuditorReportsView : UserControl
             {
                 foreach (var h in history)
                 {
-                    var ts = DateTime.TryParse(h.GeneratedAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : h.GeneratedAt;
+                    var ts = DateTime.TryParse(h.GeneratedAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : h.GeneratedAt;
                     _reportHistoryAll.Add(new ReportHistoryEntry(ts, h.ReportType, h.FilePath));
                 }
                 ReportHistoryList.ItemsSource = _reportHistoryAll;
@@ -231,7 +231,7 @@ public partial class AuditorReportsView : UserControl
         var entries = auditLogStore.Query(DateTime.UtcNow.AddDays(-30), DateTime.UtcNow, null, Domain.AuditAction.ReportGenerated, Domain.AuditCategory.Report, false, 50, 0);
         foreach (var entry in entries.Where(x => x.Success && !string.IsNullOrEmpty(x.NewValue)))
         {
-            var ts = DateTime.TryParse(entry.Timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : entry.Timestamp;
+            var ts = DateTime.TryParse(entry.Timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : entry.Timestamp;
             var reportType = "Report";
             if (!string.IsNullOrEmpty(entry.Details) && entry.Details.StartsWith("Report type: "))
                 reportType = entry.Details.Split(',')[0].Replace("Report type: ", "").Trim();
@@ -382,7 +382,7 @@ public partial class AuditorReportsView : UserControl
                 : (d.Uuid.Length >= 8 ? d.Uuid[..8] : d.Uuid);
             var when = d.CreatedAt;
             if (DateTime.TryParse(d.CreatedAt, null, DateTimeStyles.RoundtripKind, out var dt))
-                when = dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                when = dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
             DisplayText = $"{d.ReportType} — {title} — {when}";
         }
 

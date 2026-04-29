@@ -1,3 +1,4 @@
+using System.Globalization;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
 
@@ -22,8 +23,8 @@ public class RiskScoringService : IRiskScoringService
     public IReadOnlyList<RiskIndicator> GetRiskIndicators(IDocumentStore store, IDocumentAssignmentStore? assignmentStore, DateTime from, DateTime to)
     {
         var indicators = new List<RiskIndicator>();
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, limit: 50_000);
 
         foreach (var branch in docs.Select(d => string.IsNullOrEmpty(d.Branch) ? "(No Branch)" : d.Branch).Distinct())

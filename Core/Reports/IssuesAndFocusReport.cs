@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -20,8 +21,8 @@ public static class IssuesAndFocusReport
         string? branch = null, string? section = null, string? filePath = null, int retentionYears = 7, IReportAnomalyService? anomalyService = null, ReportWatermark watermark = ReportWatermark.None, string? engagement = null, IConfigStore? configStore = null, string language = "en")
     {
         var isArabic = language.Equals("ar", StringComparison.OrdinalIgnoreCase);
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
 
         // Issues still (documents currently in Issue status)
         var docsInPeriod = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, status: null, engagement: engagement, limit: MaxDocuments);

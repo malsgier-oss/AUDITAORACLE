@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using System.Threading;
 using Serilog;
 using WorkAudit.Core.Services;
@@ -31,7 +32,7 @@ public class FileRenameService : IFileRenameService
             if (s.Length == 10 && s[4] == '-' && s[7] == '-')
                 return s;
         }
-        return DateTime.UtcNow.ToString("yyyy-MM-dd");
+        return DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
     /// <inheritdoc />

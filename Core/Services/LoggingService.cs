@@ -1,5 +1,6 @@
 using System.IO;
 using System.Diagnostics;
+using System.Globalization;
 using Serilog;
 using Serilog.Events;
 using WorkAudit.Storage;
@@ -42,6 +43,7 @@ public static class LoggingService
                     logPath,
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 30,
+                    formatProvider: CultureInfo.InvariantCulture,
                     outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{MachineName}/{ProcessId}] {SourceContext} - {Message:lj}{NewLine}{Exception}",
                     shared: true,
                     flushToDiskInterval: TimeSpan.FromSeconds(1))
@@ -50,10 +52,12 @@ public static class LoggingService
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 7,
                     restrictedToMinimumLevel: LogEventLevel.Information,
+                    formatProvider: CultureInfo.InvariantCulture,
                     outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Message:lj}{NewLine}",
                     shared: true)
                 .WriteTo.Console(
                     outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                    formatProvider: CultureInfo.InvariantCulture,
                     restrictedToMinimumLevel: LogEventLevel.Information)
                 .CreateLogger();
 

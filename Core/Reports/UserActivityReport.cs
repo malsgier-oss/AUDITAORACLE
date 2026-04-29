@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using ClosedXML.Excel;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -19,8 +20,8 @@ public static class UserActivityReport
     public static List<UserActivityRow> GetData(IDocumentStore documentStore, IUserStore userStore, IDocumentAssignmentStore? assignmentStore, DateTime from, DateTime to,
         string? branch = null, string? section = null, string? engagement = null)
     {
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var users = userStore.ListUsers(isActive: true);
         var days = Math.Max(1, (to - from).Days + 1);
 
@@ -197,7 +198,7 @@ public static class UserActivityReport
         ws.Cell(1, 1).Style.Font.FontSize = 14;
         ws.Range(1, 1, 1, 9).Merge();
         ws.Cell(2, 1).Value = $"Period: {from:yyyy-MM-dd} to {to:yyyy-MM-dd}";
-        ws.Cell(3, 1).Value = "Generated: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") + " UTC";
+        ws.Cell(3, 1).Value = "Generated: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + " UTC";
 
         ws.Cell(5, 1).Value = "User";
         ws.Cell(5, 2).Value = "Branch";

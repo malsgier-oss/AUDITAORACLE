@@ -1,4 +1,5 @@
 using Oracle.ManagedDataAccess.Client;
+using System.Globalization;
 using WorkAudit.Core.Services;
 using WorkAudit.Storage.Oracle;
 
@@ -130,6 +131,6 @@ public class NotificationStore : INotificationStore
             return 0;
         if (value is global::Oracle.ManagedDataAccess.Types.OracleDecimal oracleDecimal)
             return oracleDecimal.ToInt32();
-        return Convert.ToInt32(value);
+        return Convert.ToInt32(value, CultureInfo.InvariantCulture);
     }
 }

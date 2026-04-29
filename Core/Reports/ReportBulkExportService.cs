@@ -1,5 +1,6 @@
 using System.IO;
 using System.IO.Compression;
+using System.Globalization;
 using WorkAudit.Domain;
 
 namespace WorkAudit.Core.Reports;
@@ -99,16 +100,17 @@ public class ReportBulkExportService : IReportBulkExportService
 
         foreach (var report in reports)
         {
-            csv.AppendLine($"\"{report.Uuid}\"," +
-                          $"\"{EscapeCsv(report.ReportType)}\"," +
-                          $"\"{EscapeCsv(report.Username)}\"," +
-                          $"\"{EscapeCsv(report.GeneratedAt)}\"," +
-                          $"\"{EscapeCsv(report.FilePath)}\"," +
-                          $"\"{EscapeCsv(report.Tags ?? "")}\"," +
-                          $"\"{EscapeCsv(report.Purpose ?? "")}\"," +
-                          $"\"{EscapeCsv(report.Description ?? "")}\"," +
-                          $"\"{report.Version?.ToString() ?? ""}\"," +
-                          $"\"{EscapeCsv(report.AppVersion ?? "")}\"");
+            csv.AppendLine(CultureInfo.InvariantCulture,
+                $"\"{report.Uuid}\"," +
+                $"\"{EscapeCsv(report.ReportType)}\"," +
+                $"\"{EscapeCsv(report.Username)}\"," +
+                $"\"{EscapeCsv(report.GeneratedAt)}\"," +
+                $"\"{EscapeCsv(report.FilePath)}\"," +
+                $"\"{EscapeCsv(report.Tags ?? "")}\"," +
+                $"\"{EscapeCsv(report.Purpose ?? "")}\"," +
+                $"\"{EscapeCsv(report.Description ?? "")}\"," +
+                $"\"{report.Version?.ToString(CultureInfo.InvariantCulture) ?? string.Empty}\"," +
+                $"\"{EscapeCsv(report.AppVersion ?? "")}\"");
         }
 
         return csv.ToString();

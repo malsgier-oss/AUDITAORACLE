@@ -2,6 +2,7 @@ using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using Serilog;
 using System.Data;
+using System.Globalization;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
 using WorkAudit.Storage.Oracle;
@@ -164,6 +165,6 @@ public class ReportHistoryStore : IReportHistoryStore
             return 0;
         if (value is OracleDecimal oracleDecimal)
             return oracleDecimal.ToInt32();
-        return Convert.ToInt32(value);
+        return Convert.ToInt32(value, CultureInfo.InvariantCulture);
     }
 }

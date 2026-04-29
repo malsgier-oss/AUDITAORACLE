@@ -1,3 +1,4 @@
+using System.Globalization;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
 
@@ -101,8 +102,8 @@ public class ReportValidationService : IReportValidationService
             try
             {
                 var docs = _documentStore.ListDocuments(
-                    dateFrom: config.DateFrom.ToString("yyyy-MM-dd"),
-                    dateTo: config.DateTo.ToString("yyyy-MM-dd") + "T23:59:59",
+                    dateFrom: config.DateFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    dateTo: config.DateTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59",
                     branch: config.Branch,
                     section: config.Section,
                     status: config.Status,

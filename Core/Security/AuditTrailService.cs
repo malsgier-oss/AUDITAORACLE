@@ -1,3 +1,4 @@
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -48,7 +49,7 @@ public class AuditTrailService : IAuditTrailService
         {
             Uuid = Guid.NewGuid().ToString(),
             Timestamp = DateTime.UtcNow.ToString("O"),
-            UserId = session?.UserId.ToString() ?? "system",
+            UserId = session?.UserId.ToString(CultureInfo.InvariantCulture) ?? "system",
             Username = session?.Username ?? "system",
             UserRole = session?.UserRole ?? "system",
             Action = action,

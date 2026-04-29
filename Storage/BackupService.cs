@@ -1,5 +1,6 @@
 using System.IO;
 using System.IO.Compression;
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Backup;
 using WorkAudit.Core.Security;
@@ -55,7 +56,7 @@ public class BackupService : IBackupService
     public async Task<BackupResult> CreateBackupAsync(string? destinationPath = null, bool includeDocuments = true,
         string? encryptionPassword = null, bool includeOracleData = false, CancellationToken cancellationToken = default)
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
         var backupName = $"WorkAudit_Backup_{timestamp}";
         var backupPath = destinationPath ?? Path.Combine(_backupDirectory, $"{backupName}.zip");
         var shouldEncrypt = !string.IsNullOrEmpty(encryptionPassword) && _encryptionService != null;

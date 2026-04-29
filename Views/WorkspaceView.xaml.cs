@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -2072,20 +2073,20 @@ public partial class WorkspaceView : UserControl
 
         if (AccountFieldsCard != null) AccountFieldsCard.Opacity = 1.0;
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Date: {doc.DateDisplay}");
-        sb.AppendLine($"Type: {doc.DocumentType ?? "—"}");
-        sb.AppendLine($"Section: {doc.Section ?? "—"}");
-        sb.AppendLine($"Branch: {doc.Branch ?? "—"}");
-        sb.AppendLine($"Status: {doc.StatusDisplay}");
-        sb.AppendLine($"File: {Path.GetFileName(doc.FilePath) ?? "—"}");
-        sb.AppendLine($"Size: {doc.FileSizeDisplay}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Date: {doc.DateDisplay}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Type: {doc.DocumentType ?? "—"}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Section: {doc.Section ?? "—"}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Branch: {doc.Branch ?? "—"}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Status: {doc.StatusDisplay}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"File: {Path.GetFileName(doc.FilePath) ?? "—"}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Size: {doc.FileSizeDisplay}");
         var tags = doc.GetTags();
-        if (tags.Length > 0) sb.AppendLine($"Tags: {string.Join(", ", tags)}");
-        if (!string.IsNullOrWhiteSpace(doc.AccountName)) sb.AppendLine($"Account / party: {doc.AccountName.Trim()}");
-        if (!string.IsNullOrWhiteSpace(doc.AccountNumber)) sb.AppendLine($"Account no.: {doc.AccountNumber.Trim()}");
-        if (!string.IsNullOrWhiteSpace(doc.TransactionReference)) sb.AppendLine($"Transaction ref.: {doc.TransactionReference.Trim()}");
+        if (tags.Length > 0) sb.AppendLine(CultureInfo.InvariantCulture, $"Tags: {string.Join(", ", tags)}");
+        if (!string.IsNullOrWhiteSpace(doc.AccountName)) sb.AppendLine(CultureInfo.InvariantCulture, $"Account / party: {doc.AccountName.Trim()}");
+        if (!string.IsNullOrWhiteSpace(doc.AccountNumber)) sb.AppendLine(CultureInfo.InvariantCulture, $"Account no.: {doc.AccountNumber.Trim()}");
+        if (!string.IsNullOrWhiteSpace(doc.TransactionReference)) sb.AppendLine(CultureInfo.InvariantCulture, $"Transaction ref.: {doc.TransactionReference.Trim()}");
         var due = doc.GetFollowUpDue();
-        if (due.HasValue) sb.AppendLine($"Follow-up due: {due.Value:yyyy-MM-dd}");
+        if (due.HasValue) sb.AppendLine(CultureInfo.InvariantCulture, $"Follow-up due: {due.Value:yyyy-MM-dd}");
         if (_isMyAssignmentsView && _docToAssignment.TryGetValue(doc.Id, out var assignment))
         {
             var config = ServiceContainer.IsInitialized ? ServiceContainer.GetService<IConfigStore>() : null;
@@ -2094,10 +2095,10 @@ public partial class WorkspaceView : UserControl
             var assignmentService = ServiceContainer.GetService<IDocumentAssignmentService>();
             var isOverdue = assignmentService.IsOverdue(assignment);
             sb.AppendLine("");
-            sb.AppendLine($"Assignment: {statusStr}{(isOverdue ? " (Overdue)" : "")}");
-            sb.AppendLine($"Priority: {priorityStr}");
-            sb.AppendLine($"Due: {FormatDueDate(assignment.DueDate, assignment.Status, isOverdue, config)}");
-            sb.AppendLine($"Assigned by: {assignment.AssignedByUsername}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Assignment: {statusStr}{(isOverdue ? " (Overdue)" : "")}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Priority: {priorityStr}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Due: {FormatDueDate(assignment.DueDate, assignment.Status, isOverdue, config)}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Assigned by: {assignment.AssignedByUsername}");
         }
         MetadataText.Text = sb.ToString().TrimEnd();
     }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -152,8 +153,8 @@ public partial class TeamTaskManagementView : UserControl
                 t.AssignedByUserId = row.Task.AssignedByUserId;
                 t.AssignedByUsername = row.Task.AssignedByUsername;
                 t.CreatedAt = row.Task.CreatedAt;
-                t.StartDate = dlg.StartDateLocal.ToString("yyyy-MM-dd");
-                t.EndDate = dlg.EndDateLocal?.ToString("yyyy-MM-dd");
+                t.StartDate = dlg.StartDateLocal.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                t.EndDate = dlg.EndDateLocal?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                 if (!_service.Update(t))
                     MessageBox.Show("Update failed.", "Team tasks", MessageBoxButton.OK, MessageBoxImage.Warning);
                 RefreshList();

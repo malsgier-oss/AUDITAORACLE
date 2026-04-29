@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -160,8 +161,8 @@ public partial class AuditorDashboardView : UserControl
         var completedCount = myAssignments.Count(a => a.Status == AssignmentStatus.Completed);
         var totalAssignments = myAssignments.Count;
 
-        KpiMyPending.Text = pendingCount.ToString();
-        KpiMyInProgress.Text = inProgressCount.ToString();
+        KpiMyPending.Text = pendingCount.ToString(CultureInfo.InvariantCulture);
+        KpiMyInProgress.Text = inProgressCount.ToString(CultureInfo.InvariantCulture);
 
         // Completion rate (this month)
         var thisMonth = DateTime.Now.Month;
@@ -269,7 +270,7 @@ public partial class AuditorDashboardView : UserControl
                 }
                 else
                 {
-                    dueDateDisplay = dueDate.ToString("MMM dd");
+                dueDateDisplay = dueDate.ToString("MMM dd", CultureInfo.CurrentCulture);
                 }
             }
             else
@@ -328,10 +329,10 @@ public partial class AuditorDashboardView : UserControl
             return false;
         }).ToList();
 
-        BranchTotalDocs.Text = thisMonthDocs.Count.ToString();
-        BranchPendingDocs.Text = thisMonthDocs.Count(d => d.Status == Enums.Status.Reviewed).ToString();
-        BranchIssues.Text = thisMonthDocs.Count(d => d.Status == Enums.Status.Issue).ToString();
-        BranchCleared.Text = thisMonthDocs.Count(d => d.Status == Enums.Status.Cleared).ToString();
+        BranchTotalDocs.Text = thisMonthDocs.Count.ToString(CultureInfo.InvariantCulture);
+        BranchPendingDocs.Text = thisMonthDocs.Count(d => d.Status == Enums.Status.Reviewed).ToString(CultureInfo.InvariantCulture);
+        BranchIssues.Text = thisMonthDocs.Count(d => d.Status == Enums.Status.Issue).ToString(CultureInfo.InvariantCulture);
+        BranchCleared.Text = thisMonthDocs.Count(d => d.Status == Enums.Status.Cleared).ToString(CultureInfo.InvariantCulture);
 
         // Recent documents
         var recentDocs = branchDocs
@@ -358,7 +359,7 @@ public partial class AuditorDashboardView : UserControl
                     else if (timeSpan.TotalDays < 7)
                         updatedDisplay = $"{(int)timeSpan.TotalDays}d ago";
                     else
-                        updatedDisplay = updated.ToString("MMM dd");
+                updatedDisplay = updated.ToString("MMM dd", CultureInfo.CurrentCulture);
                 }
 
                 return new BranchDocRow
@@ -545,7 +546,7 @@ public partial class AuditorDashboardView : UserControl
     private void LoadJournalEntry()
     {
         var today = DateTime.Today;
-        var todayString = today.ToString("yyyy-MM-dd");
+        var todayString = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         var todayJournal = _notesStore.Search(type: NoteType.Journal, limit: 100)
             .FirstOrDefault(n => n.CreatedByUserId == _currentUserId &&
@@ -573,7 +574,7 @@ public partial class AuditorDashboardView : UserControl
         try
         {
             var today = DateTime.Today;
-            var todayString = today.ToString("yyyy-MM-dd");
+            var todayString = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var journalText = JournalTextBox.Text.Trim();
 
             var existingJournal = _notesStore.Search(type: NoteType.Journal, limit: 100)
@@ -600,7 +601,7 @@ public partial class AuditorDashboardView : UserControl
             {
                 // Update existing journal entry
                 existingJournal.Content = journalText;
-                existingJournal.UpdatedAt = DateTime.UtcNow.ToString("O");
+                existingJournal.UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 existingJournal.UpdatedBy = _currentUsername;
                 _notesStore.Update(existingJournal);
             }
@@ -841,7 +842,7 @@ public partial class AuditorDashboardView : UserControl
         if (AssignmentsGrid.SelectedItem is AssignmentRow row)
         {
             _assignmentStore.UpdateStatus(row.Assignment.Id, AssignmentStatus.InProgress,
-                startedAt: DateTime.UtcNow.ToString("O"));
+                startedAt: DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
             NavigateToDocument(row.Assignment.DocumentId);
             LoadDashboardData();
         }
@@ -869,7 +870,7 @@ public partial class AuditorDashboardView : UserControl
             if (dialog.ShowDialog() == true)
             {
                 _assignmentStore.UpdateStatus(row.Assignment.Id, AssignmentStatus.Completed,
-                    completedAt: DateTime.UtcNow.ToString("O"),
+                    completedAt: DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
                     completionNotes: dialog.CompletionContent);
 
                 // Create completion note
@@ -955,7 +956,7 @@ public partial class AuditorDashboardView : UserControl
             if (dialog.ShowDialog() == true)
             {
                 row.Note.Status = NoteStatus.Resolved;
-                row.Note.ResolvedAt = DateTime.UtcNow.ToString("O");
+                row.Note.ResolvedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 row.Note.ResolvedBy = _currentUsername;
                 row.Note.ResolutionComment = dialog.ResolutionComment;
                 _notesStore.Update(row.Note);

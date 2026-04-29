@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
@@ -130,7 +131,7 @@ public class ReportComparisonService : IReportComparisonService
             differences["Description"] = (oldReport.Description, newReport.Description);
 
         if ((oldReport.Version ?? 0) != (newReport.Version ?? 0))
-            differences["Version"] = (oldReport.Version?.ToString(), newReport.Version?.ToString());
+            differences["Version"] = (oldReport.Version?.ToString(CultureInfo.InvariantCulture), newReport.Version?.ToString(CultureInfo.InvariantCulture));
 
         return differences;
     }

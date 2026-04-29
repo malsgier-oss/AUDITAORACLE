@@ -1,5 +1,6 @@
 using WorkAudit.Domain;
 using WorkAudit.Storage;
+using System.Globalization;
 
 namespace WorkAudit.Core.Reports;
 
@@ -578,7 +579,7 @@ public static class ReportLocalizationService
         var template = key;
         if (Strings.TryGetValue(key, out var pair))
             template = isAr ? pair.Ar : pair.En;
-        return args.Length > 0 ? string.Format(template, args) : template;
+        return args.Length > 0 ? string.Format(CultureInfo.CurrentCulture, template, args) : template;
     }
 
     /// <summary>Returns true if report language is Arabic.</summary>

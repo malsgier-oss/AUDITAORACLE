@@ -1,3 +1,4 @@
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Core.Security;
@@ -60,7 +61,7 @@ public class DocumentAssignmentService : IDocumentAssignmentService
             AssignedToUsername = assignTo.DisplayName ?? assignTo.Username,
             AssignedByUserId = assignedBy.Id,
             AssignedByUsername = assignedBy.DisplayName ?? assignedBy.Username,
-            DueDate = dueDate?.ToString("yyyy-MM-dd"),
+            DueDate = dueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             Priority = priority,
             Notes = notes
         };

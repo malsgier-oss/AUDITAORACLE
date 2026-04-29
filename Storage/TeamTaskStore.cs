@@ -1,4 +1,5 @@
 using Oracle.ManagedDataAccess.Client;
+using System.Globalization;
 using Serilog;
 using System.Data;
 using WorkAudit.Core.Services;
@@ -291,7 +292,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@pk", periodKey);
             Prep(cmd);
             var o = cmd.ExecuteScalar();
-            return o == null || o is DBNull ? null : Convert.ToString(o);
+            return o == null || o is DBNull ? null : Convert.ToString(o, CultureInfo.InvariantCulture);
         }, nameof(GetNote), null);
     }
 
@@ -407,6 +408,6 @@ public class TeamTaskStore : ITeamTaskStore
             return 0;
         if (value is global::Oracle.ManagedDataAccess.Types.OracleDecimal oracleDecimal)
             return oracleDecimal.ToInt32();
-        return Convert.ToInt32(value);
+        return Convert.ToInt32(value, CultureInfo.InvariantCulture);
     }
 }

@@ -1,4 +1,5 @@
 using Oracle.ManagedDataAccess.Client;
+using System.Globalization;
 using Serilog;
 
 namespace WorkAudit.Storage.Oracle.Migrations;
@@ -105,7 +106,7 @@ internal sealed class Migration_051_NormalizeEventTimeColumns : IOracleMigration
         cmd.Transaction = transaction;
         OracleSql.AddParameter(cmd, "tableName", tableName.ToUpperInvariant());
         OracleSql.AddParameter(cmd, "columnName", columnName.ToUpperInvariant());
-        return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
     }
 
     private static string GetColumnDataType(OracleConnection connection, OracleTransaction transaction, string tableName, string columnName)
@@ -120,7 +121,7 @@ internal sealed class Migration_051_NormalizeEventTimeColumns : IOracleMigration
         cmd.Transaction = transaction;
         OracleSql.AddParameter(cmd, "tableName", tableName.ToUpperInvariant());
         OracleSql.AddParameter(cmd, "columnName", columnName.ToUpperInvariant());
-        return Convert.ToString(cmd.ExecuteScalar()) ?? string.Empty;
+        return Convert.ToString(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     private static void DropIndexIfExists(OracleConnection connection, OracleTransaction transaction, string indexName)
@@ -143,7 +144,7 @@ internal sealed class Migration_051_NormalizeEventTimeColumns : IOracleMigration
             """);
         cmd.Transaction = transaction;
         OracleSql.AddParameter(cmd, "idx", indexName.ToUpperInvariant());
-        return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
     }
 
     private static void ExecuteIgnoreExists(OracleConnection connection, OracleTransaction transaction, string sql)

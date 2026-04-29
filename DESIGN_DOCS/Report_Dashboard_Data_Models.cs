@@ -7,6 +7,7 @@
 // ============================================================================
 
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -209,7 +210,7 @@ namespace WorkAudit.Domain.Reporting
             if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
             if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
             if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
-            return dt.ToString("MMM d, yyyy");
+            return dt.ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
         }
     }
 

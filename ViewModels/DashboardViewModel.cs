@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -94,14 +95,14 @@ public class DashboardViewModel : ViewModelBase
             _dashboardCache.Invalidate();
 
             var dateRange = GetDateRange(selectedTimeRange ?? "This Month");
-            var cacheKey = $"dashboard:{dateRange.start?.ToString("yyyy-MM-dd")}:{dateRange.end?.ToString("yyyy-MM-dd")}";
+            var cacheKey = $"dashboard:{dateRange.start?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}:{dateRange.end?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
 
             List<Document> filteredDocs;
             if (!_dashboardCache.TryGetDocuments(cacheKey, out filteredDocs))
             {
                 filteredDocs = await Task.Run(() => _store.ListDocuments(
-                    dateFrom: dateRange.start?.ToString("yyyy-MM-dd"),
-                    dateTo: dateRange.end?.ToString("yyyy-MM-dd"),
+                    dateFrom: dateRange.start?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    dateTo: dateRange.end?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     limit: 10000));
                 _dashboardCache.SetDocuments(cacheKey, filteredDocs);
             }

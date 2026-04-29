@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace WorkAudit.Core.Helpers;
 
 /// <summary>
@@ -37,6 +39,6 @@ public static class AuditTimeHelper
         if (!DateTime.TryParse(utcTimestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
             return utcTimestamp;
         var utc2 = dt.Add(UtcPlus2);
-        return utc2.ToString("yyyy-MM-dd HH:mm:ss");
+        return utc2.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
     }
 }

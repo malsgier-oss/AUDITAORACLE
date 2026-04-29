@@ -827,6 +827,38 @@ public partial class WebcamView : UserControl
         });
     }
 
+    private void LightingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (LightingValue != null)
+        {
+            LightingValue.Text = $"{Math.Round(e.NewValue)}%";
+        }
+
+        if (_cameraService is { IsCapturing: true })
+        {
+            if (!_cameraService.TrySetBrightness(e.NewValue))
+            {
+                UpdateStatus("Lighting adjustment not supported by camera");
+            }
+        }
+    }
+
+    private void ExposureSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (ExposureValue != null)
+        {
+            ExposureValue.Text = $"{e.NewValue:0.##}";
+        }
+
+        if (_cameraService is { IsCapturing: true })
+        {
+            if (!_cameraService.TrySetExposure(e.NewValue))
+            {
+                UpdateStatus("Exposure adjustment not supported by camera");
+            }
+        }
+    }
+
     private bool ComputeMotionLow(Mat detectMat)
     {
         Mat gray;

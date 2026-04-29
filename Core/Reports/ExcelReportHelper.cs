@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using ClosedXML.Excel;
 using WorkAudit.Storage;
@@ -56,7 +57,7 @@ public static class ExcelReportHelper
         ws.Cell(1, 1).Style.Font.FontSize = 14;
         ws.Range(1, 1, 1, 2).Merge();
         ws.Cell(2, 1).Value = $"Period: {from:yyyy-MM-dd} to {to:yyyy-MM-dd}";
-        ws.Cell(3, 1).Value = "Generated: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") + " UTC";
+        ws.Cell(3, 1).Value = "Generated: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + " UTC";
         ws.Cell(5, 1).Value = header1;
         ws.Cell(5, 2).Value = header2;
         ws.Range(5, 1, 5, 2).Style.Font.Bold = true;

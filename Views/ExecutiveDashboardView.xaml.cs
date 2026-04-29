@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -60,10 +61,10 @@ public partial class ExecutiveDashboardView : UserControl
         var issueRate = total > 0 ? (decimal)issueCount / total * 100 : 0;
 
         KpiCardsPanel.Children.Clear();
-        AddKpiCard("Documents Processed", total.ToString(), "#0078D4");
-        AddKpiCard("Clearing Rate", clearingRate.ToString("F1") + "%", "#28A745");
-        AddKpiCard("Issue Rate", issueRate.ToString("F1") + "%", issueRate > 5 ? "#DC3545" : "#6C757D");
-        AddKpiCard("Throughput/day", throughput.ToString("F1"), "#17A2B8");
+        AddKpiCard("Documents Processed", total.ToString(CultureInfo.InvariantCulture), "#0078D4");
+        AddKpiCard("Clearing Rate", clearingRate.ToString("F1", CultureInfo.InvariantCulture) + "%", "#28A745");
+        AddKpiCard("Issue Rate", issueRate.ToString("F1", CultureInfo.InvariantCulture) + "%", issueRate > 5 ? "#DC3545" : "#6C757D");
+        AddKpiCard("Throughput/day", throughput.ToString("F1", CultureInfo.InvariantCulture), "#17A2B8");
 
         var plotModel = new PlotModel();
         var barSeries = new BarSeries { FillColor = OxyColor.FromRgb(0, 120, 212) };
@@ -89,9 +90,9 @@ public partial class ExecutiveDashboardView : UserControl
         {
             var monthStart = endMonth.AddMonths(-i);
             var monthEnd = monthStart.AddMonths(1).AddDays(-1);
-            var monthDocs = store.ListDocuments(dateFrom: monthStart.ToString("yyyy-MM-dd"), dateTo: monthEnd.ToString("yyyy-MM-dd") + "T23:59:59", branch: null, section: null, limit: 50_000);
+            var monthDocs = store.ListDocuments(dateFrom: monthStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), dateTo: monthEnd.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59", branch: null, section: null, limit: 50_000);
             trendBars.Items.Add(new BarItem { Value = monthDocs.Count });
-            monthLabels.Add(monthStart.ToString("MMM yy"));
+            monthLabels.Add(monthStart.ToString("MMM yy", CultureInfo.CurrentCulture));
         }
         trendModel.Series.Add(trendBars);
         trendModel.Axes.Add(new CategoryAxis { Position = AxisPosition.Bottom, ItemsSource = monthLabels });

@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using WorkAudit.Core.Services;
@@ -35,7 +36,7 @@ public partial class EditDocumentTypeDialog : Window
             else
                 SectionCombo.SelectedIndex = 0;
             KeywordsBox.Text = existing.Keywords ?? "";
-            OrderBox.Text = existing.DisplayOrder.ToString();
+            OrderBox.Text = existing.DisplayOrder.ToString(CultureInfo.InvariantCulture);
             ActiveCheck.IsChecked = existing.IsActive;
         }
         else

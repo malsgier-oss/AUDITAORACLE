@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using System.Text;
 using PDFtoImage;
 using PdfSharp.Drawing;
@@ -54,7 +55,7 @@ public class SearchExportService : ISearchExportService
         foreach (var d in list)
         {
             var notesSummary = GetNotesSummaryForDocument(notesStore, d.Id);
-            var line = string.Join(",", Escape(d.Id.ToString()), Escape(d.Uuid), Escape(d.FilePath),
+            var line = string.Join(",", Escape(d.Id.ToString(CultureInfo.InvariantCulture)), Escape(d.Uuid), Escape(d.FilePath),
                 Escape(d.DocumentType), Escape(d.Status), Escape(d.Section),
                 Escape(d.ExtractedDate), Escape(d.Amounts), Escape(d.AccountName), Escape(d.AccountNumber), Escape(d.TransactionReference), Escape(d.CaptureTime), Escape(d.Source), Escape(notesSummary),
                 Escape(d.ArchivedAt), Escape(d.RetentionExpiryDate), Escape(d.LegalHold ? "Yes" : "No"),

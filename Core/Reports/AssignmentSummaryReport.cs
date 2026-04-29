@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using ClosedXML.Excel;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -17,8 +18,8 @@ public static class AssignmentSummaryReport
 {
     public static List<AssignmentSummaryRow> GetData(IDocumentAssignmentStore assignmentStore, IUserStore userStore, DateTime from, DateTime to)
     {
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var users = userStore.ListUsers(isActive: true);
         var allAssignments = assignmentStore.ListAll(null, null);
 
@@ -266,7 +267,7 @@ public static class AssignmentSummaryReport
         ws.Cell(1, 1).Style.Font.FontSize = 14;
         ws.Range(1, 1, 1, 9).Merge();
         ws.Cell(2, 1).Value = $"Period: {from:yyyy-MM-dd} to {to:yyyy-MM-dd}";
-        ws.Cell(3, 1).Value = "Generated: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") + " UTC";
+        ws.Cell(3, 1).Value = "Generated: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + " UTC";
 
         ws.Cell(5, 1).Value = "User";
         ws.Cell(5, 2).Value = "Assigned (period)";

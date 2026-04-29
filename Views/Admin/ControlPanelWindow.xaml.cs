@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -323,12 +324,12 @@ public partial class ControlPanelWindow : Window
 
     private void LoadSecuritySettings()
     {
-        SessionTimeoutBox.Text = _configStore.GetSettingInt("session_timeout_minutes", 30).ToString();
-        SessionExpiryBox.Text = _configStore.GetSettingInt("session_expiry_hours", 8).ToString();
-        MaxLoginAttemptsBox.Text = _configStore.GetSettingInt("max_login_attempts", 5).ToString();
-        LockoutDurationBox.Text = _configStore.GetSettingInt("lockout_duration_minutes", 30).ToString();
+        SessionTimeoutBox.Text = _configStore.GetSettingInt("session_timeout_minutes", 30).ToString(CultureInfo.InvariantCulture);
+        SessionExpiryBox.Text = _configStore.GetSettingInt("session_expiry_hours", 8).ToString(CultureInfo.InvariantCulture);
+        MaxLoginAttemptsBox.Text = _configStore.GetSettingInt("max_login_attempts", 5).ToString(CultureInfo.InvariantCulture);
+        LockoutDurationBox.Text = _configStore.GetSettingInt("lockout_duration_minutes", 30).ToString(CultureInfo.InvariantCulture);
 
-        PasswordMinLengthBox.Text = _configStore.GetSettingInt("password_min_length", 8).ToString();
+        PasswordMinLengthBox.Text = _configStore.GetSettingInt("password_min_length", 8).ToString(CultureInfo.InvariantCulture);
         PasswordUppercaseCheck.IsChecked = _configStore.GetSettingBool("password_require_uppercase", true);
         PasswordLowercaseCheck.IsChecked = _configStore.GetSettingBool("password_require_lowercase", true);
         PasswordDigitCheck.IsChecked = _configStore.GetSettingBool("password_require_digit", true);
@@ -364,10 +365,10 @@ public partial class ControlPanelWindow : Window
     private void LoadWorkflowSettings()
     {
         RenameFileOnClassifyCheck.IsChecked = _configStore.GetSettingBool("rename_file_on_classify", true);
-        ArchiveRetentionYearsBox.Text = _configStore.GetSettingInt("archive_retention_years", 7).ToString();
+        ArchiveRetentionYearsBox.Text = _configStore.GetSettingInt("archive_retention_years", 7).ToString(CultureInfo.InvariantCulture);
         EnableAutoCaptureCheck.IsChecked = _configStore.GetSettingBool("enable_auto_capture", false);
         ShowAutoCaptureTimerCheck.IsChecked = _configStore.GetSettingBool("enable_auto_capture_cooldown_timer", true);
-        AutoCaptureCooldownSecondsBox.Text = _configStore.GetSettingInt("auto_capture_cooldown_seconds", 8).ToString();
+        AutoCaptureCooldownSecondsBox.Text = _configStore.GetSettingInt("auto_capture_cooldown_seconds", 8).ToString(CultureInfo.InvariantCulture);
         DefaultScanAreaModeCheck.IsChecked = _configStore.GetSettingBool("webcam_default_scan_area_mode", false);
         ScanAreaAutoDefaultCheck.IsChecked = _configStore.GetSettingBool("webcam_scan_area_auto_capture", false);
         LoadKpiTargets();
@@ -421,17 +422,17 @@ public partial class ControlPanelWindow : Window
         }
 
         if (OcrPdfDpiBox != null)
-            OcrPdfDpiBox.Text = _configStore.GetSettingInt("ocr_pdf_render_dpi", 300).ToString();
+        OcrPdfDpiBox.Text = _configStore.GetSettingInt("ocr_pdf_render_dpi", 300).ToString(CultureInfo.InvariantCulture);
         if (OcrTessdataPathBox != null)
             OcrTessdataPathBox.Text = _configStore.GetSettingValue("tesseract_tessdata_path", "") ?? "";
         if (OcrNlMeansHBox != null)
-            OcrNlMeansHBox.Text = _configStore.GetSettingInt("ocr_preprocess_nlmeans_h", 3).ToString();
+        OcrNlMeansHBox.Text = _configStore.GetSettingInt("ocr_preprocess_nlmeans_h", 3).ToString(CultureInfo.InvariantCulture);
         if (OcrEnableMultipassCheck != null)
             OcrEnableMultipassCheck.IsChecked = _configStore.GetSettingBool("ocr_enable_multipass", true);
         if (OcrOrganizeBilingualCheck != null)
             OcrOrganizeBilingualCheck.IsChecked = _configStore.GetSettingBool("ocr_organize_bilingual_output", true);
         if (OcrStructuredMinConfidenceBox != null)
-            OcrStructuredMinConfidenceBox.Text = _configStore.GetSettingInt("ocr_structured_min_confidence", 70).ToString();
+        OcrStructuredMinConfidenceBox.Text = _configStore.GetSettingInt("ocr_structured_min_confidence", 70).ToString(CultureInfo.InvariantCulture);
         if (OcrMergeModeCombo != null)
         {
             var mergeMode = (_configStore.GetSettingValue("ocr_multipass_merge_mode", "accuracy") ?? "accuracy").Trim();
@@ -622,8 +623,8 @@ public partial class ControlPanelWindow : Window
     private void LoadBackupSettings()
     {
         BackupEnabledCheck.IsChecked = _configStore.GetSettingBool("backup_enabled", true);
-        BackupIntervalBox.Text = _configStore.GetSettingInt("backup_interval_hours", 24).ToString();
-        BackupRetentionBox.Text = _configStore.GetSettingInt("backup_retention_count", 10).ToString();
+        BackupIntervalBox.Text = _configStore.GetSettingInt("backup_interval_hours", 24).ToString(CultureInfo.InvariantCulture);
+        BackupRetentionBox.Text = _configStore.GetSettingInt("backup_retention_count", 10).ToString(CultureInfo.InvariantCulture);
         BackupIncludeDocsCheck.IsChecked = _configStore.GetSettingBool("backup_include_documents", true);
         BackupIncludeOracleCheck.IsChecked = _configStore.GetSettingBool("include_oracle_data", false);
         OracleDatapumpDirectoryBox.Text = _configStore.GetSettingValue("oracle_datapump_directory", "DATA_PUMP_DIR") ?? "DATA_PUMP_DIR";
@@ -719,7 +720,7 @@ public partial class ControlPanelWindow : Window
         var config = ServiceContainer.GetService<AppConfiguration>();
 
         AppVersionLabel.Text = Defaults.AppVersion;
-        DbVersionLabel.Text = _migrationService.GetCurrentVersion().ToString();
+        DbVersionLabel.Text = _migrationService.GetCurrentVersion().ToString(CultureInfo.InvariantCulture);
         DbPathLabel.Text = "Oracle database";
         BaseDirLabel.Text = config.BaseDirectory;
 
@@ -727,16 +728,16 @@ public partial class ControlPanelWindow : Window
         DbPathBox.Text = config.OracleConnectionString;
 
         var stats = _documentStore.GetStats();
-        TotalDocsLabel.Text = stats.TotalDocuments.ToString("N0");
+        TotalDocsLabel.Text = stats.TotalDocuments.ToString("N0", CultureInfo.InvariantCulture);
 
         var docTypes = _configStore.GetDocumentTypes();
-        DocTypesCountSystemLabel.Text = docTypes.Count.ToString();
+        DocTypesCountSystemLabel.Text = docTypes.Count.ToString(CultureInfo.InvariantCulture);
 
         var branches = _configStore.GetBranches();
-        BranchesCountSystemLabel.Text = branches.Count.ToString();
+        BranchesCountSystemLabel.Text = branches.Count.ToString(CultureInfo.InvariantCulture);
 
         var users = _userStore.ListUsers();
-        UsersCountLabel.Text = users.Count.ToString();
+        UsersCountLabel.Text = users.Count.ToString(CultureInfo.InvariantCulture);
 
         DbSizeLabel.Text = "Oracle server (size not shown)";
     }

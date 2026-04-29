@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using Serilog;
@@ -475,7 +476,7 @@ public partial class ReportsView : UserControl
             {
                 foreach (var h in history)
                 {
-                    var ts = DateTime.TryParse(h.GeneratedAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : h.GeneratedAt;
+                    var ts = DateTime.TryParse(h.GeneratedAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : h.GeneratedAt;
                     _reportHistoryAll.Add(new ReportHistoryEntry(ts, h.ReportType, h.FilePath));
                 }
                 ApplyReportHistoryFilter();
@@ -486,7 +487,7 @@ public partial class ReportsView : UserControl
         var entries = _auditLogStore.Query(DateTime.UtcNow.AddDays(-30), DateTime.UtcNow, null, Domain.AuditAction.ReportGenerated, Domain.AuditCategory.Report, false, 50, 0);
         foreach (var e in entries.Where(x => x.Success && !string.IsNullOrEmpty(x.NewValue)))
         {
-            var ts = DateTime.TryParse(e.Timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : e.Timestamp;
+            var ts = DateTime.TryParse(e.Timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : e.Timestamp;
             var reportType = "Report";
             if (!string.IsNullOrEmpty(e.Details) && e.Details.StartsWith("Report type: "))
                 reportType = e.Details.Split(',')[0].Replace("Report type: ", "").Trim();
@@ -894,8 +895,8 @@ public partial class ReportsView : UserControl
 
             // Load documents for the period
             var docs = _documentStore.ListDocuments(
-                dateFrom: dateFrom.ToString("yyyy-MM-dd"),
-                dateTo: dateTo.ToString("yyyy-MM-dd") + "T23:59:59",
+                dateFrom: dateFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                dateTo: dateTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59",
                 limit: 10000
             );
 
@@ -944,11 +945,11 @@ public partial class ReportsView : UserControl
         var totalNotes = noteCounts.Values.Sum();
 
         // Create KPI cards with colorful values matching Dashboard
-        AddKpiCard("📁", "Total Files", total.ToString("N0"), "#0E639C");       // Blue
-        AddKpiCard("⚠️", "Critical Issues", issues.ToString("N0"), "#DC3545");  // Red
+        AddKpiCard("📁", "Total Files", total.ToString("N0", CultureInfo.InvariantCulture), "#0E639C");       // Blue
+        AddKpiCard("⚠️", "Critical Issues", issues.ToString("N0", CultureInfo.InvariantCulture), "#DC3545");  // Red
         AddKpiCard("✅", "Compliance Rate", $"{clearingRate:F1}%", "#28A745");  // Green
-        AddKpiCard("📝", "Total Notes", totalNotes.ToString("N0"), "#6C757D");  // Gray
-        AddKpiCard("📊", "Active", active.ToString("N0"), "#17A2B8");            // Teal
+        AddKpiCard("📝", "Total Notes", totalNotes.ToString("N0", CultureInfo.InvariantCulture), "#6C757D");  // Gray
+        AddKpiCard("📊", "Active", active.ToString("N0", CultureInfo.InvariantCulture), "#17A2B8");            // Teal
     }
 
     private void AddKpiCard(string icon, string label, string value, string colorHex)

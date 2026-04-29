@@ -1,3 +1,4 @@
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Core.Security;
@@ -60,7 +61,7 @@ public class ArchiveService : IArchiveService
         var userId = session?.UserId ?? 0;
         var now = DateTime.UtcNow.ToString("O");
         var retentionYears = GetRetentionYears();
-        var expiryDate = DateTime.UtcNow.AddYears(retentionYears).ToString("yyyy-MM-dd");
+        var expiryDate = DateTime.UtcNow.AddYears(retentionYears).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         var updated = 0;
         foreach (var doc in documents)

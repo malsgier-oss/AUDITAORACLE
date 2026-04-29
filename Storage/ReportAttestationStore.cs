@@ -1,5 +1,6 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Globalization;
 using System.Data;
 using WorkAudit.Core.Common;
 using WorkAudit.Core.Services;
@@ -75,7 +76,7 @@ public class ReportAttestationStore : IReportAttestationStore
         cmd.CommandText += " RETURNING id INTO @rid";
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        return Convert.ToInt64(idParam.Value);
+        return Convert.ToInt64(idParam.Value, CultureInfo.InvariantCulture);
     }
 
     public void Update(ReportAttestation a)

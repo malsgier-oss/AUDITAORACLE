@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
 using WorkAudit.Domain;
@@ -58,7 +59,7 @@ public class ReportTemplateStore : IReportTemplateStore
         Prep(cmd);
 
         await cmd.ExecuteNonQueryAsync();
-        var id = Convert.ToInt32(idParam.Value);
+        var id = Convert.ToInt32(idParam.Value, CultureInfo.InvariantCulture);
         template.Id = id;
         return id;
     }
@@ -221,8 +222,8 @@ public class ReportTemplateStore : IReportTemplateStore
             Description = reader.IsDBNull(2) ? null : reader.GetString(2),
             ReportType = reader.GetString(3),
             CreatedBy = reader.GetInt32(4),
-            CreatedAt = DateTime.Parse(reader.GetString(5)),
-            UpdatedAt = reader.IsDBNull(6) ? null : DateTime.Parse(reader.GetString(6)),
+            CreatedAt = DateTime.Parse(reader.GetString(5), CultureInfo.InvariantCulture),
+            UpdatedAt = reader.IsDBNull(6) ? null : DateTime.Parse(reader.GetString(6), CultureInfo.InvariantCulture),
             IsShared = reader.GetInt32(7) == 1
         };
 

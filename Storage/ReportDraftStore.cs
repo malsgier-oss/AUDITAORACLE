@@ -1,4 +1,5 @@
 using Oracle.ManagedDataAccess.Client;
+using System.Globalization;
 using System.Data;
 using WorkAudit.Domain;
 using WorkAudit.Storage.Oracle;
@@ -64,7 +65,7 @@ public class ReportDraftStore : IReportDraftStore
 
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        return Convert.ToInt32(idParam.Value);
+        return Convert.ToInt32(idParam.Value, CultureInfo.InvariantCulture);
     }
 
     public void Update(ReportDraft draft)

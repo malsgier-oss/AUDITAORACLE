@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -290,10 +291,10 @@ public partial class ArchiveView : UserControl
         FilterPersistence.Save(Constants.FilterPrefix.Archive, Constants.FilterKey.LegalHold, lhTag == true ? "Yes" : lhTag == false ? "No" : "");
         var expItem = ExpiringWithinFilter.SelectedItem as ComboBoxItem;
         var expTag = expItem?.Tag as int?;
-        FilterPersistence.Save(Constants.FilterPrefix.Archive, Constants.FilterKey.ExpiringWithinDays, expTag?.ToString() ?? "");
+        FilterPersistence.Save(Constants.FilterPrefix.Archive, Constants.FilterKey.ExpiringWithinDays, expTag?.ToString(CultureInfo.InvariantCulture) ?? "");
         FilterPersistence.Save(Constants.FilterPrefix.Archive, Constants.FilterKey.Tag, TagFilter.Text?.Trim() ?? "");
         var cust = CustodianFilter.SelectedItem as CustodianFilterItem;
-        FilterPersistence.Save(Constants.FilterPrefix.Archive, "CustodianId", cust?.Id?.ToString() ?? "");
+        FilterPersistence.Save(Constants.FilterPrefix.Archive, "CustodianId", cust?.Id?.ToString(CultureInfo.InvariantCulture) ?? "");
         var dispItem = DisposalFilter.SelectedItem as ComboBoxItem;
         FilterPersistence.Save(Constants.FilterPrefix.Archive, "DisposalStatus", (dispItem?.Tag as string) ?? "");
     }
@@ -386,7 +387,7 @@ public partial class ArchiveView : UserControl
             legalHoldOnly = b;
         string? retentionExpiryBefore = null;
         if (ExpiringWithinFilter.SelectedItem is ComboBoxItem { Tag: int days })
-            retentionExpiryBefore = DateTime.UtcNow.AddDays(days).ToString("yyyy-MM-dd");
+            retentionExpiryBefore = DateTime.UtcNow.AddDays(days).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
         var tagFilter = string.IsNullOrWhiteSpace(TagFilter.Text) ? null : TagFilter.Text.Trim();
         int? custodianId = null;

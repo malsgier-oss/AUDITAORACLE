@@ -1,3 +1,4 @@
+using System.Globalization;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
 
@@ -34,8 +35,8 @@ public class ReportAnomalyService : IReportAnomalyService
         var anomalies = new List<ReportAnomaly>();
         var periodDays = (to - from).Days + 1;
 
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
 
         var priorPeriods = new List<(DateTime f, DateTime t, List<Document> d)>();
@@ -43,7 +44,7 @@ public class ReportAnomalyService : IReportAnomalyService
         {
             var pf = from.AddDays(-periodDays * i);
             var pt = to.AddDays(-periodDays * i);
-            var priorDocs = store.ListDocuments(dateFrom: pf.ToString("yyyy-MM-dd"), dateTo: pt.ToString("yyyy-MM-dd") + "T23:59:59", branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
+            var priorDocs = store.ListDocuments(dateFrom: pf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), dateTo: pt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59", branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
             priorPeriods.Add((pf, pt, priorDocs));
         }
 

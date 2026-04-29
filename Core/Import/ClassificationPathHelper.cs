@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Globalization;
 using System.Threading;
 using Oracle.ManagedDataAccess.Client;
 using WorkAudit.Domain;
@@ -77,7 +78,10 @@ public static class ClassificationPathHelper
             var drive = new DriveInfo(Path.GetPathRoot(baseDir) ?? baseDir);
             if (drive.AvailableFreeSpace < fileInfo.Length * 2) // 2x for safety
             {
-                reason = $"Insufficient disk space (need {fileInfo.Length * 2:N0} bytes, have {drive.AvailableFreeSpace:N0} bytes)";
+                reason = string.Format(CultureInfo.InvariantCulture,
+                    "Insufficient disk space (need {0:N0} bytes, have {1:N0} bytes)",
+                    fileInfo.Length * 2,
+                    drive.AvailableFreeSpace);
                 return false;
             }
         }
@@ -379,20 +383,20 @@ public static class ClassificationPathHelper
     public static string FormatMoveFootnote(ClassificationMovesResult moves)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Files renamed/moved on disk: {moves.DistinctFilesMoved}.");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Files renamed/moved on disk: {moves.DistinctFilesMoved}.");
         if (moves.UnresolvedPathDocumentIds.Count > 0)
         {
             var details = moves.UnresolvedPathDocumentIds
                 .Select(id => moves.UnresolvedPathReasons.TryGetValue(id, out var reason) ? $"{id} ({reason})" : $"{id}")
                 .ToList();
-            sb.AppendLine($"Path could not be resolved (filename not updated) — document ID(s): {string.Join("; ", details)}.");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Path could not be resolved (filename not updated) — document ID(s): {string.Join("; ", details)}.");
         }
         if (moves.RenameFailedDocumentIds.Count > 0)
         {
             var details = moves.RenameFailedDocumentIds
                 .Select(id => moves.RenameFailedReasons.TryGetValue(id, out var reason) ? $"{id} ({reason})" : $"{id}")
                 .ToList();
-            sb.AppendLine($"Rename/move did not complete (filename may be unchanged) — document ID(s): {string.Join("; ", details)}.");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Rename/move did not complete (filename may be unchanged) — document ID(s): {string.Join("; ", details)}.");
         }
         return sb.ToString().TrimEnd();
     }

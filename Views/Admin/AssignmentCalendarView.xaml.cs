@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using Serilog;
@@ -56,7 +57,7 @@ public partial class AssignmentCalendarView : UserControl
 
     private void RefreshCalendar()
     {
-        MonthYearText.Text = _viewMonth.ToString("MMMM yyyy");
+        MonthYearText.Text = _viewMonth.ToString("MMMM yyyy", CultureInfo.CurrentCulture);
         if (_assignmentService == null || _documentStore == null) return;
 
         var assignments = _assignmentService.GetAllAssignments(null, null);
@@ -66,7 +67,7 @@ public partial class AssignmentCalendarView : UserControl
 
         for (var d = start; d <= end; d = d.AddDays(1))
         {
-            var dayStr = d.ToString("yyyy-MM-dd");
+            var dayStr = d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var dayAssignments = assignments
                 .Where(a => a.DueDate == dayStr && a.Status != AssignmentStatus.Cancelled)
                 .Select(a =>
@@ -96,7 +97,7 @@ public partial class AssignmentCalendarView : UserControl
         public CalendarDayItem(DateTime date, List<CalendarAssignmentItem> assignments)
         {
             Date = date;
-            DateDisplay = date.ToString("ddd, MMM d");
+            DateDisplay = date.ToString("ddd, MMM d", CultureInfo.CurrentCulture);
             Assignments = new ObservableCollection<CalendarAssignmentItem>(assignments);
         }
     }

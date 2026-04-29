@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -82,7 +83,7 @@ public class ScheduledReportService : IScheduledReportService
             var targetToday = DateTime.Today.Add(targetTime);
 
             // Cluster-wide: only one successful run per calendar day across all PCs sharing the DB.
-            var todayKey = DateTime.Today.ToString("yyyy-MM-dd");
+            var todayKey = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var lastRunDate = _configStore.GetSettingValue("scheduled_report_last_run_date", "") ?? "";
             if (string.Equals(lastRunDate, todayKey, StringComparison.Ordinal))
                 return;

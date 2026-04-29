@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -334,7 +335,7 @@ public partial class WorkspaceView
             page1 = Math.Max(1, page1);
         PdfPreviewViewer.Page = page1;
         if (PdfPageJumpBox != null)
-            PdfPageJumpBox.Text = page1.ToString();
+            PdfPageJumpBox.Text = page1.ToString(CultureInfo.InvariantCulture);
         RebuildPdfMarkupShapes();
         return true;
     }

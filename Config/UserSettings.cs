@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -53,7 +54,7 @@ public static class UserSettings
         {
             if (v is Newtonsoft.Json.Linq.JToken jt)
                 return jt.ToObject<T>();
-            return (T)Convert.ChangeType(v, typeof(T))!;
+            return (T)Convert.ChangeType(v, typeof(T), CultureInfo.InvariantCulture)!;
         }
         catch (Exception ex)
         {

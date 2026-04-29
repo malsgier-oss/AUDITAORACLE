@@ -1,5 +1,6 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Globalization;
 using System.Data;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -52,7 +53,7 @@ public class ReportDistributionStore : IReportDistributionStore
         cmd.CommandText += " RETURNING id INTO @rid";
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        return Convert.ToInt64(idParam.Value);
+        return Convert.ToInt64(idParam.Value, CultureInfo.InvariantCulture);
     }
 
     public List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? to = null, int limit = 500)

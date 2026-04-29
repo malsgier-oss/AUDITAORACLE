@@ -1,5 +1,6 @@
 using System.IO;
 using System.Security.Cryptography;
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
@@ -43,8 +44,8 @@ public class ReportAttestationService : IReportAttestationService
             Uuid = Guid.NewGuid().ToString("N"),
             ReportType = reportType,
             ReportPath = reportPath,
-            DateFrom = from.ToString("yyyy-MM-dd"),
-            DateTo = to.ToString("yyyy-MM-dd"),
+            DateFrom = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            DateTo = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             Branch = branch,
             Section = section,
             Sha256Hash = hash,

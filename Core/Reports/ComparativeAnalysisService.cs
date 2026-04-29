@@ -1,3 +1,4 @@
+using System.Globalization;
 using WorkAudit.Storage;
 
 namespace WorkAudit.Core.Reports;
@@ -74,8 +75,8 @@ public sealed class ComparativeAnalysisService : IComparativeAnalysisService
 
     private int CountDocuments(DateTime from, DateTime to, string? branch, string? section, string? engagement)
     {
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         return _store.ListDocuments(
             dateFrom: fromStr,
             dateTo: toStr,

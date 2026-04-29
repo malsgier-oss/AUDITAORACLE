@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -19,8 +20,8 @@ public static class DailySummaryReport
     /// <summary>Returns (date string, count) for each day in range. Uses document store list + in-memory grouping.</summary>
     public static List<(string Date, int Count)> GetDocumentsPerDay(IDocumentStore store, DateTime from, DateTime to, string? branch = null, string? section = null, string? engagement = null)
     {
-        var fromStr = from.Date.ToString("yyyy-MM-dd");
-        var toStr = to.Date.ToString("yyyy-MM-dd");
+        var fromStr = from.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr + "T23:59:59", branch: branch, section: section, engagement: engagement, limit: MaxDocumentsForGrouping);
 
         var byDay = docs
@@ -32,7 +33,7 @@ public static class DailySummaryReport
         var list = new List<(string, int)>();
         for (var d = from.Date; d <= to.Date; d = d.AddDays(1))
         {
-            var dateStr = d.ToString("yyyy-MM-dd");
+            var dateStr = d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var count = byDay.TryGetValue(d, out var c) ? c : 0;
             list.Add((dateStr, count));
         }

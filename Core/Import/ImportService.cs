@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
@@ -393,7 +394,7 @@ public class ImportService : IImportService
                     Branch = options.Branch ?? Domain.Branches.Default,
                     Section = options.Section ?? Enums.Section.Individuals,
                     DocumentType = string.IsNullOrWhiteSpace(options.DocumentType) ? null : options.DocumentType.Trim(),
-                    ExtractedDate = options.DocumentDate.HasValue ? options.DocumentDate.Value.ToString("yyyy-MM-dd") : null,
+                    ExtractedDate = options.DocumentDate.HasValue ? options.DocumentDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : null,
                     OcrText = text,
                     Snippet = GenerateSnippet(text),
 #pragma warning disable CS0618
@@ -482,8 +483,8 @@ public class ImportService : IImportService
             Section = string.IsNullOrEmpty(metadataTemplate.Section) ? (options.Section ?? Enums.Section.Individuals) : metadataTemplate.Section,
             DocumentType = string.IsNullOrEmpty(metadataTemplate.DocumentType) ? null : metadataTemplate.DocumentType,
             ExtractedDate = !string.IsNullOrEmpty(metadataTemplate.ExtractedDate)
-                ? metadataTemplate.ExtractedDate
-                : (options.DocumentDate.HasValue ? options.DocumentDate.Value.ToString("yyyy-MM-dd") : null),
+                    ? metadataTemplate.ExtractedDate
+                    : (options.DocumentDate.HasValue ? options.DocumentDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : null),
             OcrText = combinedText,
             Snippet = GenerateSnippet(combinedText),
 #pragma warning disable CS0618
@@ -544,7 +545,7 @@ public class ImportService : IImportService
             Section = options.Section ?? Enums.Section.Individuals,
             DocumentType = string.IsNullOrWhiteSpace(options.DocumentType) ? null : options.DocumentType.Trim(),
             PageCount = 1,
-            ExtractedDate = options.DocumentDate.HasValue ? options.DocumentDate.Value.ToString("yyyy-MM-dd") : null
+            ExtractedDate = options.DocumentDate.HasValue ? options.DocumentDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : null
         };
 
         if (!string.IsNullOrWhiteSpace(options.PreExtractedText))
@@ -702,8 +703,8 @@ public class ImportService : IImportService
                 return s;
         }
         if (options.DocumentDate.HasValue)
-            return options.DocumentDate.Value.ToString("yyyy-MM-dd");
-        return DateTime.UtcNow.ToString("yyyy-MM-dd");
+            return options.DocumentDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
     private void CopyFile(string source, string destination)

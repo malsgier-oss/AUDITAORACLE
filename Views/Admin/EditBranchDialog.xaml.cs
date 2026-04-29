@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using WorkAudit.Domain;
 
@@ -18,7 +19,7 @@ public partial class EditBranchDialog : Window
             Title = "Edit Branch";
             NameBox.Text = existing.Name;
             CodeBox.Text = existing.Code ?? "";
-            OrderBox.Text = existing.DisplayOrder.ToString();
+            OrderBox.Text = existing.DisplayOrder.ToString(CultureInfo.InvariantCulture);
             ActiveCheck.IsChecked = existing.IsActive;
         }
         else

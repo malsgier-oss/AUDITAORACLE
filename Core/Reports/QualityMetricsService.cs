@@ -1,3 +1,4 @@
+using System.Globalization;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
 
@@ -35,8 +36,8 @@ public class QualityMetricsService : IQualityMetricsService
 
     public QualityMetricsResult GetMetrics(IDocumentStore store, DateTime from, DateTime to, string? branch = null, string? section = null)
     {
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, limit: MaxDocuments);
         var list = docs.AsEnumerable();
         if (!string.IsNullOrEmpty(branch)) list = list.Where(d => d.Branch == branch);

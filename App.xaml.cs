@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -217,7 +218,7 @@ public partial class App : Application
         using var cmd = conn.CreateCommand();
         cmd.CommandText =
             "SELECT COUNT(*) FROM user_tab_columns WHERE table_name = 'DOCUMENTS' AND column_name = 'ARCHIVED_AT'";
-        var n = Convert.ToInt32(cmd.ExecuteScalar());
+        var n = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         if (n > 0)
             return;
 

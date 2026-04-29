@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -63,9 +64,9 @@ public static class AuditTrailComplianceReport
                             column.Item().PaddingTop(4).DefaultTextStyle(x => x.FontSize(10).FontColor(Colors.Grey.Darken1)).Text(text =>
                             {
                                 text.Span("Period: ");
-                                text.Span(from.ToString("yyyy-MM-dd"));
+                                text.Span(from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
                                 text.Span(" to ");
-                                text.Span(to.ToString("yyyy-MM-dd"));
+                                text.Span(to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
                                 text.Span($"  |  {totalEntries} entries total");
                                 if (pageChunks.Count > 1)
                                 {

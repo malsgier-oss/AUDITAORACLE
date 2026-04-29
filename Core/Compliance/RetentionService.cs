@@ -1,3 +1,4 @@
+using System.Globalization;
 using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -39,7 +40,7 @@ public class RetentionService : IRetentionService
 
     public List<Document> GetDocumentsBeyondRetention(int? limit = null)
     {
-        var cutoff = DateTime.UtcNow.AddDays(-RetentionDays).ToString("yyyy-MM-dd");
+        var cutoff = DateTime.UtcNow.AddDays(-RetentionDays).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var list = _documentStore.ListDocuments(
             status: null,
             dateFrom: null,

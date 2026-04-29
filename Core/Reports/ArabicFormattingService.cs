@@ -29,7 +29,7 @@ public static class ArabicFormattingService
     /// <summary>Format date in ISO format (yyyy-MM-dd).</summary>
     public static string FormatDate(DateTime date)
     {
-        return date.ToString("yyyy-MM-dd");
+        return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
     /// <summary>Format date with Arabic month name (e.g. 6 فبراير 2026).</summary>

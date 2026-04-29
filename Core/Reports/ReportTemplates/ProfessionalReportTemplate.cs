@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -266,7 +267,7 @@ public static class ProfessionalReportTemplate
                 .FontColor(Colors.Border);
 
             row.AutoItem()
-                .Text(section.PageNumber.ToString())
+                .Text(section.PageNumber.ToString(CultureInfo.InvariantCulture))
                 .Style(GetTextStyle(isArabic, 11))
                 .FontColor(Colors.TextSecondary);
         });

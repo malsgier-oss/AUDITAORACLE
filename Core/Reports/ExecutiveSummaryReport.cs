@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -25,8 +26,8 @@ public static class ExecutiveSummaryReport
         bool includeTableOfContents = true, bool includeBranding = true, bool includeDisclaimer = true)
     {
         var isArabic = language.Equals("ar", StringComparison.OrdinalIgnoreCase);
-        var fromStr = from.ToString("yyyy-MM-dd");
-        var toStr = to.ToString("yyyy-MM-dd") + "T23:59:59";
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
 
         // Load notes for all documents
@@ -622,7 +623,7 @@ public static class ExecutiveSummaryReport
     private static string FormatDate(string isoDate)
     {
         if (DateTime.TryParse(isoDate, out var dt))
-            return dt.ToString("yyyy-MM-dd HH:mm");
+            return dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
         return isoDate;
     }
 

@@ -1,5 +1,6 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
+using System.Globalization;
 using System.Data;
 using WorkAudit.Core.Common;
 using WorkAudit.Core.Services;
@@ -162,7 +163,7 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
         cmd.Parameters.AddWithValue("@p_uid", userId);
         cmd.Parameters.AddWithValue("@cancelled", AssignmentStatus.Cancelled);
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("@status", status);
-        if (overdueOnly) cmd.Parameters.AddWithValue("@now", DateTime.UtcNow.ToString("yyyy-MM-dd"));
+        if (overdueOnly) cmd.Parameters.AddWithValue("@now", DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         if (overdueOnly) { cmd.Parameters.AddWithValue("@pending", AssignmentStatus.Pending); cmd.Parameters.AddWithValue("@inprogress", AssignmentStatus.InProgress); }
         cmd.Parameters.AddWithValue("@limit", limit);
 
@@ -311,6 +312,6 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             return 0;
         if (value is global::Oracle.ManagedDataAccess.Types.OracleDecimal oracleDecimal)
             return oracleDecimal.ToInt32();
-        return Convert.ToInt32(value);
+        return Convert.ToInt32(value, CultureInfo.InvariantCulture);
     }
 }
