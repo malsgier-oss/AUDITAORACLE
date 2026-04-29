@@ -95,17 +95,25 @@ icacls "C:\Program Files\WorkAudit"
 3. Login with username: `admin` and the temporary password
 4. You will be forced to change the password immediately
 
-### Environment Variables (Optional - Set BEFORE First Launch)
+### Environment Variables (Set BEFORE First Launch)
 
 For customized deployment, set these system environment variables:
 
 ```powershell
 # Set via PowerShell (requires admin)
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_BASE_DIR", "D:\WorkAuditData", "Machine")
-[System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "Data Source=//db-host:1521/WORKAUDIT;User Id=WORKAUDIT_APP;Password=...;Persist Security Info=True;", "Machine")
+[System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "Data Source=//db-host:1521/WORKAUDIT;User Id=WORKAUDIT_APP;Password=<secure-secret>;Persist Security Info=True;", "Machine")
+[System.Environment]::SetEnvironmentVariable("WORKAUDIT_REQUIRE_ORACLE_ENV", "true", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_USERNAME", "sysadmin", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_EMAIL", "admin@yourbank.com", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_BRANCH", "Main Branch", "Machine")
+```
+
+Use deployment secret tooling to inject `WORKAUDIT_ORACLE_CONNECTION`; do not store real credentials in source-controlled scripts.
+
+After setting environment variables, run:
+```powershell
+.\scripts\Verify-OracleEnterpriseReadiness.ps1 -RequireManagedMode
 ```
 
 ### Essential Settings Configuration

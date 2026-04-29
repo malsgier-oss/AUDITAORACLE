@@ -158,17 +158,25 @@ See [`docs/DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md) for complete 
 # Copy ZIP to target machine, extract, run install.bat as Administrator
 ```
 
-### Environment Variables (Optional)
+### Environment Variables (Enterprise Recommended)
 
 Configure before first launch for custom settings:
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_BASE_DIR", "D:\WorkAuditData", "Machine")
-[System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "User Id=workaudit;Password=change-me;Data Source=//localhost:1521/FREEPDB1", "Machine")
+[System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "User Id=WORKAUDIT_APP;Password=<secure-secret>;Data Source=//db-host:1521/WORKAUDIT", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_USERNAME", "sysadmin", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_EMAIL", "admin@yourbank.com", "Machine")
 [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_BRANCH", "Main Branch", "Machine")
 ```
+
+For managed enterprise deployments, optionally enforce machine-scope Oracle configuration only:
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("WORKAUDIT_REQUIRE_ORACLE_ENV", "true", "Machine")
+```
+
+Do not commit, package, or hardcode production Oracle passwords. Inject `WORKAUDIT_ORACLE_CONNECTION` via your secret-management/deployment pipeline.
 
 ---
 

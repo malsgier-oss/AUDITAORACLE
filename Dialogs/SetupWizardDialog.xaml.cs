@@ -17,6 +17,8 @@ public partial class SetupWizardDialog : Window
     private int _step;
     private TextBox? _baseDirBox;
     private TextBox? _oracleConnectionBox;
+    private readonly bool _managedOracleEnvRequired;
+    private readonly string _managedOracleConnectionValue;
 
     public string BaseDirectory { get; private set; } = "";
     public string OracleConnectionString { get; private set; } = "";
@@ -24,6 +26,12 @@ public partial class SetupWizardDialog : Window
     public SetupWizardDialog()
     {
         InitializeComponent();
+        _managedOracleEnvRequired = IsManagedOracleEnvRequired();
+        _managedOracleConnectionValue = (Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION")
+            ?? Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONN")
+            ?? Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING")
+            ?? "").Trim();
+
         var envBaseDir = Environment.GetEnvironmentVariable("WORKAUDIT_BASE_DIR");
         BaseDirectory = !string.IsNullOrWhiteSpace(envBaseDir)
             ? envBaseDir.Trim()
@@ -33,10 +41,21 @@ public partial class SetupWizardDialog : Window
             ?? Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONN")
             ?? Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING")
             ?? Environment.GetEnvironmentVariable("WORKAUDIT_TEST_ORACLE");
-        OracleConnectionString = !string.IsNullOrWhiteSpace(envOracleConnection)
+        OracleConnectionString = _managedOracleEnvRequired && !string.IsNullOrWhiteSpace(_managedOracleConnectionValue)
+            ? _managedOracleConnectionValue
+            : !string.IsNullOrWhiteSpace(envOracleConnection)
             ? envOracleConnection.Trim()
             : (UserSettings.Get<string>("oracle_connection_string") ?? "");
         ShowStep(0);
+    }
+
+    private static bool IsManagedOracleEnvRequired()
+    {
+        var flag = Environment.GetEnvironmentVariable("WORKAUDIT_REQUIRE_ORACLE_ENV");
+        return flag != null &&
+               (flag.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                flag.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                flag.Equals("yes", StringComparison.OrdinalIgnoreCase));
     }
 
     private void ShowStep(int step)
@@ -109,9 +128,27 @@ public partial class SetupWizardDialog : Window
                 Padding = new Thickness(8, 6, 8, 6),
                 VerticalContentAlignment = VerticalAlignment.Center
             };
+            if (_managedOracleEnvRequired)
+            {
+                _oracleConnectionBox.IsReadOnly = true;
+                _oracleConnectionBox.ToolTip = "Managed deployment: Oracle connection is controlled via machine environment variables.";
+            }
             Grid.SetColumn(_oracleConnectionBox, 0);
             grid.Children.Add(_oracleConnectionBox);
             StepFields.Children.Add(grid);
+
+            if (_managedOracleEnvRequired)
+            {
+                StepFields.Children.Add(new TextBlock
+                {
+                    Text = string.IsNullOrWhiteSpace(_managedOracleConnectionValue)
+                        ? "Managed deployment requires WORKAUDIT_ORACLE_CONNECTION at machine scope. Set it before finishing setup."
+                        : "Managed deployment detected. Oracle connection is read-only and sourced from machine environment variables.",
+                    Margin = new Thickness(0, 8, 0, 0),
+                    TextWrapping = TextWrapping.Wrap
+                });
+            }
+
             NextBtn.Visibility = Visibility.Collapsed;
             FinishBtn.Visibility = Visibility.Visible;
             BackBtn.Visibility = Visibility.Visible;
@@ -144,6 +181,16 @@ public partial class SetupWizardDialog : Window
     {
         if (_step == 2)
         {
+            if (_managedOracleEnvRequired && string.IsNullOrWhiteSpace(_managedOracleConnectionValue))
+            {
+                MessageBox.Show(
+                    "Managed deployment requires WORKAUDIT_ORACLE_CONNECTION (or equivalent Oracle env variable) at machine scope. Set it, then restart setup.",
+                    "Setup",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
             var oracleConnection = _oracleConnectionBox?.Text?.Trim() ?? "";
             if (string.IsNullOrEmpty(oracleConnection))
             {
@@ -170,7 +217,8 @@ public partial class SetupWizardDialog : Window
         }
 
         UserSettings.Set("base_directory", BaseDirectory);
-        UserSettings.Set("oracle_connection_string", OracleConnectionString);
+        if (!_managedOracleEnvRequired)
+            UserSettings.Set("oracle_connection_string", OracleConnectionString);
         UserSettings.Set("first_run_completed", true);
 
         if (!string.IsNullOrEmpty(BaseDirectory))

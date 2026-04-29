@@ -42,6 +42,7 @@ This guide covers deploying WorkAudit for production use.
 - **User setting fallback:** `oracle_connection_string` in `%APPDATA%\WORKAUDIT\user_settings.json`
 - **Base directory:** still controls document files, not the Oracle database location
 - **First run:** Database and migrations run automatically.
+- **Managed enterprise mode:** set `WORKAUDIT_REQUIRE_ORACLE_ENV=true` to require machine-scope Oracle configuration and block local fallback prompts.
 
 ### Migrations
 
@@ -57,10 +58,11 @@ This guide covers deploying WorkAudit for production use.
 - Stored in `%APPDATA%\WORKAUDIT\` (config, app_settings).
 - Backup this folder before major upgrades.
 
-### Environment Variables (Optional)
+### Environment Variables (Enterprise Recommended)
 
 - `WORKAUDIT_ORACLE_CONNECTION`: Override Oracle connection string.
-- `WORKAUDIT_LOG_LEVEL:** Debug, Information, Warning, Error.
+- `WORKAUDIT_REQUIRE_ORACLE_ENV`: Enforce machine-scope Oracle connection in managed deployments.
+- `WORKAUDIT_LOG_LEVEL`: Debug, Information, Warning, Error.
 
 ---
 
@@ -109,6 +111,7 @@ See **DisasterRecovery.md** for Oracle DIRECTORY / `impdp` prerequisites.
    - Migration version should be at or above the expected target.
    - `Database path` should show `Oracle` connection details in logs and UI.
 6. Confirm report and assignment workflows execute once before returning to normal service.
+7. Run `scripts/Verify-OracleEnterpriseReadiness.ps1` from repository root to validate env vars, Oracle endpoint shape, and latest migration status.
 
 ### Rollback guidance
 
@@ -127,7 +130,7 @@ See **DisasterRecovery.md** for Oracle DIRECTORY / `impdp` prerequisites.
 | Issue | Action |
 |-------|--------|
 | App won't start | Check .NET 8 Runtime installed; review logs for errors. |
-| Oracle connection fails | Validate `WORKAUDIT_ORACLE_CONNECTION` and Oracle listener/service reachability. |
+| Oracle connection fails | Validate `WORKAUDIT_ORACLE_CONNECTION` and Oracle listener/service reachability; review startup error code (`BOOT_ORACLE_MISSING`, `BOOT_ORACLE_MALFORMED`, `BOOT_ORACLE_UNREACHABLE`, `BOOT_ORACLE_ENV_REQUIRED`). |
 | Scheduled report not sent | Verify SMTP settings; check "Email to" and "SMTP host" are set. |
 | Reports fail | Check disk space; verify document store has data. |
 

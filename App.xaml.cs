@@ -56,10 +56,19 @@ public partial class App : Application
             if (!boot.Success)
             {
                 Log.Fatal("Startup bootstrap failed ({ErrorCode}): {ErrorMessage}", boot.ErrorCode, boot.ErrorMessage);
+                var guidance = boot.ErrorCode switch
+                {
+                    "BOOT_ORACLE_MISSING" => "Configure WORKAUDIT_ORACLE_CONNECTION at machine scope or complete setup with a valid Oracle ODP.NET connection string.",
+                    "BOOT_ORACLE_MALFORMED" => "Use Oracle ODP.NET format with User Id, Password, and Data Source (no placeholders).",
+                    "BOOT_ORACLE_UNREACHABLE" => "Check Oracle listener/service reachability, credentials, and network/TNS configuration.",
+                    "BOOT_ORACLE_ENV_REQUIRED" => "This deployment requires machine-level Oracle environment variables. Contact IT to configure WORKAUDIT_ORACLE_CONNECTION.",
+                    _ => "Review startup logs for details."
+                };
                 MessageBox.Show(
                     "AUDITA could not initialize startup prerequisites.\n\n" +
                     $"Error: {boot.ErrorCode}\n" +
-                    $"{boot.ErrorMessage}",
+                    $"{boot.ErrorMessage}\n\n" +
+                    $"Guidance: {guidance}",
                     "AUDITA - Startup Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);

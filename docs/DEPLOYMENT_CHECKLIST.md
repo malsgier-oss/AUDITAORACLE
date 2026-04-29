@@ -151,7 +151,8 @@ For each branch:
 5. **Configure environment variables** (if using custom paths):
    ```powershell
    [System.Environment]::SetEnvironmentVariable("WORKAUDIT_BASE_DIR", "D:\WorkAuditData", "Machine")
-[System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "Data Source=//db-host:1521/WORKAUDIT;User Id=WORKAUDIT_APP;Password=...;", "Machine")
+   [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION", "Data Source=//db-host:1521/WORKAUDIT;User Id=WORKAUDIT_APP;Password=<secure-secret>;", "Machine")
+   [System.Environment]::SetEnvironmentVariable("WORKAUDIT_REQUIRE_ORACLE_ENV", "true", "Machine")
    [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_USERNAME", "branch01_admin", "Machine")
    [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_EMAIL", "branch01_admin@bank.com", "Machine")
    [System.Environment]::SetEnvironmentVariable("WORKAUDIT_ADMIN_BRANCH", "Branch 01", "Machine")
@@ -178,6 +179,10 @@ For each branch:
     - Test manual backup
 12. **Document admin credentials** (store in password manager)
 13. **Create standard users** for branch staff
+14. **Run Oracle readiness verification script**:
+    ```powershell
+    .\scripts\Verify-OracleEnterpriseReadiness.ps1
+    ```
 
 #### Installation Script Example
 
@@ -215,6 +220,8 @@ Write-Host "  4. Configure branch settings"
 - [ ] Admin accounts created and secured
 - [ ] Basic workflow tested at each branch
 - [ ] No critical errors in logs
+- [ ] No startup Oracle error codes (`BOOT_ORACLE_MISSING`, `BOOT_ORACLE_MALFORMED`, `BOOT_ORACLE_UNREACHABLE`, `BOOT_ORACLE_ENV_REQUIRED`)
+- [ ] Migration version validated from `WORKAUDIT_MIGRATIONS`
 - [ ] Backup jobs configured and scheduled
 - [ ] Users can login successfully
 - [ ] Network connectivity verified (if using sync)

@@ -9,6 +9,17 @@ using WorkAudit.Storage;
 
 namespace WorkAudit.Core.Services;
 
+internal sealed class StartupConfigurationException : Exception
+{
+    public string ErrorCode { get; }
+
+    public StartupConfigurationException(string errorCode, string message, Exception? innerException = null)
+        : base(message, innerException)
+    {
+        ErrorCode = errorCode;
+    }
+}
+
 public sealed class StartupBootResult
 {
     public bool Success { get; init; }
@@ -44,6 +55,7 @@ public sealed class StartupCoordinator
 
             var oracleConnectionString = ResolveOracleConnectionString(promptForConnectionString);
             var effectiveOracleConnectionString = resolveOracleConnectionString(oracleConnectionString);
+            EnsureOracleReachable(effectiveOracleConnectionString);
 
             ServiceContainer.Initialize(effectiveOracleConnectionString, baseDir);
             _log.Information("Service container initialized (Base: {BaseDir})", baseDir);
@@ -62,13 +74,23 @@ public sealed class StartupCoordinator
                 OracleConnectionString = effectiveOracleConnectionString
             };
         }
+        catch (StartupConfigurationException ex)
+        {
+            _log.Error(ex, "Startup configuration failed ({ErrorCode})", ex.ErrorCode);
+            return new StartupBootResult
+            {
+                Success = false,
+                ErrorCode = ex.ErrorCode,
+                ErrorMessage = ex.Message
+            };
+        }
         catch (OracleException ex)
         {
             _log.Error(ex, "Oracle startup bootstrap failed");
             return new StartupBootResult
             {
                 Success = false,
-                ErrorCode = "BOOT_ORACLE",
+                ErrorCode = "BOOT_ORACLE_UNREACHABLE",
                 ErrorMessage = ex.Message
             };
         }
@@ -81,6 +103,68 @@ public sealed class StartupCoordinator
                 ErrorCode = "BOOT_GENERAL",
                 ErrorMessage = ex.Message
             };
+        }
+    }
+
+    private static bool IsManagedOracleEnvRequired()
+    {
+        var flag = Environment.GetEnvironmentVariable("WORKAUDIT_REQUIRE_ORACLE_ENV");
+        return flag != null &&
+               (flag.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                flag.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                flag.Equals("yes", StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal static bool LooksLikePlaceholderConnectionString(string connectionString)
+    {
+        return connectionString.Contains("change-me", StringComparison.OrdinalIgnoreCase) ||
+               connectionString.Contains("yourpassword", StringComparison.OrdinalIgnoreCase) ||
+               connectionString.Contains("password=***", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool IsValidOracleConnectionStringFormat(string connectionString)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+            return false;
+
+        if (LooksLikePlaceholderConnectionString(connectionString))
+            return false;
+
+        try
+        {
+            var builder = new OracleConnectionStringBuilder(connectionString);
+            return !string.IsNullOrWhiteSpace(builder.UserID) &&
+                   !string.IsNullOrWhiteSpace(builder.DataSource);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void EnsureOracleConnectionStringFormat(string connectionString, string source)
+    {
+        if (IsValidOracleConnectionStringFormat(connectionString))
+            return;
+
+        throw new StartupConfigurationException(
+            "BOOT_ORACLE_MALFORMED",
+            $"Oracle connection string from {source} is invalid. Expected ODP.NET format with User Id and Data Source, and no placeholder values.");
+    }
+
+    private static void EnsureOracleReachable(string connectionString)
+    {
+        try
+        {
+            using var conn = new OracleConnection(connectionString);
+            conn.Open();
+        }
+        catch (OracleException ex)
+        {
+            throw new StartupConfigurationException(
+                "BOOT_ORACLE_UNREACHABLE",
+                "Oracle endpoint is unreachable with the configured connection string. Verify listener/service reachability and credentials.",
+                ex);
         }
     }
 
@@ -116,21 +200,44 @@ public sealed class StartupCoordinator
 
     private static string ResolveOracleConnectionString(Func<string> promptForConnectionString)
     {
+        var managedEnvRequired = IsManagedOracleEnvRequired();
         var envOracle = Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION")
             ?? Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONN")
             ?? Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING")
             ?? Environment.GetEnvironmentVariable("WORKAUDIT_TEST_ORACLE");
         var userOracle = UserSettings.Get<string>("oracle_connection_string");
-        var oracleConnectionString = !string.IsNullOrWhiteSpace(envOracle)
-            ? envOracle.Trim()
-            : (userOracle ?? "").Trim();
 
-        if (!string.IsNullOrWhiteSpace(oracleConnectionString))
-            return oracleConnectionString;
+        if (!string.IsNullOrWhiteSpace(envOracle))
+        {
+            var resolved = envOracle.Trim();
+            EnsureOracleConnectionStringFormat(resolved, "environment variable");
+            return resolved;
+        }
 
-        oracleConnectionString = promptForConnectionString();
+        if (managedEnvRequired)
+        {
+            throw new StartupConfigurationException(
+                "BOOT_ORACLE_ENV_REQUIRED",
+                "Managed deployment requires WORKAUDIT_ORACLE_CONNECTION (or equivalent Oracle env variable) to be configured at machine scope.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(userOracle))
+        {
+            var resolved = userOracle.Trim();
+            EnsureOracleConnectionStringFormat(resolved, "user settings");
+            return resolved;
+        }
+
+        var oracleConnectionString = promptForConnectionString();
         if (string.IsNullOrWhiteSpace(oracleConnectionString))
-            throw new InvalidOperationException("Oracle connection string is not configured.");
+        {
+            throw new StartupConfigurationException(
+                "BOOT_ORACLE_MISSING",
+                "Oracle connection string is not configured.");
+        }
+
+        oracleConnectionString = oracleConnectionString.Trim();
+        EnsureOracleConnectionStringFormat(oracleConnectionString, "setup prompt");
 
         UserSettings.Set("oracle_connection_string", oracleConnectionString);
         UserSettings.Set("first_run_completed", true);

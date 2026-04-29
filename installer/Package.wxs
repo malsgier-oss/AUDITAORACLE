@@ -26,11 +26,20 @@
 
     <MediaTemplate EmbedCab="yes" />
     <Property Id="WORKAUDIT_BASE_DIR" Value="C:\ProgramData\Audita\Documents" Secure="yes" />
-    <Property Id="WORKAUDIT_ORACLE_CONNECTION" Value="User Id=workaudit;Password=change-me;Data Source=//localhost:1521/FREEPDB1" Secure="yes" />
-
-    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <Property Id="WORKAUDIT_ORACLE_CONNECTION" Secure="yes" />
+    <!-- Enforce Oracle property for unattended installs; interactive flow can collect it in UI. -->
+    <Launch Condition="NOT (REMOVE = 'ALL') AND ((UILevel &gt;= 5) OR WORKAUDIT_ORACLE_CONNECTION)"
+            Message="Oracle configuration is required for unattended installs. Provide WORKAUDIT_ORACLE_CONNECTION on the msiexec command line." />
+    <Launch Condition="NOT (REMOVE = 'ALL') AND ((UILevel &gt;= 5) OR NOT (WORKAUDIT_ORACLE_CONNECTION &gt;&lt; 'change-me'))"
+            Message="WORKAUDIT_ORACLE_CONNECTION cannot contain placeholder credentials (for example: change-me)." />
+    <Launch Condition="NOT (REMOVE = 'ALL') AND ((UILevel &gt;= 5) OR ((WORKAUDIT_ORACLE_CONNECTION &gt;&lt; 'User Id=') AND (WORKAUDIT_ORACLE_CONNECTION &gt;&lt; 'Data Source=')))"
+            Message="WORKAUDIT_ORACLE_CONNECTION must include User Id= and Data Source= segments." />
 
     <UI>
+      <!-- Reference only the specific dialogs we need, not a full WixUI preset -->
+      <UIRef Id="WixUI_Common" />
+      <UIRef Id="WixUI_ErrorProgressText" />
+      
       <Dialog Id="WorkAuditPathsDlg" Width="370" Height="270" Title="[ProductName] Setup">
         <Control Id="Title" Type="Text" X="15" Y="10" Width="340" Height="25"
                  Text="{\WixUI_Font_Title}AUDITA data locations" />
@@ -46,19 +55,33 @@
         <Control Id="BaseDirEdit" Type="Edit" X="20" Y="90" Width="330" Height="18"
                  Property="WORKAUDIT_BASE_DIR" />
 
-        <Control Id="DbPathLabel" Type="Text" X="20" Y="124" Width="320" Height="12"
+        <Control Id="DbPathLabel" Type="Text" X="20" Y="124" Width="330" Height="12"
                  Text="Oracle connection string (WORKAUDIT_ORACLE_CONNECTION):" />
         <Control Id="DbPathEdit" Type="Edit" X="20" Y="140" Width="330" Height="18"
                  Property="WORKAUDIT_ORACLE_CONNECTION" />
+        <Control Id="DbPathHint" Type="Text" X="20" Y="162" Width="330" Height="30"
+                 Text="Required format: User Id=...;Password=...;Data Source=...; Do not use placeholder values." />
 
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)" />
       </Dialog>
 
-      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="WorkAuditPathsDlg" Condition="1" />
-      <Publish Dialog="WorkAuditPathsDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Condition="1" />
-      <Publish Dialog="WorkAuditPathsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="1" />
+      <!-- Define complete custom dialog flow: Welcome -> Config -> VerifyReady -> Progress -> Exit -->
+      
+      <!-- Fresh install flow: Welcome -> Config -> VerifyReady -->
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="WorkAuditPathsDlg" Order="2" Condition="NOT Installed" />
+      <Publish Dialog="WorkAuditPathsDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="NOT Installed" />
+      <Publish Dialog="WorkAuditPathsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="2" Condition="NOT Installed" />
+      
+      <!-- Maintenance/upgrade flow: MaintenanceWelcome -> Config -> VerifyReady -->
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="WorkAuditPathsDlg" Order="2" Condition="Installed" />
+      <Publish Dialog="WorkAuditPathsDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" Order="2" Condition="Installed" />
+      <Publish Dialog="WorkAuditPathsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="2" Condition="Installed" />
+      
+      <!-- Common back navigation from VerifyReady -->
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WorkAuditPathsDlg" Order="2" Condition="1" />
+      
       <Publish Dialog="WorkAuditPathsDlg" Control="Cancel" Event="SpawnDialog" Value="CancelDlg" Condition="1" />
     </UI>
 

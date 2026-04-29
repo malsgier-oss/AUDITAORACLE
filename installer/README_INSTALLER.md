@@ -38,12 +38,14 @@ The MSI supports two public properties:
 - `WORKAUDIT_BASE_DIR` - folder for imported documents and default app data
 - `WORKAUDIT_ORACLE_CONNECTION` - Oracle connection string (ODP.NET format)
 
+For enterprise rollout, do not ship placeholder or shared credentials in scripts. Inject this value from your deployment secret store at install time.
+
 Interactive install with explicit values:
 
 ```powershell
 msiexec /i ".\installer\bin\Release\Audita.msi" `
   WORKAUDIT_BASE_DIR="D:\WorkAuditData\Documents" `
-  WORKAUDIT_ORACLE_CONNECTION="User Id=workaudit;Password=change-me;Data Source=//localhost:1521/FREEPDB1"
+  WORKAUDIT_ORACLE_CONNECTION="User Id=WORKAUDIT_APP;Password=<secure-secret>;Data Source=//db-host:1521/WORKAUDIT"
 ```
 
 Silent install (no UI) with logging:
@@ -51,10 +53,15 @@ Silent install (no UI) with logging:
 ```powershell
 msiexec /i ".\installer\bin\Release\Audita.msi" /qn /l*v ".\workaudit-install.log" `
   WORKAUDIT_BASE_DIR="D:\WorkAuditData\Documents" `
-  WORKAUDIT_ORACLE_CONNECTION="User Id=workaudit;Password=change-me;Data Source=//localhost:1521/FREEPDB1"
+  WORKAUDIT_ORACLE_CONNECTION="User Id=WORKAUDIT_APP;Password=<secure-secret>;Data Source=//db-host:1521/WORKAUDIT"
 ```
 
 These values are written as machine environment variables (`WORKAUDIT_BASE_DIR` and `WORKAUDIT_ORACLE_CONNECTION`) so WorkAudit uses them on first launch.
+
+Installer guardrails:
+- Oracle connection is required and validated for expected shape (`User Id=` + `Data Source=`).
+- Placeholder values like `change-me` are rejected.
+- Startup still validates Oracle reachability and fails with actionable error codes if listener/service is unavailable.
 
 The installer project **publishes** the app self-contained (`-r win-x64 -p:WorkAuditPortable=true`) into `artifacts\msi-app\`, then harvests that folder into the MSI. To reuse an existing publish without rebuilding:
 
