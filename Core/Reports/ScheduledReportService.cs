@@ -3,6 +3,7 @@ using Serilog;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
+using WorkAudit.Storage.Oracle;
 
 namespace WorkAudit.Core.Reports;
 
@@ -23,15 +24,22 @@ public class ScheduledReportService : IScheduledReportService
     private readonly IConfigStore _configStore;
     private readonly IReportService _reportService;
     private readonly IReportEmailService _emailService;
+    private readonly ISchedulerLockStore? _lockStore;
+    private readonly string _holderId =
+        $"{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
     private System.Threading.Timer? _timer;
     private DateTime? _lastReportAt;
-    private DateTime _lastRunDate = DateTime.MinValue;
 
-    public ScheduledReportService(IConfigStore configStore, IReportService reportService, IReportEmailService emailService)
+    public ScheduledReportService(
+        IConfigStore configStore,
+        IReportService reportService,
+        IReportEmailService emailService,
+        ISchedulerLockStore? lockStore = null)
     {
         _configStore = configStore;
         _reportService = reportService;
         _emailService = emailService;
+        _lockStore = lockStore;
     }
 
     public bool IsRunning => _timer != null;
@@ -73,11 +81,43 @@ public class ScheduledReportService : IScheduledReportService
             var now = DateTime.Now;
             var targetToday = DateTime.Today.Add(targetTime);
 
-            // Run on first tick after we've reached the target time today (haven't run yet)
-            if (now.Date != _lastRunDate.Date && now >= targetToday)
+            // Cluster-wide: only one successful run per calendar day across all PCs sharing the DB.
+            var todayKey = DateTime.Today.ToString("yyyy-MM-dd");
+            var lastRunDate = _configStore.GetSettingValue("scheduled_report_last_run_date", "") ?? "";
+            if (string.Equals(lastRunDate, todayKey, StringComparison.Ordinal))
+                return;
+
+            if (now < targetToday)
+                return;
+
+            var leaderElection = _configStore.GetSettingBool("scheduler_leader_election_enabled", true);
+            var leaseMinutes = Math.Max(1, _configStore.GetSettingInt("scheduler_lock_lease_minutes", 15));
+            var acquired = true;
+            if (leaderElection && _lockStore != null)
             {
-                _lastRunDate = now.Date;
-                await RunScheduledReportAsync();
+                acquired = _lockStore.TryAcquireOrRenew(
+                    "scheduled_report",
+                    _holderId,
+                    TimeSpan.FromMinutes(leaseMinutes));
+                if (!acquired)
+                {
+                    _log.Debug("Scheduled report skipped: another instance holds the scheduler lock");
+                    return;
+                }
+            }
+
+            try
+            {
+                lastRunDate = _configStore.GetSettingValue("scheduled_report_last_run_date", "") ?? "";
+                if (string.Equals(lastRunDate, todayKey, StringComparison.Ordinal))
+                    return;
+
+                await RunScheduledReportAsync(todayKey).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (leaderElection && _lockStore != null && acquired)
+                    _lockStore.ReleaseIfHolder("scheduled_report", _holderId);
             }
         }
         catch (Exception ex)
@@ -86,7 +126,7 @@ public class ScheduledReportService : IScheduledReportService
         }
     }
 
-    private async Task RunScheduledReportAsync()
+    private async Task RunScheduledReportAsync(string todayKey)
     {
         try
         {
@@ -107,12 +147,13 @@ public class ScheduledReportService : IScheduledReportService
             };
 
             _log.Information("Running scheduled report: {ReportType}", reportType);
-            var path = await _reportService.GenerateAsync(config);
+            var path = await _reportService.GenerateAsync(config).ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(path))
             {
                 _lastReportAt = DateTime.UtcNow;
                 _log.Information("Scheduled report completed: {Path}", path);
+                _ = _configStore.SetSetting("scheduled_report_last_run_date", todayKey, "ScheduledReportService");
 
                 var emailRecipients = _configStore.GetSettingValue("scheduled_report_email_recipients", "")?.Trim();
                 if (!string.IsNullOrEmpty(emailRecipients))

@@ -177,6 +177,7 @@ Configure before first launch for custom settings:
 | Document | Description | Audience |
 |----------|-------------|----------|
 | [`ADMIN_RUNBOOK.md`](docs/ADMIN_RUNBOOK.md) | Complete administrator guide (installation, monitoring, troubleshooting) | IT Staff, Sysadmins |
+| [`MULTI_PC_RBAC_AUDIT.md`](docs/MULTI_PC_RBAC_AUDIT.md) | Shared Oracle + multi-workstation RBAC and scheduler notes | Architects, IT |
 | [`USER_GUIDE.md`](docs/USER_GUIDE.md) | End-user training guide | Bank Staff, End Users |
 | [`DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md) | Step-by-step deployment procedures | IT Managers, Deployment Team |
 | [`HYBRID_SYNC_DESIGN.md`](docs/HYBRID_SYNC_DESIGN.md) | Reference design for optional multi-branch / HQ sync (not shipped as code here) | Architects, Developers |

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WorkAudit.Core;
 using WorkAudit.Core.Export;
 using WorkAudit.Storage;
+using WorkAudit.Storage.Oracle;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Camera;
 using WorkAudit.Core.Import;
@@ -146,6 +147,11 @@ public static class ServiceContainer
         services.AddSingleton<IDashboardCacheService, DashboardCacheService>();
         services.AddSingleton<IErrorMessageService, ErrorMessageService>();
         services.AddSingleton<IOracleBackupGateway, OracleDataPumpGateway>();
+        services.AddSingleton<ISchedulerLockStore>(sp =>
+        {
+            var config = sp.GetRequiredService<AppConfiguration>();
+            return new SchedulerLockStore(config.OracleConnectionString);
+        });
         services.AddSingleton<IBackupService>(sp =>
         {
             var config = sp.GetRequiredService<AppConfiguration>();
@@ -165,7 +171,10 @@ public static class ServiceContainer
         services.AddSingleton<IErasureService, ErasureService>();
         services.AddSingleton<IRetentionService, RetentionService>();
         services.AddSingleton<IScheduledBackupService>(sp =>
-            new ScheduledBackupService(sp.GetRequiredService<IBackupService>(), sp.GetRequiredService<IConfigStore>()));
+            new ScheduledBackupService(
+                sp.GetRequiredService<IBackupService>(),
+                sp.GetRequiredService<IConfigStore>(),
+                sp.GetService<ISchedulerLockStore>()));
         services.AddSingleton<IReportEmailService, ReportEmailService>();
         services.AddSingleton<IAutoUpdateService>(sp =>
         {
@@ -178,7 +187,7 @@ public static class ServiceContainer
             var configStore = sp.GetRequiredService<IConfigStore>();
             var reportService = sp.GetRequiredService<IReportService>();
             var emailService = sp.GetRequiredService<IReportEmailService>();
-            return new ScheduledReportService(configStore, reportService, emailService);
+            return new ScheduledReportService(configStore, reportService, emailService, sp.GetService<ISchedulerLockStore>());
         });
         services.AddSingleton<IImmutabilityService, ImmutabilityService>();
         services.AddSingleton<ILegalHoldService, LegalHoldService>();

@@ -34,6 +34,14 @@ public sealed class StartupCoordinator
         try
         {
             var baseDir = ResolveAndEnsureBaseDirectory();
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WORKAUDIT_BASE_DIR")))
+            {
+                _log.Warning(
+                    "WORKAUDIT_BASE_DIR is not set: attachments use per-machine data under {BaseDir}. " +
+                    "For multiple PCs sharing one Oracle schema, set WORKAUDIT_BASE_DIR to a UNC or shared drive so file_path resolves on every client.",
+                    baseDir);
+            }
+
             var oracleConnectionString = ResolveOracleConnectionString(promptForConnectionString);
             var effectiveOracleConnectionString = resolveOracleConnectionString(oracleConnectionString);
 

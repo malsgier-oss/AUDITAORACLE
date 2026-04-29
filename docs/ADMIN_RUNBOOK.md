@@ -18,6 +18,7 @@
 8. [Troubleshooting](#troubleshooting)
 9. [Maintenance](#maintenance)
 10. [Emergency Procedures](#emergency-procedures)
+11. [Multi-PC shared Oracle](#multi-pc-shared-oracle)
 
 ---
 
@@ -599,6 +600,35 @@ The Oracle database contains these primary tables:
 - `app_settings` - Application settings
 
 **NEVER** manually edit the database unless directed by vendor support.
+
+---
+
+## Appendix D: Multi-PC shared Oracle
+
+Use this when **more than one workstation** runs WorkAudit against the **same Oracle user/schema**.
+
+### Required
+
+1. **Same app version** on every PC (avoid migration drift).
+2. **`WORKAUDIT_ORACLE_CONNECTION`** (machine or user env) identical on all clients, or equivalent connection to the same schema.
+3. **`WORKAUDIT_BASE_DIR`** set to a **UNC path or shared drive** so `documents.file_path` resolves on every machine. If unset, each PC defaults to its own Documents folder and peers will see **missing file** errors for attachments.
+
+### Scheduled jobs (backup / email report)
+
+- **`scheduler_leader_election_enabled`** (default `true` in DB after migration 53): only one instance holds the lease for `scheduled_backup` and `scheduled_report` at a time.
+- **`scheduled_report_last_run_date`**: `yyyy-MM-dd` of the last successful scheduled report (prevents duplicate daily PDF/email across PCs).
+- To run timers on **every** client without coordination (not recommended), set `scheduler_leader_election_enabled` to `false` in Control Panel / `app_settings`.
+
+### RBAC
+
+- Roles and sessions live in Oracle; each login creates a new session row.
+- See [`MULTI_PC_RBAC_AUDIT.md`](MULTI_PC_RBAC_AUDIT.md) for permission boundaries and service-layer gaps.
+
+### Incident: duplicate backups or “skipped” jobs
+
+1. Check `%APPDATA%\WORKAUDIT\Logs\` for `Scheduled backup skipped: another instance holds the scheduler lock`.
+2. Verify migration **53+** applied: `SELECT MAX(version) FROM workaudit_migrations;`
+3. Inspect `SELECT * FROM workaudit_scheduler_locks;` — stale `lease_until` should expire within `scheduler_lock_lease_minutes` unless a PC crashed mid-backup (wait for lease expiry or clear row in maintenance window only).
 
 ---
 

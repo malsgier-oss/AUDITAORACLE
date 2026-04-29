@@ -51,7 +51,8 @@ public interface IDocumentStore
     /// <summary>Inserts a document. Returns Result with ID or error.</summary>
     Result<long> InsertResult(Document doc);
     /// <summary>Updates a document. Returns Result with error details on failure.</summary>
-    Result UpdateResult(Document doc);
+    /// <param name="expectedUpdatedAtUtc">When set, the update succeeds only if <c>documents.updated_at</c> still matches (optimistic concurrency for multi-PC).</param>
+    Result UpdateResult(Document doc, DateTime? expectedUpdatedAtUtc = null);
     /// <summary>Deletes a document by ID. Returns Result with error details on failure.</summary>
     Result DeleteResult(int id);
     bool UpdateStatus(int id, string status);

@@ -736,7 +736,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         }, nameof(UpdateOcrFields), false);
     }
 
-    public Result UpdateResult(Document doc)
+    public Result UpdateResult(Document doc, DateTime? expectedUpdatedAtUtc = null)
     {
         try
         {
@@ -797,6 +797,9 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
                 last_hash_verification = @last_hash_verification
             WHERE id = @id";
 
+            if (expectedUpdatedAtUtc.HasValue)
+                cmd.CommandText += " AND updated_at = @exp_updated_at";
+
             cmd.Parameters.AddWithValue("id", doc.Id);
             cmd.Parameters.AddWithValue("fp", doc.FilePath);
             cmd.Parameters.AddWithValue("dt", doc.DocumentType ?? (object)DBNull.Value);
@@ -849,7 +852,22 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             cmd.Parameters.AddWithValue("hash_verification_count", doc.HashVerificationCount);
             cmd.Parameters.AddWithValue("last_hash_verification", doc.LastHashVerification ?? (object)DBNull.Value);
 
-            PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0 ? Result.Success() : Result.Failure("No rows updated");
+            if (expectedUpdatedAtUtc.HasValue)
+            {
+                var expUtc = expectedUpdatedAtUtc.Value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(expectedUpdatedAtUtc.Value, DateTimeKind.Utc)
+                    : expectedUpdatedAtUtc.Value.ToUniversalTime();
+                cmd.Parameters.Add(new OracleParameter("exp_updated_at", OracleDbType.TimeStamp) { Value = expUtc });
+            }
+
+            PrepCmd(cmd);
+            var rows = cmd.ExecuteNonQuery();
+            if (rows > 0)
+                return Result.Success();
+            if (expectedUpdatedAtUtc.HasValue)
+                return Result.Failure(
+                    "Concurrency conflict: document was updated by another user or instance. Reload and retry.");
+            return Result.Failure("No rows updated");
         }
         catch (OracleException ex)
         {

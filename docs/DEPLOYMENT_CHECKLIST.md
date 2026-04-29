@@ -74,6 +74,7 @@
 - [x] Installer README (installer/README_INSTALLER.md)
 - [x] Installer validation profile documented (`docs/INSTALLER_VALIDATION_PROFILE.md`)
 - [x] Cleanup debt register documented (`docs/CLEANUP_DEBT_REGISTER.md`)
+- [x] Multi-PC shared Oracle runbook + RBAC audit (`docs/ADMIN_RUNBOOK.md` Appendix D, `docs/MULTI_PC_RBAC_AUDIT.md`)
 - [ ] Network architecture diagram (for hybrid sync)
 - [ ] Database schema documentation
 - [ ] API documentation (for central server)
@@ -115,6 +116,7 @@
 - [ ] Process 50-100 test documents
 - [ ] Verify all workflows
 - [ ] Test backup/restore
+- [ ] **Multi-PC shared Oracle** (if applicable): 2–3 PCs on same `WORKAUDIT_ORACLE_CONNECTION`, shared `WORKAUDIT_BASE_DIR`, same build; verify concurrent edit, scheduled backup single-runner, scheduled report once per day, roles (`docs/MULTI_PC_RBAC_AUDIT.md`)
 - [ ] Collect feedback
 
 #### Day -1: Final Preparation
