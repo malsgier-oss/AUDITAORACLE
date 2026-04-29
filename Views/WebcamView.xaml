@@ -20,6 +20,16 @@
             <Button x:Name="BtnStop" Content="Stop" Padding="12,6" Margin="8,0,0,0"
                     IsEnabled="False" Click="BtnStop_Click"/>
             <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="16,0"/>
+            <TextBlock Text="Lighting:" Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center" FontSize="11"/>
+            <Slider x:Name="LightingSlider" Width="130" Minimum="0" Maximum="100" Margin="6,0"
+                    ValueChanged="LightingSlider_ValueChanged" VerticalAlignment="Center"
+                    ToolTip="Lighting intensity (mapped to camera brightness)"/>
+            <TextBlock x:Name="LightingValue" Text="50%" Foreground="{DynamicResource SecondaryForeground}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBlock Text="Exposure:" Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center" FontSize="11"/>
+            <Slider x:Name="ExposureSlider" Width="130" Minimum="-13" Maximum="-1" SmallChange="0.25" TickFrequency="0.25"
+                    Value="-6" Margin="6,0" ValueChanged="ExposureSlider_ValueChanged" VerticalAlignment="Center"
+                    ToolTip="Exposure compensation (camera EV-like scale when supported)"/>
+            <TextBlock x:Name="ExposureValue" Text="-6" Foreground="{DynamicResource SecondaryForeground}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBlock Text="Mode:" Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11"/>
             <ComboBox x:Name="CaptureModeCombo" Width="118" Margin="0,0,6,0" FontSize="11"
                       SelectionChanged="CaptureModeCombo_SelectionChanged"
