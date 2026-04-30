@@ -29,10 +29,6 @@ public interface ICameraService : IDisposable
     Mat? CaptureFrameMat();
     byte[]? CaptureFrameBytes();
     Task<string?> CaptureAndSaveAsync(string outputPath);
-    bool TrySetBrightness(double value);
-    bool TrySetExposure(double value);
-    double? TryGetBrightness();
-    double? TryGetExposure();
 
     event Action<BitmapSource>? FrameReady;
     event Action<string>? Error;
@@ -512,74 +508,6 @@ public class CameraService : ICameraService
         return false;
     }
 
-    public bool TrySetBrightness(double value)
-    {
-        return TrySetProperty(VideoCaptureProperties.Brightness, value, "brightness");
-    }
-
-    public bool TrySetExposure(double value)
-    {
-        return TrySetProperty(VideoCaptureProperties.Exposure, value, "exposure");
-    }
-
-    public double? TryGetBrightness()
-    {
-        return TryGetProperty(VideoCaptureProperties.Brightness, "brightness");
-    }
-
-    public double? TryGetExposure()
-    {
-        return TryGetProperty(VideoCaptureProperties.Exposure, "exposure");
-    }
-
-    private bool TrySetProperty(VideoCaptureProperties property, double value, string propertyName)
-    {
-        lock (_lock)
-        {
-            if (_capture == null || !_capture.IsOpened())
-            {
-                _log.Debug("Cannot set camera {Property} because no active capture exists", propertyName);
-                return false;
-            }
-
-            try
-            {
-                var wasSet = _capture.Set(property, value);
-                if (!wasSet)
-                    _log.Warning("Camera {Property} did not accept value {Value}", propertyName, value);
-                else
-                    _log.Debug("Camera {Property} set to {Value}", propertyName, value);
-                return wasSet;
-            }
-            catch (Exception ex)
-            {
-                _log.Warning(ex, "Error setting camera {Property} to {Value}", propertyName, value);
-                return false;
-            }
-        }
-    }
-
-    private double? TryGetProperty(VideoCaptureProperties property, string propertyName)
-    {
-        lock (_lock)
-        {
-            if (_capture == null || !_capture.IsOpened())
-            {
-                _log.Debug("Cannot read camera {Property} because no active capture exists", propertyName);
-                return null;
-            }
-
-            try
-            {
-                return _capture.Get(property);
-            }
-            catch (Exception ex)
-            {
-                _log.Warning(ex, "Error reading camera {Property}", propertyName);
-                return null;
-            }
-        }
-    }
 }
 
 public class CameraInfo
