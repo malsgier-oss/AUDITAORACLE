@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using Newtonsoft.Json;
+using WorkAudit.Core.Security;
 
 namespace WorkAudit.Config;
 
@@ -68,5 +69,33 @@ public static class UserSettings
         var d = Load();
         d[key] = value;
         Save(d);
+    }
+
+    public static string? GetSecure(string key)
+    {
+        var raw = Get<string>(key);
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        try
+        {
+            return new SecureConfigService().Decrypt(raw) ?? raw;
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning(ex, "Failed to decrypt setting {Key}", key);
+            return raw;
+        }
+    }
+
+    public static void SetSecure(string key, string? value)
+    {
+        if (value is null)
+        {
+            Set<string?>(key, null);
+            return;
+        }
+
+        Set(key, new SecureConfigService().Encrypt(value));
     }
 }

@@ -37,16 +37,57 @@ public partial class App : Application
 
         try
         {
-            if (UserSettings.Get<bool>("first_run_completed", false) != true)
+            if (e.Args.Any(arg => arg.Equals("--reset-setup", StringComparison.OrdinalIgnoreCase)))
             {
-                var wizard = new Dialogs.SetupWizardDialog();
-                if (wizard.ShowDialog() != true)
+                Log.Information("Resetting first-run setup state from startup argument");
+                UserSettings.Set("first_run_completed", false);
+            }
+
+            var settings = UserSettings.Load();
+            settings.TryGetValue("first_run_completed", out var firstRunCompletedValue);
+            var shouldShowSetupWizard = !IsSettingTruthy(firstRunCompletedValue);
+
+            Log.Information(
+                "First-run setup check: first_run_completed raw value={Value} ({Type}), showWizard={ShowWizard}",
+                firstRunCompletedValue ?? "(null)",
+                firstRunCompletedValue?.GetType().Name ?? "(null)",
+                shouldShowSetupWizard);
+
+            if (shouldShowSetupWizard)
+            {
+                try
                 {
-                    Log.Information("User cancelled setup wizard");
+                    Log.Information("Creating setup wizard dialog");
+                    var wizard = new Dialogs.SetupWizardDialog();
+
+                    Log.Information("Showing setup wizard dialog");
+                    var result = wizard.ShowDialog();
+                    Log.Information("Setup wizard result: {Result}", result);
+
+                    if (result != true)
+                    {
+                        Log.Information("User cancelled setup wizard");
+                        Shutdown(0);
+                        return;
+                    }
+
+                    Log.Information("Setup wizard completed: base dir={BaseDir}", wizard.BaseDirectory);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to show setup wizard");
+                    MessageBox.Show(
+                        $"Setup wizard initialization failed: {ex.Message}",
+                        "AUDITA - Startup Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
                     Shutdown(0);
                     return;
                 }
-                Log.Information("Setup wizard completed: base dir={BaseDir}", wizard.BaseDirectory);
+            }
+            else
+            {
+                Log.Information("Skipping first-run setup wizard (first_run_completed already true)");
             }
 
             var startup = new StartupCoordinator();
@@ -144,6 +185,35 @@ public partial class App : Application
             Log.Error(e.Exception, "Unobserved task exception");
             e.SetObserved();
         };
+    }
+
+    private static bool IsSettingTruthy(object? value)
+    {
+        if (value == null)
+            return false;
+
+        if (value is bool boolValue)
+            return boolValue;
+
+        if (value is Newtonsoft.Json.Linq.JToken token && token.Type == Newtonsoft.Json.Linq.JTokenType.Boolean)
+            return token.ToObject<bool?>() == true;
+
+        if (value is string text && bool.TryParse(text, out var parsedBoolean))
+            return parsedBoolean;
+
+        if (value is long int64)
+            return int64 != 0L;
+
+        if (value is int int32)
+            return int32 != 0;
+
+        if (value is Newtonsoft.Json.Linq.JValue tokenValue && tokenValue.Type == Newtonsoft.Json.Linq.JTokenType.Boolean)
+            return tokenValue.ToObject<bool>();
+
+        if (value is Newtonsoft.Json.Linq.JValue tokenNumber && tokenNumber.Type == Newtonsoft.Json.Linq.JTokenType.Integer)
+            return tokenNumber.ToObject<long>() != 0L;
+
+        return false;
     }
 
     /// <summary>
@@ -266,73 +336,10 @@ public partial class App : Application
     {
         try
         {
-            var dialog = new Window
-            {
-                Title = "Oracle Connection Required",
-                Width = 700,
-                Height = 280,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode = ResizeMode.NoResize
-            };
-
-            var root = new System.Windows.Controls.StackPanel { Margin = new Thickness(16), Orientation = System.Windows.Controls.Orientation.Vertical };
-            var title = new System.Windows.Controls.TextBlock
-            {
-                Text = "AUDITA requires an Oracle connection string to continue.",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 14,
-                Margin = new Thickness(0, 0, 0, 12)
-            };
-
-            var instructions = new System.Windows.Controls.TextBlock
-            {
-                Text =
-                    "Paste a valid Oracle ODP.NET connection string. Example:\n" +
-                    "User Id=workaudit;Password=YourPassword;Data Source=localhost:1521/XEPDB1;Pooling=false;",
-                Margin = new Thickness(0, 0, 0, 12)
-            };
-
-            var textBox = new System.Windows.Controls.TextBox
-            {
-                AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
-                Height = 120,
-                Margin = new Thickness(0, 0, 0, 16)
-            };
-
-            var buttonRow = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
-            var skipButton = new System.Windows.Controls.Button { Content = "Exit", Width = 90, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
-            var okButton = new System.Windows.Controls.Button { Content = "Connect", Width = 90, IsDefault = true };
-
-            var entered = string.Empty;
-            okButton.Click += (s, e) =>
-            {
-                entered = textBox.Text;
-                dialog.DialogResult = true;
-                dialog.Close();
-            };
-            skipButton.Click += (s, e) =>
-            {
-                dialog.DialogResult = false;
-                dialog.Close();
-            };
-
-            buttonRow.Children.Add(skipButton);
-            buttonRow.Children.Add(okButton);
-
-            root.Children.Add(title);
-            root.Children.Add(instructions);
-            root.Children.Add(textBox);
-            root.Children.Add(buttonRow);
-
-            dialog.Content = root;
-            var accepted = dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(entered);
-            if (!accepted)
-                return string.Empty;
-
-            return entered.Trim();
+            var dialog = new Dialogs.SetupWizardDialog(promptForConnectionOnly: true);
+            return dialog.ShowDialog() == true
+                ? dialog.OracleConnectionString
+                : string.Empty;
         }
         catch (Exception ex)
         {

@@ -784,7 +784,7 @@ public partial class ControlPanelWindow : Window
         }
 
         if (!string.IsNullOrEmpty(oracleConnectionString))
-            UserSettings.Set("oracle_connection_string", oracleConnectionString);
+            UserSettings.SetSecure("oracle_connection_string", oracleConnectionString);
 
         // Clear legacy database_path setting if present.
         UserSettings.Set("database_path", "");

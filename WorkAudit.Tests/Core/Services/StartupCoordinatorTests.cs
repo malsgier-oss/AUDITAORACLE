@@ -63,6 +63,64 @@ public sealed class StartupCoordinatorTests
     }
 
     [Fact]
+    public void Initialize_WhenEncryptedLocalConnectionExists_PrefersLocalOverEnvironment()
+    {
+        using var scope = new EnvScope()
+            .Set("WORKAUDIT_REQUIRE_ORACLE_ENV", null)
+            .Set("WORKAUDIT_ORACLE_CONNECTION", "User Id=env;Password=EnvPass1!;Data Source=//env-host:1521/ENVSVC")
+            .Set("WORKAUDIT_ORACLE_CONN", null)
+            .Set("ORACLE_CONNECTION_STRING", null)
+            .Set("WORKAUDIT_TEST_ORACLE", null);
+
+        var local = "User Id=local;Password=LocalPass1!;Data Source=//local-host:1521/LOCALDB";
+        UserSettings.SetSecure("oracle_connection_string", local);
+
+        var captured = "";
+        var coordinator = new StartupCoordinator();
+        var result = coordinator.Initialize(
+            promptForConnectionString: () => "",
+            resolveOracleConnectionString: s =>
+            {
+                captured = s;
+                return s;
+            },
+            ensureArchiveSchema: _ => { });
+
+        Assert.False(result.Success);
+        Assert.Equal("BOOT_ORACLE_UNREACHABLE", result.ErrorCode);
+        Assert.Equal(local, captured);
+    }
+
+    [Fact]
+    public void Initialize_WhenSecureValueMissing_UsesLegacyPlainConnectionText()
+    {
+        using var scope = new EnvScope()
+            .Set("WORKAUDIT_REQUIRE_ORACLE_ENV", null)
+            .Set("WORKAUDIT_ORACLE_CONNECTION", "User Id=env;Password=EnvPass1!;Data Source=//env-host:1521/ENVSVC")
+            .Set("WORKAUDIT_ORACLE_CONN", null)
+            .Set("ORACLE_CONNECTION_STRING", null)
+            .Set("WORKAUDIT_TEST_ORACLE", null);
+
+        var plainConnection = "User Id=plain;Password=PlainPass1!;Data Source=//plain-host:1521/PLAINSVC";
+        UserSettings.Set("oracle_connection_string", plainConnection);
+
+        var captured = "";
+        var coordinator = new StartupCoordinator();
+        var result = coordinator.Initialize(
+            promptForConnectionString: () => "",
+            resolveOracleConnectionString: s =>
+            {
+                captured = s;
+                return s;
+            },
+            ensureArchiveSchema: _ => { });
+
+        Assert.False(result.Success);
+        Assert.Equal("BOOT_ORACLE_UNREACHABLE", result.ErrorCode);
+        Assert.Equal(plainConnection, captured);
+    }
+
+    [Fact]
     public void Initialize_WhenNoEnvironmentConnection_UsesPromptAndValidatesValue()
     {
         using var scope = new EnvScope()

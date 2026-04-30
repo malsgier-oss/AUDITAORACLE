@@ -53,7 +53,7 @@ public sealed class StartupCoordinator
                     baseDir);
             }
 
-            var oracleConnectionString = ResolveOracleConnectionString(promptForConnectionString);
+        var oracleConnectionString = ResolveOracleConnectionString(promptForConnectionString);
             var effectiveOracleConnectionString = resolveOracleConnectionString(oracleConnectionString);
             EnsureOracleReachable(effectiveOracleConnectionString);
 
@@ -201,21 +201,17 @@ public sealed class StartupCoordinator
     private static string ResolveOracleConnectionString(Func<string> promptForConnectionString)
     {
         var managedEnvRequired = IsManagedOracleEnvRequired();
-        var envOracle = Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION")
-            ?? Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONN")
-            ?? Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING")
-            ?? Environment.GetEnvironmentVariable("WORKAUDIT_TEST_ORACLE");
-        var userOracle = UserSettings.Get<string>("oracle_connection_string");
-
-        if (!string.IsNullOrWhiteSpace(envOracle))
-        {
-            var resolved = envOracle.Trim();
-            EnsureOracleConnectionStringFormat(resolved, "environment variable");
-            return resolved;
-        }
+        var envOracle = GetEnvironmentOracleConnectionString();
+        var userOracle = UserSettings.GetSecure("oracle_connection_string");
 
         if (managedEnvRequired)
         {
+            if (!string.IsNullOrWhiteSpace(envOracle))
+            {
+                EnsureOracleConnectionStringFormat(envOracle, "environment variable");
+                return envOracle;
+            }
+
             throw new StartupConfigurationException(
                 "BOOT_ORACLE_ENV_REQUIRED",
                 "Managed deployment requires WORKAUDIT_ORACLE_CONNECTION (or equivalent Oracle env variable) to be configured at machine scope.");
@@ -223,9 +219,14 @@ public sealed class StartupCoordinator
 
         if (!string.IsNullOrWhiteSpace(userOracle))
         {
-            var resolved = userOracle.Trim();
-            EnsureOracleConnectionStringFormat(resolved, "user settings");
-            return resolved;
+            EnsureOracleConnectionStringFormat(userOracle, "user settings");
+            return userOracle!;
+        }
+
+        if (!string.IsNullOrWhiteSpace(envOracle))
+        {
+            EnsureOracleConnectionStringFormat(envOracle, "environment variable");
+            return envOracle;
         }
 
         var oracleConnectionString = promptForConnectionString();
@@ -239,8 +240,18 @@ public sealed class StartupCoordinator
         oracleConnectionString = oracleConnectionString.Trim();
         EnsureOracleConnectionStringFormat(oracleConnectionString, "setup prompt");
 
-        UserSettings.Set("oracle_connection_string", oracleConnectionString);
+        UserSettings.SetSecure("oracle_connection_string", oracleConnectionString);
         UserSettings.Set("first_run_completed", true);
         return oracleConnectionString;
+    }
+
+    private static string? GetEnvironmentOracleConnectionString()
+    {
+        var envOracle = Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONNECTION")
+                          ?? Environment.GetEnvironmentVariable("WORKAUDIT_ORACLE_CONN")
+                          ?? Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING")
+                          ?? Environment.GetEnvironmentVariable("WORKAUDIT_TEST_ORACLE");
+
+        return string.IsNullOrWhiteSpace(envOracle) ? null : envOracle.Trim();
     }
 }

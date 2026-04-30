@@ -31,36 +31,21 @@ Output: `installer\bin\Release\Audita.msi`
 
 You can also run from an **elevated** Command Prompt: `msiexec /i "full\path\Audita.msi"`
 
-### Configure data paths during install
+### Installer UI
 
-The MSI supports two public properties:
-
-- `WORKAUDIT_BASE_DIR` - folder for imported documents and default app data
-- `WORKAUDIT_ORACLE_CONNECTION` - Oracle connection string (ODP.NET format)
-
-For enterprise rollout, do not ship placeholder or shared credentials in scripts. Inject this value from your deployment secret store at install time.
-
-Interactive install with explicit values:
-
-```powershell
-msiexec /i ".\installer\bin\Release\Audita.msi" `
-  WORKAUDIT_BASE_DIR="D:\WorkAuditData\Documents" `
-  WORKAUDIT_ORACLE_CONNECTION="User Id=WORKAUDIT_APP;Password=<secure-secret>;Data Source=//db-host:1521/WORKAUDIT"
-```
+The MSI uses **WixUI_Minimal**: welcome and license agreement (bound to `installer\License.rtf` via `WixUILicenseRtf` in the WiX project), then install location under Program Files (fixed), ready to install, progress, and finish. There is **no** database or documents path step in the installer; users complete Oracle and data paths in the **first-run application setup wizard** or via machine environment variables (see deployment docs).
 
 Silent install (no UI) with logging:
 
 ```powershell
-msiexec /i ".\installer\bin\Release\Audita.msi" /qn /l*v ".\workaudit-install.log" `
-  WORKAUDIT_BASE_DIR="D:\WorkAuditData\Documents" `
-  WORKAUDIT_ORACLE_CONNECTION="User Id=WORKAUDIT_APP;Password=<secure-secret>;Data Source=//db-host:1521/WORKAUDIT"
+msiexec /i ".\installer\bin\Release\Audita.msi" /qn /l*v ".\workaudit-install.log"
 ```
 
-These values are written as machine environment variables (`WORKAUDIT_BASE_DIR` and `WORKAUDIT_ORACLE_CONNECTION`) so WorkAudit uses them on first launch.
+For enterprise rollout, set `WORKAUDIT_BASE_DIR`, `WORKAUDIT_ORACLE_CONNECTION`, and related variables at **machine scope** (PowerShell `SetEnvironmentVariable`, GPO, or your deployment tool) — not via MSI public properties on this package.
 
-Installer guardrails:
-- Oracle connection is required and validated for expected shape (`User Id=` + `Data Source=`).
-- Placeholder values like `change-me` are rejected.
+Application runtime guardrails:
+- First-run setup always validates and tests the entered database connection.
+- Installer properties are optional; missing values are expected to be completed on first app launch.
 - Startup still validates Oracle reachability and fails with actionable error codes if listener/service is unavailable.
 
 The installer project **publishes** the app self-contained (`-r win-x64 -p:WorkAuditPortable=true`) into `artifacts\msi-app\`, then harvests that folder into the MSI. To reuse an existing publish without rebuilding:
