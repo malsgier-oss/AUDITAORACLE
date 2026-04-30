@@ -324,8 +324,11 @@ public class DocumentStore : IDocumentStore
             }
 
             sql += @" AND (
-LOWER(COALESCE(ocr_text,'')) LIKE @txt OR LOWER(COALESCE(snippet,'')) LIKE @txt OR LOWER(COALESCE(notes,'')) LIKE @txt OR
-LOWER(COALESCE(file_path,'')) LIKE @txt OR LOWER(COALESCE(tags,'')) LIKE @txt OR LOWER(COALESCE(custom_fields,'')) LIKE @txt OR
+(ocr_text IS NOT NULL AND LOWER(DBMS_LOB.SUBSTR(ocr_text, 1000, 1)) LIKE @txt) OR
+(snippet IS NOT NULL AND LOWER(DBMS_LOB.SUBSTR(snippet, 1000, 1)) LIKE @txt) OR
+(notes IS NOT NULL AND LOWER(DBMS_LOB.SUBSTR(notes, 1000, 1)) LIKE @txt) OR
+LOWER(COALESCE(file_path,'')) LIKE @txt OR LOWER(COALESCE(tags,'')) LIKE @txt OR
+(custom_fields IS NOT NULL AND LOWER(DBMS_LOB.SUBSTR(custom_fields, 1000, 1)) LIKE @txt) OR
 LOWER(COALESCE(document_type,'')) LIKE @txt OR LOWER(COALESCE(account_name,'')) LIKE @txt OR LOWER(COALESCE(transaction_reference,'')) LIKE @txt OR LOWER(COALESCE(amounts,'')) LIKE @txt OR
 TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             pars.Add(new OracleParameter("txt", likePattern));
