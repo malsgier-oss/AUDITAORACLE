@@ -21,6 +21,7 @@ using WorkAudit.Core.Compliance;
 using WorkAudit.Core.Reports;
 using WorkAudit.Core.Helpers;
 using WorkAudit.Core.Import;
+using WorkAudit.Core.Notes;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -1506,6 +1507,7 @@ public partial class WorkspaceView : UserControl, IDisposable
         if (dlg.ShowDialog() != true) return;
 
         var notesStore = ServiceContainer.GetService<INotesStore>();
+        var noteStatusSync = ServiceContainer.GetService<INoteDocumentStatusSync>();
         var config = ServiceContainer.GetService<AppConfiguration>();
 
         var note = new Note
@@ -1520,6 +1522,7 @@ public partial class WorkspaceView : UserControl, IDisposable
             Status = NoteStatus.Open
         };
         notesStore.Add(note);
+        _ = noteStatusSync.OnNoteAddedAsync(note);
 
         if (dlg.SelectedType == NoteType.Issue)
         {

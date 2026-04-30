@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Serilog;
+using WorkAudit.Core.Notes;
 using WorkAudit.Core.Reports;
 using WorkAudit.Core.Services;
 using WorkAudit.Dialogs;
@@ -24,6 +25,7 @@ public partial class AuditorDashboardView : UserControl
     private readonly INotesStore _notesStore;
     private readonly IDocumentAssignmentStore _assignmentStore;
     private readonly IUserStore _userStore;
+    private readonly INoteDocumentStatusSync _noteStatusSync;
     private readonly INotificationStore _notificationStore;
     private readonly AppConfiguration _config;
     private readonly DispatcherTimer _refreshTimer;
@@ -43,6 +45,7 @@ public partial class AuditorDashboardView : UserControl
         _notesStore = ServiceContainer.GetService<INotesStore>();
         _assignmentStore = ServiceContainer.GetService<IDocumentAssignmentStore>();
         _userStore = ServiceContainer.GetService<IUserStore>();
+        _noteStatusSync = ServiceContainer.GetService<INoteDocumentStatusSync>();
         _notificationStore = ServiceContainer.GetService<INotificationStore>();
         _config = ServiceContainer.GetService<AppConfiguration>();
 
@@ -584,7 +587,7 @@ public partial class AuditorDashboardView : UserControl
             if (existingJournal == null)
             {
                 // Create new journal entry
-                _notesStore.Add(new Note
+                var note = _notesStore.Add(new Note
                 {
                     Type = NoteType.Journal,
                     Content = journalText,
@@ -596,6 +599,7 @@ public partial class AuditorDashboardView : UserControl
                     Severity = NoteSeverity.Info,
                     Status = NoteStatus.Open
                 });
+                _ = _noteStatusSync.OnNoteAddedAsync(note);
             }
             else
             {
@@ -874,7 +878,7 @@ public partial class AuditorDashboardView : UserControl
                     completionNotes: dialog.CompletionContent);
 
                 // Create completion note
-                _notesStore.Add(new Note
+                var note = _notesStore.Add(new Note
                 {
                     DocumentId = doc.Id,
                     DocumentUuid = doc.Uuid,
@@ -884,6 +888,7 @@ public partial class AuditorDashboardView : UserControl
                     CreatedBy = _currentUsername,
                     CreatedByUserId = _currentUserId
                 });
+                _ = _noteStatusSync.OnNoteAddedAsync(note);
 
                 MessageBox.Show("Assignment marked as complete.", "Success",
                     MessageBoxButton.OK, MessageBoxImage.Information);
@@ -955,11 +960,18 @@ public partial class AuditorDashboardView : UserControl
             var dialog = new ResolutionDialog();
             if (dialog.ShowDialog() == true)
             {
+                var previousStatus = row.Note.Status;
                 row.Note.Status = NoteStatus.Resolved;
                 row.Note.ResolvedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 row.Note.ResolvedBy = _currentUsername;
                 row.Note.ResolutionComment = dialog.ResolutionComment;
-                _notesStore.Update(row.Note);
+                if (!_notesStore.Update(row.Note))
+                {
+                    MessageBox.Show("Unable to update issue status.", "Update Failed",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                _ = _noteStatusSync.OnNoteStatusChangedAsync(row.Note, previousStatus);
 
                 MessageBox.Show("Issue marked as resolved.", "Success",
                     MessageBoxButton.OK, MessageBoxImage.Information);

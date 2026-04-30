@@ -14,6 +14,7 @@ using WorkAudit.Core.Reports;
 using WorkAudit.Core.ImageProcessing;
 using WorkAudit.Core.TextExtraction;
 using WorkAudit.Core.Update;
+using WorkAudit.Core.Notes;
 using WorkAudit.Domain;
 using WorkAudit.ViewModels;
 
@@ -97,6 +98,12 @@ public static class ServiceContainer
             var config = sp.GetRequiredService<AppConfiguration>();
             return new NotesStore(config.OracleConnectionString);
         });
+        services.AddSingleton<INoteDocumentStatusSync>(sp =>
+            new NoteDocumentStatusSync(
+                sp.GetRequiredService<IDocumentStore>(),
+                sp.GetRequiredService<INotesStore>(),
+                sp.GetRequiredService<IAuditTrailService>(),
+                sp.GetRequiredService<IChangeHistoryService>()));
         services.AddSingleton<IMarkupStore>(sp =>
         {
             var config = sp.GetRequiredService<AppConfiguration>();

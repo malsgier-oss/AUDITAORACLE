@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using WorkAudit.Core.Notes;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -12,6 +13,7 @@ public partial class NotesDialog : Window
     private readonly int _documentId;
     private readonly string _documentUuid;
     private readonly INotesStore _notesStore;
+    private readonly INoteDocumentStatusSync _noteStatusSync;
 
     public NotesDialog(int documentId, string documentUuid, string documentName, string? initialNoteContent = null)
     {
@@ -19,6 +21,7 @@ public partial class NotesDialog : Window
         _documentId = documentId;
         _documentUuid = documentUuid;
         _notesStore = ServiceContainer.GetService<INotesStore>();
+        _noteStatusSync = ServiceContainer.GetService<INoteDocumentStatusSync>();
 
         DocumentNameText.Text = documentName;
         TypeCombo.ItemsSource = NoteType.Values;
@@ -62,6 +65,7 @@ public partial class NotesDialog : Window
             Status = NoteStatus.Open
         };
         _notesStore.Add(note);
+        _ = _noteStatusSync.OnNoteAddedAsync(note);
         NewNoteContent!.Clear();
         LoadNotes();
     }
@@ -76,6 +80,12 @@ public partial class NotesDialog : Window
     {
         if (sender is System.Windows.Controls.ComboBox combo && combo.DataContext is Note note)
         {
+            var isResolvedIssue =
+                string.Equals(note.Type, NoteType.Issue, StringComparison.Ordinal)
+                && string.Equals(note.Status, NoteStatus.Resolved, StringComparison.Ordinal);
+            combo.IsEnabled = !isResolvedIssue;
+            combo.ToolTip = isResolvedIssue ? "Resolved Issue notes cannot change status." : null;
+
             // Temporarily detach selection changed to prevent circular Reload loop
             combo.SelectionChanged -= StatusCombo_SelectionChanged;
 
@@ -100,6 +110,16 @@ public partial class NotesDialog : Window
 
         var note = _notesStore.Get(noteId);
         if (note == null || note.Status == newStatus) return; // Prevent redundant updates and loop
+        var previousStatus = note.Status;
+
+        if (string.Equals(note.Type, NoteType.Issue, StringComparison.Ordinal)
+            && string.Equals(previousStatus, NoteStatus.Resolved, StringComparison.Ordinal)
+            && !string.Equals(newStatus, NoteStatus.Resolved, StringComparison.Ordinal))
+        {
+            MessageBox.Show("Resolved Issue notes cannot change status.", "Status Locked", MessageBoxButton.OK, MessageBoxImage.Information);
+            LoadNotes();
+            return;
+        }
 
         note.Status = newStatus;
         if (newStatus == NoteStatus.Resolved)
@@ -110,7 +130,13 @@ public partial class NotesDialog : Window
             note.ResolvedBy = config?.CurrentUserName ?? user?.Username ?? "Unknown";
         }
 
-        _notesStore.Update(note);
+        if (!_notesStore.Update(note))
+        {
+            MessageBox.Show("Unable to update note status.", "Update Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            LoadNotes();
+            return;
+        }
+        _ = _noteStatusSync.OnNoteStatusChangedAsync(note, previousStatus);
         LoadNotes();
     }
 }

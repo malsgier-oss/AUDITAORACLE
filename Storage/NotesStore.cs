@@ -192,6 +192,16 @@ public class NotesStore : INotesStore
 
     public bool Update(Note note)
     {
+        var existing = Get(note.Id);
+        if (existing != null
+            && string.Equals(existing.Type, NoteType.Issue, StringComparison.Ordinal)
+            && string.Equals(existing.Status, NoteStatus.Resolved, StringComparison.Ordinal)
+            && !string.Equals(note.Status, NoteStatus.Resolved, StringComparison.Ordinal))
+        {
+            _log.Warning("Rejected note status reopen for resolved Issue note {NoteId}", note.Id);
+            return false;
+        }
+
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
 

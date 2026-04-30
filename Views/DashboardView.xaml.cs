@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Serilog;
+using WorkAudit.Core.Notes;
 using WorkAudit.Core.Reports;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
@@ -26,6 +27,7 @@ public partial class DashboardView : UserControl
     private readonly INotesStore _notesStore;
     private readonly IDocumentAssignmentStore _assignmentStore;
     private readonly IUserStore _userStore;
+    private readonly INoteDocumentStatusSync _noteStatusSync;
     private readonly IPermissionService _permissionService;
     private readonly IAuditTrailService _auditTrailService;
     private readonly IIntelligenceService _intelligenceService;
@@ -47,6 +49,7 @@ public partial class DashboardView : UserControl
         _notesStore = ServiceContainer.GetService<INotesStore>();
         _assignmentStore = ServiceContainer.GetService<IDocumentAssignmentStore>();
         _userStore = ServiceContainer.GetService<IUserStore>();
+        _noteStatusSync = ServiceContainer.GetService<INoteDocumentStatusSync>();
         _permissionService = ServiceContainer.GetService<IPermissionService>();
         _auditTrailService = ServiceContainer.GetService<IAuditTrailService>();
         _intelligenceService = ServiceContainer.GetService<IIntelligenceService>();
@@ -887,11 +890,17 @@ public partial class DashboardView : UserControl
             var note = _notesStore.Get(issue.NoteId);
             if (note != null)
             {
+                var previousStatus = note.Status;
                 var config = ServiceContainer.GetService<AppConfiguration>();
                 note.Status = NoteStatus.Resolved;
                 note.ResolvedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 note.ResolvedBy = config?.CurrentUserName ?? "Unknown";
-                _notesStore.Update(note);
+                if (!_notesStore.Update(note))
+                {
+                    MessageBox.Show("Unable to update issue status.", "Update Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                _ = _noteStatusSync.OnNoteStatusChangedAsync(note, previousStatus);
                 
                 MessageBox.Show("Issue marked as resolved.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadDashboardData();
