@@ -772,7 +772,7 @@ public class ImportOptions
     public DateTime? DocumentDate { get; set; }
     public string? BaseDirectory { get; set; }
     public bool CopyToBaseDir { get; set; } = true;
-    public bool IncludeSubfolders { get; set; } = false;
+    public bool IncludeSubfolders { get; set; }
     public bool SkipDuplicates { get; set; } = true;
     /// <summary>
     /// When <see cref="SkipDuplicates"/> is true and a file hash already exists, return that
@@ -781,9 +781,9 @@ public class ImportOptions
     /// </summary>
     public bool UseExistingDocumentOnDuplicateHash { get; set; }
     /// <summary>When true, extract text from PDFs during import.</summary>
-    public bool ExtractPdf { get; set; } = false;
+    public bool ExtractPdf { get; set; }
     /// <summary>When true, extract text from photos/images during import.</summary>
-    public bool ExtractPhoto { get; set; } = false;
+    public bool ExtractPhoto { get; set; }
     /// <summary>Optional pre-extracted text for single image imports.</summary>
     public string? PreExtractedText { get; set; }
     /// <summary>Optional pre-extracted text for each page of a PDF import.</summary>

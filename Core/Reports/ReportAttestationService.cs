@@ -139,6 +139,6 @@ public class ReportAttestationService : IReportAttestationService
         using var sha = SHA256.Create();
         using var fs = File.OpenRead(filePath);
         var hash = sha.ComputeHash(fs);
-        return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

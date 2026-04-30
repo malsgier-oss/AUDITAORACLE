@@ -396,7 +396,7 @@ namespace WorkAudit.Domain.Reporting
         /// <summary>
         /// Use Arabic-Indic numerals (١٢٣) instead of Western (123)
         /// </summary>
-        public bool UseArabicIndicNumerals { get; set; } = false;
+        public bool UseArabicIndicNumerals { get; set; }
 
         public string DecimalSeparator { get; set; } = ".";
         public string ThousandsSeparator { get; set; } = ",";

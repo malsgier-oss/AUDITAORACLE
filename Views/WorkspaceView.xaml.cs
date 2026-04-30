@@ -42,7 +42,7 @@ public enum SchemaNodeTag
     DocumentType
 }
 
-public partial class WorkspaceView : UserControl
+public partial class WorkspaceView : UserControl, IDisposable
 {
     private const string MyAssignmentsTag = "::MyAssignments::";
     private const string UserKeyInspectorWidth = "workspace.inspectorWidth";
@@ -93,12 +93,31 @@ public partial class WorkspaceView : UserControl
         }
 
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         if (PdfPreviewViewer != null)
         {
             PdfPreviewViewer.SizeChanged += (_, _) => SyncPdfMarkupCanvasSize();
         }
         if (DocumentPreviewViewer != null)
             DocumentPreviewViewer.ImageRotationChanged += DocumentPreviewViewer_ImageRotationChanged;
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        Dispose();
+    }
+
+    public void Dispose()
+    {
+        _previewTextOcrCts?.Cancel();
+        _previewTextOcrCts?.Dispose();
+        _previewTextOcrCts = null;
+
+        _workspaceOcrBackfillTimer?.Stop();
+        _workspaceOcrBackfillTimer = null;
+
+        Unloaded -= OnUnloaded;
+        GC.SuppressFinalize(this);
     }
 
     private void DocumentPreviewViewer_ImageRotationChanged(object? sender, EventArgs e)
@@ -1033,7 +1052,7 @@ public partial class WorkspaceView : UserControl
         var q = DocumentListFilterBox?.Text?.Trim();
         if (string.IsNullOrEmpty(q)) return true;
         var display = doc.DocumentListDisplay ?? "";
-        return display.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
+        return display.Contains(q, StringComparison.OrdinalIgnoreCase);
     }
 
     private void DocumentListFilterBox_TextChanged(object sender, TextChangedEventArgs e)

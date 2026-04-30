@@ -16,7 +16,7 @@ public interface IScheduledBackupService
     DateTime? LastBackupAt { get; }
 }
 
-public class ScheduledBackupService : IScheduledBackupService
+public class ScheduledBackupService : IScheduledBackupService, IDisposable
 {
     private readonly ILogger _log = LoggingService.ForContext<ScheduledBackupService>();
     private readonly IBackupService _backupService;
@@ -61,6 +61,12 @@ public class ScheduledBackupService : IScheduledBackupService
         _timer?.Dispose();
         _timer = null;
         _log.Information("Scheduled backup service stopped");
+    }
+
+    public void Dispose()
+    {
+        Stop();
+        GC.SuppressFinalize(this);
     }
 
     private async Task OnTimerTickAsync()

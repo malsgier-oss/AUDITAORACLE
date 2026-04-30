@@ -209,9 +209,9 @@ public class AutoUpdateService : IAutoUpdateService
         long bytesRead = 0;
         int read;
 
-        while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        while ((read = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
         {
-            await fileStream.WriteAsync(buffer, 0, read);
+            await fileStream.WriteAsync(buffer.AsMemory(0, read));
             bytesRead += read;
 
             if (totalBytes > 0)

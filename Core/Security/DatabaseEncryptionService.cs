@@ -158,7 +158,14 @@ public class DatabaseEncryptionService : IDatabaseEncryptionService
                 return false;
 
             var header = new byte[FileHeader.Length];
-            fs.Read(header, 0, header.Length);
+            var totalRead = 0;
+            while (totalRead < header.Length)
+            {
+                var bytesRead = fs.Read(header, totalRead, header.Length - totalRead);
+                if (bytesRead == 0)
+                    return false;
+                totalRead += bytesRead;
+            }
             return header.SequenceEqual(FileHeader);
         }
         catch

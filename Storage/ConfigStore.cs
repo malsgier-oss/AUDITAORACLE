@@ -59,7 +59,7 @@ public interface IConfigStore
 public class ConfigStore : IConfigStore
 {
     private readonly ILogger _log = LoggingService.ForContext<ConfigStore>();
-    private static readonly ILogger s_log = LoggingService.ForContext(typeof(ConfigStore));
+    private static readonly ILogger s_log = LoggingService.ForContext<ConfigStore>();
     private readonly string _connectionString;
     private readonly ISecureConfigService? _secureConfig;
 

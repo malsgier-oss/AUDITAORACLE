@@ -443,6 +443,7 @@ public class CameraService : ICameraService
     public void Dispose()
     {
         StopCapture();
+        GC.SuppressFinalize(this);
     }
 
     private static void TrySetPreferredFourCC(VideoCapture capture)

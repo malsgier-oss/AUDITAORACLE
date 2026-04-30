@@ -1123,5 +1123,7 @@ public class TesseractOcrService : IOcrService, IDisposable
         {
             // Already torn down
         }
+
+        GC.SuppressFinalize(this);
     }
 }

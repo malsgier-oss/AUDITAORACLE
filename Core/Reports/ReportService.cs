@@ -16,6 +16,7 @@ namespace WorkAudit.Core.Reports;
 /// </summary>
 public class ReportService : IReportService
 {
+    private static readonly JsonSerializerOptions CompactJsonOptions = new() { WriteIndented = false };
     private readonly ILogger _log = LoggingService.ForContext<ReportService>();
     private readonly IDocumentStore _documentStore;
     private readonly IAuditLogStore _auditLogStore;
@@ -145,7 +146,7 @@ public class ReportService : IReportService
                     ReportType.UserActivity => UserActivityReport.GeneratePdf(_documentStore, _userStore, _assignmentStore, config.DateFrom, config.DateTo, config.Branch, config.Section, config.UserFilter, config.OutputPath, config.IncludeCharts, GetRetentionYears(), config.Watermark, config.Engagement, _configStore, config.Language),
                     ReportType.AssignmentSummary => AssignmentSummaryReport.GeneratePdf(_assignmentStore, _userStore, config.DateFrom, config.DateTo, config.OutputPath, GetRetentionYears(), config.Watermark, _configStore, config.Language),
                     ReportType.ExecutiveSummary => ExecutiveSummaryReport.GeneratePdf(_documentStore, _auditLogStore, config.DateFrom, config.DateTo, config.Branch, config.Section, config.OutputPath, GetTemplateIncludeCharts(config), GetRetentionYears(), _configStore, config.Watermark, config.Engagement, config.Language, config.IncludeTableOfContents, config.IncludeBranding, config.IncludeDisclaimer),
-                    _ => throw new ArgumentOutOfRangeException(nameof(config.ReportType), config.ReportType, "Unknown report type")
+                    _ => throw new ArgumentOutOfRangeException(nameof(config), config.ReportType, "Unknown report type")
                 };
             }
 
@@ -165,7 +166,7 @@ public class ReportService : IReportService
             try
             {
                 var appVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
-                var configJson = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = false });
+                var configJson = JsonSerializer.Serialize(config, CompactJsonOptions);
                 
                 _reportHistoryStore.Insert(new ReportHistory
                 {

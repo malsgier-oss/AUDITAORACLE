@@ -8,4 +8,9 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(CI)'=='true'">
+    <!-- Gate high-signal analyzer rules in CI to prevent regressions -->
+    <WarningsAsErrors>$(WarningsAsErrors);CA1001;CA1816;CA2022;CA2208;CA2244</WarningsAsErrors>
+  </PropertyGroup>
 </Project>

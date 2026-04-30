@@ -15,7 +15,7 @@ using WorkAudit.Storage;
 
 namespace WorkAudit.Views;
 
-public partial class ReportsView : UserControl
+public partial class ReportsView : UserControl, IDisposable
 {
     private static readonly ILogger Log = LoggingService.ForContext<ReportsView>();
     private IDocumentStore? _documentStore;
@@ -44,6 +44,12 @@ public partial class ReportsView : UserControl
     {
         InitializeComponent();
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        Dispose();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -924,7 +930,7 @@ public partial class ReportsView : UserControl
         }
     }
 
-    private int _kpiCardIndex = 0; // Track which column to add KPI card to
+    private int _kpiCardIndex; // Track which column to add KPI card to
 
     private void PopulateKpiCards(List<Document> docs)
     {
@@ -1031,4 +1037,13 @@ public partial class ReportsView : UserControl
     }
 
     #endregion
+
+    public void Dispose()
+    {
+        _currentGenerationCts?.Cancel();
+        _currentGenerationCts?.Dispose();
+        _currentGenerationCts = null;
+        Unloaded -= OnUnloaded;
+        GC.SuppressFinalize(this);
+    }
 }

@@ -19,7 +19,7 @@ public interface IScheduledReportService
     DateTime? LastReportAt { get; }
 }
 
-public class ScheduledReportService : IScheduledReportService
+public class ScheduledReportService : IScheduledReportService, IDisposable
 {
     private readonly ILogger _log = LoggingService.ForContext<ScheduledReportService>();
     private readonly IConfigStore _configStore;
@@ -63,6 +63,12 @@ public class ScheduledReportService : IScheduledReportService
         _timer?.Dispose();
         _timer = null;
         _log.Information("Scheduled report service stopped");
+    }
+
+    public void Dispose()
+    {
+        Stop();
+        GC.SuppressFinalize(this);
     }
 
     private async Task CheckAndRunAsync()

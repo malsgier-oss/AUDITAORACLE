@@ -7,7 +7,7 @@ namespace WorkAudit.Core.Services;
 /// Implementation of IProcessingProgressService. Raises ProgressChanged on the UI dispatcher.
 /// Throttles Report() to avoid flooding the UI thread during bulk processing.
 /// </summary>
-public class ProcessingProgressService : IProcessingProgressService
+public class ProcessingProgressService : IProcessingProgressService, IDisposable
 {
     private readonly Dispatcher _dispatcher;
     private readonly object _ctsLock = new();
@@ -87,6 +87,16 @@ public class ProcessingProgressService : IProcessingProgressService
         {
             _cts?.Cancel();
         }
+    }
+
+    public void Dispose()
+    {
+        lock (_ctsLock)
+        {
+            _cts?.Dispose();
+            _cts = null;
+        }
+        GC.SuppressFinalize(this);
     }
 
     private void Raise(ProcessingProgressEventArgs e)

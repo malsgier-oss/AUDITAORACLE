@@ -11,7 +11,7 @@ using WorkAudit.Domain;
 
 namespace WorkAudit.Views;
 
-public partial class ImportView : UserControl
+public partial class ImportView : UserControl, IDisposable
 {
     private readonly IImportService _importService;
     private readonly InputView? _parentInput;
@@ -23,12 +23,18 @@ public partial class ImportView : UserControl
         _importService = ServiceContainer.GetService<IImportService>();
         _parentInput = parentInput;
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
         // Branch and Date are populated by InputView; no setup needed here
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        Dispose();
     }
 
     private ImportOptions GetDefaultOptions()
@@ -269,5 +275,14 @@ public partial class ImportView : UserControl
         var icon = result.HasErrors ? MessageBoxImage.Warning : MessageBoxImage.Information;
         var title = result.HasErrors ? "Import completed with errors" : "Import completed";
         MessageBox.Show(string.Join("\n", parts), title, MessageBoxButton.OK, icon);
+    }
+
+    public void Dispose()
+    {
+        _importCts?.Cancel();
+        _importCts?.Dispose();
+        _importCts = null;
+        Unloaded -= OnUnloaded;
+        GC.SuppressFinalize(this);
     }
 }

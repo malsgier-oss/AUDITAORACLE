@@ -406,8 +406,8 @@ public class ProcessingOptions
     public bool AutoCrop { get; set; } = true;
     public bool Deskew { get; set; } = true;
     public bool EnhanceContrast { get; set; } = true;
-    public bool ReduceNoise { get; set; } = false;
-    public bool ConvertToGrayscale { get; set; } = false;
+    public bool ReduceNoise { get; set; }
+    public bool ConvertToGrayscale { get; set; }
     public string OutputSuffix { get; set; } = "_processed";
     public static ProcessingOptions Default => new();
 }
