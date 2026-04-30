@@ -79,9 +79,13 @@ public class ReportFileOrganizer : IReportFileOrganizer
         }
         else
         {
+            // The month name must come from InvariantCulture (e.g. "April"). Without an explicit
+            // culture the runtime falls back to the user's UI culture and writes folders like
+            // "أبريل" on Arabic Windows, "abril" on Spanish, etc. — which fragments reports for
+            // the same logical month across multiple folders depending on who generated them.
             subFolder = Path.Combine(
                 now.Year.ToString(CultureInfo.InvariantCulture),
-                $"{now.Month.ToString("D2", CultureInfo.InvariantCulture)}-{now:MMMM}"
+                $"{now.Month.ToString("D2", CultureInfo.InvariantCulture)}-{now.ToString("MMMM", CultureInfo.InvariantCulture)}"
             );
         }
 

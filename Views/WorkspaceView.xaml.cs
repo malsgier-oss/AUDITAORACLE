@@ -1612,7 +1612,8 @@ public partial class WorkspaceView : UserControl, IDisposable
                 updated++;
                 doc.Status = status;
                 changeHistory.RecordFieldChange(doc.Uuid, doc.Id, "status", oldStatus, status);
-                _ = auditTrail.LogDocumentActionAsync(AuditAction.DocumentStatusChanged, doc, $"Status set to {status}");
+                _ = auditTrail.LogDocumentActionAsync(AuditAction.DocumentStatusChanged, doc,
+                    $"Status set to {status}", oldValue: oldStatus, newValue: status);
                 if (string.Equals(status, Enums.Status.ReadyForAudit, StringComparison.Ordinal))
                     DocumentWorkspaceOcr.TryEnqueueOcrIfNeeded(doc, ocrService, configStore);
             }

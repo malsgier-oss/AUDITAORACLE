@@ -504,7 +504,8 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
                 statusUpdatedDocs.Add(doc);
                 doc.Status = targetStatus;
                 changeHistory.RecordFieldChange(doc.Uuid, doc.Id, "status", oldStatus, targetStatus);
-                _ = auditTrail.LogDocumentActionAsync(AuditAction.DocumentStatusChanged, doc, $"Status set to {targetStatus}");
+                _ = auditTrail.LogDocumentActionAsync(AuditAction.DocumentStatusChanged, doc,
+                    $"Status set to {targetStatus}", oldValue: oldStatus, newValue: targetStatus);
                 DocumentWorkspaceOcr.TryEnqueueOcrIfNeeded(doc, ocrService, config);
             }
         }

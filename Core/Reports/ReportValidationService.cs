@@ -95,21 +95,40 @@ public class ReportValidationService : IReportValidationService
         return result;
     }
 
+    /// <summary>True when the named report type actually narrows by status (matches the generator).</summary>
+    private static bool ReportSupportsStatusFilter(ReportType type) => type is
+        ReportType.BranchSummary or
+        ReportType.SectionSummary or
+        ReportType.DocumentTypeSummary;
+
+    /// <summary>True when the named report type actually narrows by document type (matches the generator).</summary>
+    private static bool ReportSupportsDocumentTypeFilter(ReportType type) => type is
+        ReportType.DocumentTypeSummary;
+
+    /// <summary>True when the named report type narrows by user (matches the generator).</summary>
+    private static bool ReportSupportsUserFilter(ReportType type) => type is
+        ReportType.UserActivity;
+
     public async Task<int> GetDocumentCountAsync(ReportConfig config)
     {
         return await Task.Run(() =>
         {
             try
             {
+                // Filters here must mirror what the actual report generators apply (see Phase 2c plan
+                // entry). When the validation count and the generator output disagree, the user sees
+                // "preview ~N documents" but a report with very different totals.
                 var docs = _documentStore.ListDocuments(
                     dateFrom: config.DateFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     dateTo: config.DateTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59",
                     branch: config.Branch,
                     section: config.Section,
-                    status: config.Status,
-                    documentType: config.DocumentType,
+                    status: ReportSupportsStatusFilter(config.ReportType) ? config.Status : null,
+                    documentType: ReportSupportsDocumentTypeFilter(config.ReportType) ? config.DocumentType : null,
                     engagement: config.Engagement,
-                    limit: 100000
+                    createdOrReviewedBy: ReportSupportsUserFilter(config.ReportType) ? config.UserFilter : null,
+                    limit: 100000,
+                    newestFirst: true
                 );
                 return docs.Count;
             }

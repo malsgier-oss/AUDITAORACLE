@@ -30,9 +30,9 @@ public static class UserActivityReport
         foreach (var user in users)
         {
             var created = documentStore.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement,
-                createdBy: user.Username, limit: MaxDocuments);
+                createdBy: user.Username, limit: MaxDocuments, newestFirst: true);
             var reviewed = documentStore.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement,
-                reviewedBy: user.Username, limit: MaxDocuments);
+                reviewedBy: user.Username, limit: MaxDocuments, newestFirst: true);
 
             var createdIds = created.Select(d => d.Id).ToHashSet();
             var reviewedIds = reviewed.Select(d => d.Id).ToHashSet();

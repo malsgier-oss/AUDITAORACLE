@@ -489,7 +489,8 @@ public partial class SearchView : UserControl
                 updated++;
                 doc.Status = status;
                 _changeHistory.RecordFieldChange(doc.Uuid, doc.Id, "status", oldStatus, status);
-                await _auditTrail.LogDocumentActionAsync(AuditAction.DocumentStatusChanged, doc, $"Status set to {status}");
+                await _auditTrail.LogDocumentActionAsync(AuditAction.DocumentStatusChanged, doc,
+                    $"Status set to {status}", oldValue: oldStatus, newValue: status);
                 if (string.Equals(status, Enums.Status.ReadyForAudit, StringComparison.Ordinal))
                     DocumentWorkspaceOcr.TryEnqueueOcrIfNeeded(doc, ocrService, configStore);
             }

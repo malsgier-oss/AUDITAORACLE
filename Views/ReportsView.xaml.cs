@@ -477,7 +477,9 @@ public partial class ReportsView : UserControl, IDisposable
         {
             var from = DateTime.UtcNow.AddDays(-30);
             var to = DateTime.UtcNow;
-            var history = _reportHistoryStore.List(from, to, 50);
+            // Manager/Admin view shows the global history (userId == null). Roles below Manager
+            // never reach this view; they use AuditorReportsView which scopes by user id.
+            var history = _reportHistoryStore.List(from, to, 50, userId: null);
             if (history.Count > 0)
             {
                 foreach (var h in history)
@@ -604,14 +606,29 @@ public partial class ReportsView : UserControl, IDisposable
                 if (result != MessageBoxResult.Yes)
                     return;
             }
-            else if (docCount > 0)
+            else if (docCount < 0)
+            {
+                // Validation service returns -1 when its own preview query throws; surface that
+                // instead of swallowing it. The actual generator may still succeed, but the user
+                // deserves to know that the preview did not run.
+                var result = MessageBox.Show(
+                    "Could not preview the document count for this report (the validation query failed).\n\n" +
+                    "The report itself may still generate. Continue anyway?",
+                    "Preview Unavailable",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+            }
+            else
             {
                 ShowMessage($"Preview: This report will include ~{docCount:N0} documents", isError: false);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // If count fails, continue anyway
+            Log.Warning(ex, "Document count preview failed for {ReportType}", config.ReportType);
         }
 
         // Create cancellation token source
@@ -814,11 +831,24 @@ public partial class ReportsView : UserControl, IDisposable
     {
         DashboardPanel.Visibility = Visibility.Visible;
         ExecutiveDashboardControl.SetPeriod(DateFromPicker.SelectedDate ?? DateTime.Today.AddMonths(-1), DateToPicker.SelectedDate ?? DateTime.Today);
+        // The "Executive Dashboard" radio is a live-view toggle, not a generatable report — the
+        // GetConfig() switch maps it to ExecutiveSummary, which would mislead users who expected the
+        // dashboard widgets to come out of the PDF. Disable the export buttons instead.
+        SetGenerateButtonsEnabled(false);
+        ShowMessage("Executive Dashboard is a live view. Pick a different report type to enable PDF / Excel / CSV export.", isError: false);
     }
 
     private void RbExecutiveDashboard_Unchecked(object sender, RoutedEventArgs e)
     {
         DashboardPanel.Visibility = Visibility.Collapsed;
+        SetGenerateButtonsEnabled(true);
+    }
+
+    private void SetGenerateButtonsEnabled(bool enabled)
+    {
+        if (GeneratePdfBtn != null) GeneratePdfBtn.IsEnabled = enabled;
+        if (GenerateExcelBtn != null) GenerateExcelBtn.IsEnabled = enabled;
+        if (GenerateCsvBtn != null) GenerateCsvBtn.IsEnabled = enabled;
     }
 
     private void DateRange_Changed(object? sender, SelectionChangedEventArgs e)
@@ -910,14 +940,16 @@ public partial class ReportsView : UserControl, IDisposable
             var sectionScope = SectionCombo.SelectedItem?.ToString();
             docs = ApplyReportScopeFilter(docs, branchScope, sectionScope);
 
-            // Generate executive summary (English only)
-            var findings = new List<object>(); // Simplified for now
-            var summary = _intelligenceService.GenerateExecutiveSummary(docs, findings, "en");
+            // Generate executive summary (English only). Passing the actual issue documents to
+            // GenerateRecommendations matches what ExecutiveSummaryReport does, so the dashboard's
+            // recommendations escalate when there are real outstanding issues instead of always
+            // returning the generic "Maintain current compliance level" message.
+            var issueDocs = docs.Where(d => d.Status == Enums.Status.Issue).Cast<object>().ToList();
+            var summary = _intelligenceService.GenerateExecutiveSummary(docs, issueDocs, "en");
             if (AutoSummaryText != null)
                 AutoSummaryText.Text = summary;
 
-            // Generate recommendations (English only)
-            var recommendations = _intelligenceService.GenerateRecommendations(findings, "en");
+            var recommendations = _intelligenceService.GenerateRecommendations(issueDocs, "en");
             if (RecommendationsList != null)
                 RecommendationsList.ItemsSource = recommendations;
 

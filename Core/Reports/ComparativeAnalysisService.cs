@@ -84,6 +84,7 @@ public sealed class ComparativeAnalysisService : IComparativeAnalysisService
             section: section,
             engagement: engagement,
             status: null,
-            limit: MaxList).Count;
+            limit: MaxList,
+            newestFirst: true).Count;
     }
 }

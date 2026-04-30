@@ -22,7 +22,7 @@ public static class DocumentTypeSummaryReport
     {
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
-        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, status: status, engagement: engagement, limit: MaxDocuments);
+        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, status: status, engagement: engagement, limit: MaxDocuments, newestFirst: true);
 
         var byType = docs
             .GroupBy(d => DocumentTypeInfo.IsUnclassified(d.DocumentType) ? DocumentTypeInfo.UnclassifiedType : d.DocumentType!.Trim())

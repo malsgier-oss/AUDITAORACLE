@@ -28,7 +28,7 @@ public static class ExecutiveSummaryReport
         var isArabic = language.Equals("ar", StringComparison.OrdinalIgnoreCase);
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
-        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
+        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments, newestFirst: true);
 
         // Load notes for all documents
         var notesStore = ServiceContainer.GetOptionalService<INotesStore>();
@@ -77,7 +77,7 @@ public static class ExecutiveSummaryReport
         var throughput = (decimal)total / days;
 
         var auditEntries = auditStore.Query(from, to, null, AuditAction.DocumentStatusChanged, null, false, 5000, 0);
-        var issuesFixed = auditEntries.Count(e => e.NewValue?.Contains(Enums.Status.Cleared) == true && e.OldValue?.Contains(Enums.Status.Issue) == true);
+        var issuesFixed = AuditLogIssueAnalyzer.CountIssuesFixed(auditEntries);
         var issuesStill = docs.Count(d => d.Status == Enums.Status.Issue);
         var issuesByBranch = docs.Where(d => d.Status == Enums.Status.Issue)
             .GroupBy(d => string.IsNullOrEmpty(d.Branch) ? "(No Branch)" : d.Branch)

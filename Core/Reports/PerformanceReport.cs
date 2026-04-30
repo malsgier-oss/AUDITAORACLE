@@ -21,7 +21,7 @@ public static class PerformanceReport
     {
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
-        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
+        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments, newestFirst: true);
         var days = Math.Max(1, (to - from).Days + 1);
 
         var byBranch = docs
@@ -62,7 +62,7 @@ public static class PerformanceReport
     {
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
-        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
+        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments, newestFirst: true);
         var days = Math.Max(1, (to - from).Days + 1);
 
         var bySection = docs
@@ -105,28 +105,33 @@ public static class PerformanceReport
     {
         var isArabic = language.Equals("ar", StringComparison.OrdinalIgnoreCase);
         var rows = byBranch ? GetDataByBranch(store, from, to, branch, section, engagement) : GetDataBySection(store, from, to, branch, section, engagement);
-        if (!string.IsNullOrEmpty(branch))
+        // GetData* groups by either branch (when byBranch=true) or section (when byBranch=false), so r.Name
+        // is only meaningfully comparable to whichever dimension the grouping uses. Applying the *other*
+        // dimension here would always wipe the rows out (e.g. comparing a branch row's Name to a section
+        // value). Branch and section filters are already applied at the SQL level via ListDocuments.
+        if (byBranch && !string.IsNullOrEmpty(branch))
             rows = rows.Where(r => r.Name == branch).ToList();
-        if (!string.IsNullOrEmpty(section))
+        if (!byBranch && !string.IsNullOrEmpty(section))
             rows = rows.Where(r => r.Name == section).ToList();
 
         var total = rows.Sum(r => r.Volume);
         var path = filePath ?? Path.Combine(Path.GetTempPath(), $"WorkAudit_Performance_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf");
 
-        var periodDays = (to - from).Days + 1;
-        var priorFrom = from.AddDays(-periodDays - 1);
+        var periodDays = Math.Max(1, (to - from).Days + 1);
+        // Prior window mirrors the current window length exactly (was off-by-one: `-periodDays - 1`).
+        var priorFrom = from.AddDays(-periodDays);
         var priorTo = from.AddDays(-1);
         var priorRows = byBranch ? GetDataByBranch(store, priorFrom, priorTo, branch, section, engagement) : GetDataBySection(store, priorFrom, priorTo, branch, section, engagement);
-        if (!string.IsNullOrEmpty(branch)) priorRows = priorRows.Where(r => r.Name == branch).ToList();
-        if (!string.IsNullOrEmpty(section)) priorRows = priorRows.Where(r => r.Name == section).ToList();
+        if (byBranch && !string.IsNullOrEmpty(branch)) priorRows = priorRows.Where(r => r.Name == branch).ToList();
+        if (!byBranch && !string.IsNullOrEmpty(section)) priorRows = priorRows.Where(r => r.Name == section).ToList();
         var priorTotal = priorRows.Sum(r => r.Volume);
         var periodChangePct = priorTotal > 0 ? (decimal)(total - priorTotal) / priorTotal * 100 : 0;
 
         var yoyFrom = from.AddYears(-1);
         var yoyTo = to.AddYears(-1);
         var yoyRows = byBranch ? GetDataByBranch(store, yoyFrom, yoyTo, branch, section, engagement) : GetDataBySection(store, yoyFrom, yoyTo, branch, section, engagement);
-        if (!string.IsNullOrEmpty(branch)) yoyRows = yoyRows.Where(r => r.Name == branch).ToList();
-        if (!string.IsNullOrEmpty(section)) yoyRows = yoyRows.Where(r => r.Name == section).ToList();
+        if (byBranch && !string.IsNullOrEmpty(branch)) yoyRows = yoyRows.Where(r => r.Name == branch).ToList();
+        if (!byBranch && !string.IsNullOrEmpty(section)) yoyRows = yoyRows.Where(r => r.Name == section).ToList();
         var yoyTotal = yoyRows.Sum(r => r.Volume);
         var yoyChangePct = yoyTotal > 0 ? (decimal)(total - yoyTotal) / yoyTotal * 100 : 0;
 

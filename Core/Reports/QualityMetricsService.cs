@@ -38,7 +38,7 @@ public class QualityMetricsService : IQualityMetricsService
     {
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
-        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, limit: MaxDocuments);
+        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, limit: MaxDocuments, newestFirst: true);
         var list = docs.AsEnumerable();
         if (!string.IsNullOrEmpty(branch)) list = list.Where(d => d.Branch == branch);
         if (!string.IsNullOrEmpty(section)) list = list.Where(d => d.Section == section);

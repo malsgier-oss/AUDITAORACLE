@@ -25,7 +25,7 @@ public static class IssuesAndFocusReport
         var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
 
         // Issues still (documents currently in Issue status)
-        var docsInPeriod = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, status: null, engagement: engagement, limit: MaxDocuments);
+        var docsInPeriod = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, status: null, engagement: engagement, limit: MaxDocuments, newestFirst: true);
         var issuesStill = docsInPeriod.Where(d => d.Status == Enums.Status.Issue).ToList();
         var issuesStillByBranch = issuesStill.GroupBy(d => string.IsNullOrEmpty(d.Branch) ? "(No Branch)" : d.Branch).ToDictionary(g => g.Key, g => g.Count());
         var issuesStillBySection = issuesStill.GroupBy(d => string.IsNullOrEmpty(d.Section) ? "(No Section)" : d.Section).ToDictionary(g => g.Key, g => g.Count());
@@ -33,9 +33,8 @@ public static class IssuesAndFocusReport
         var sectionDisplay = issuesStillBySection.OrderByDescending(x => x.Value).Take(ReportConstants.MaxIssuesByBranchSectionItems).ToList();
         var listTruncated = issuesStillByBranch.Count > ReportConstants.MaxIssuesByBranchSectionItems || issuesStillBySection.Count > ReportConstants.MaxIssuesByBranchSectionItems;
 
-        // Issues fixed: documents that moved from Issue to Cleared (from audit log)
         var auditEntries = auditStore.Query(from, to, null, AuditAction.DocumentStatusChanged, null, false, 5000, 0);
-        var issuesFixed = auditEntries.Count(e => e.NewValue?.Contains(Enums.Status.Cleared) == true && e.OldValue?.Contains(Enums.Status.Issue) == true);
+        var issuesFixed = AuditLogIssueAnalyzer.CountIssuesFixed(auditEntries);
 
         // Cleared in period
         var clearedInPeriod = docsInPeriod.Count(d => d.Status == Enums.Status.Cleared);

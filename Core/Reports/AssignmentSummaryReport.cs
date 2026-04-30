@@ -75,15 +75,33 @@ public static class AssignmentSummaryReport
         var rows = GetData(assignmentStore, userStore, from, to);
         var allAssignments = assignmentStore.ListAll(null, null);
         var totalAssignments = allAssignments.Count;
-        var pending = allAssignments.Count(a => a.Status == AssignmentStatus.Pending);
-        var inProgress = allAssignments.Count(a => a.Status == AssignmentStatus.InProgress);
-        var completed = allAssignments.Count(a => a.Status == AssignmentStatus.Completed);
+
+        // KPIs were previously computed against the entire DB while the report header subtitle says
+        // "Period: ...". That made the cards look wrong (e.g. "Pending: 500" for a one-week window).
+        // Scope the period KPIs to assignments touched in this window: assigned in window OR completed
+        // in window. The "Overdue" KPI keeps its lifetime semantic because overdue is a "right now"
+        // indicator that does not depend on the report window.
+        var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
+        bool InPeriodAssigned(DocumentAssignment a) =>
+            !string.IsNullOrEmpty(a.AssignedAt)
+            && string.Compare(a.AssignedAt, fromStr, StringComparison.Ordinal) >= 0
+            && string.Compare(a.AssignedAt, toStr, StringComparison.Ordinal) <= 0;
+        bool InPeriodCompleted(DocumentAssignment a) =>
+            !string.IsNullOrEmpty(a.CompletedAt)
+            && string.Compare(a.CompletedAt, fromStr, StringComparison.Ordinal) >= 0
+            && string.Compare(a.CompletedAt, toStr, StringComparison.Ordinal) <= 0;
+
+        var pending = allAssignments.Count(a => a.Status == AssignmentStatus.Pending && InPeriodAssigned(a));
+        var inProgress = allAssignments.Count(a => a.Status == AssignmentStatus.InProgress && InPeriodAssigned(a));
+        var completed = allAssignments.Count(a => a.Status == AssignmentStatus.Completed && InPeriodCompleted(a));
         var overdue = allAssignments.Count(a =>
             (a.Status == AssignmentStatus.Pending || a.Status == AssignmentStatus.InProgress) &&
             !string.IsNullOrEmpty(a.DueDate) &&
             DateTime.TryParse(a.DueDate, out var d) && d.Date < DateTime.Today);
-        var completionRate = (pending + inProgress + completed) > 0
-            ? (decimal)completed / (pending + inProgress + completed) * 100 : 0;
+        var totalActiveOrCompletedInPeriod = pending + inProgress + completed;
+        var completionRate = totalActiveOrCompletedInPeriod > 0
+            ? (decimal)completed / totalActiveOrCompletedInPeriod * 100 : 0;
 
         var path = filePath ?? Path.Combine(Path.GetTempPath(), $"WorkAudit_AssignmentSummary_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf");
 
@@ -134,17 +152,17 @@ public static class AssignmentSummaryReport
                                     row.RelativeItem().Column(c =>
                                     {
                                         c.Item().Element(el => ProfessionalReportTemplate.RenderKpiCard(el, 
-                                            "Pending", "معلق", ArabicFormattingService.FormatNumber(pending), "", isArabic, ProfessionalReportTemplate.Colors.Warning));
+                                            "Pending (period)", "معلق (الفترة)", ArabicFormattingService.FormatNumber(pending), "", isArabic, ProfessionalReportTemplate.Colors.Warning));
                                     });
                                     row.RelativeItem().Column(c =>
                                     {
                                         c.Item().Element(el => ProfessionalReportTemplate.RenderKpiCard(el, 
-                                            "In Progress", "قيد التقدم", ArabicFormattingService.FormatNumber(inProgress), "", isArabic, ProfessionalReportTemplate.Colors.Primary));
+                                            "In Progress (period)", "قيد التقدم (الفترة)", ArabicFormattingService.FormatNumber(inProgress), "", isArabic, ProfessionalReportTemplate.Colors.Primary));
                                     });
                                     row.RelativeItem().Column(c =>
                                     {
                                         c.Item().Element(el => ProfessionalReportTemplate.RenderKpiCard(el, 
-                                            "Completed", "مكتمل", ArabicFormattingService.FormatNumber(completed), "✓", isArabic, ProfessionalReportTemplate.Colors.Success));
+                                            "Completed (period)", "مكتمل (الفترة)", ArabicFormattingService.FormatNumber(completed), "✓", isArabic, ProfessionalReportTemplate.Colors.Success));
                                     });
                                 });
                             
@@ -155,13 +173,13 @@ public static class AssignmentSummaryReport
                                     row.RelativeItem().Column(c =>
                                     {
                                         c.Item().Element(el => ProfessionalReportTemplate.RenderKpiCard(el, 
-                                            "Overdue", "متأخر", ArabicFormattingService.FormatNumber(overdue), overdue > 0 ? "⚠" : "✓", 
+                                            "Overdue (lifetime)", "متأخر (إجمالي)", ArabicFormattingService.FormatNumber(overdue), overdue > 0 ? "⚠" : "✓", 
                                             isArabic, overdue > 0 ? ProfessionalReportTemplate.Colors.Error : ProfessionalReportTemplate.Colors.Success));
                                     });
                                     row.RelativeItem().Column(c =>
                                     {
                                         c.Item().Element(el => ProfessionalReportTemplate.RenderKpiCard(el, 
-                                            "Completion Rate", "معدل الإنجاز", ArabicFormattingService.FormatPercentage(completionRate), "", isArabic, ProfessionalReportTemplate.Colors.Primary));
+                                            "Completion Rate (period)", "معدل الإنجاز (الفترة)", ArabicFormattingService.FormatPercentage(completionRate), "", isArabic, ProfessionalReportTemplate.Colors.Primary));
                                     });
                                     // Empty space for visual balance
                                     row.RelativeItem().Column(c => { });

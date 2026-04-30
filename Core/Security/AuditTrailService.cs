@@ -15,7 +15,8 @@ public interface IAuditTrailService
     Task LogAsync(string action, string category, string entityType, string? entityId,
         string? oldValue = null, string? newValue = null, string? details = null, bool success = true, string? error = null);
 
-    Task LogDocumentActionAsync(string action, Document document, string? details = null);
+    Task LogDocumentActionAsync(string action, Document document, string? details = null,
+        string? oldValue = null, string? newValue = null);
     Task LogUserActionAsync(string action, User user, string? details = null);
     Task LogSystemActionAsync(string action, string? details = null);
 
@@ -77,13 +78,16 @@ public class AuditTrailService : IAuditTrailService
         return Task.CompletedTask;
     }
 
-    public Task LogDocumentActionAsync(string action, Document document, string? details = null)
+    public Task LogDocumentActionAsync(string action, Document document, string? details = null,
+        string? oldValue = null, string? newValue = null)
     {
         return LogAsync(
             action,
             AuditCategory.Document,
             "Document",
             document.Uuid,
+            oldValue: oldValue,
+            newValue: newValue,
             details: details ?? $"Document: {document.DocumentType ?? "Unknown"}, Status: {document.Status}"
         );
     }

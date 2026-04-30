@@ -201,6 +201,28 @@ public class DocumentStoreTests : IClassFixture<OracleTestFixture>
         indexOlder.Should().BeLessThan(indexNewer);
     }
 
+    /// <summary>
+    /// Phase 1b regression guard: when reports request <c>newestFirst</c>, the row cap must drop
+    /// the OLDEST rows, not the newest. The pre-fix default ordering returned the oldest rows
+    /// first, so once a deployment had more than 50k documents the most recent issues silently
+    /// disappeared from every report.
+    /// </summary>
+    [SkippableFact]
+    public void ListDocuments_NewestFirst_ReturnsRecentRowsWhenCappedByLimit()
+    {
+        Skip.IfNot(_fx.IsAvailable);
+        var br = "NF_" + Guid.NewGuid().ToString("N");
+        var oldId = (int)_store.Insert(new Document { FilePath = "older.pdf", Branch = br, Section = "S" });
+        var newId = (int)_store.Insert(new Document { FilePath = "newer.pdf", Branch = br, Section = "S" });
+
+        // Cap to 1 row; with newestFirst we must keep the most recent insert, not the oldest.
+        var top = _store.ListDocuments(branch: br, limit: 1, newestFirst: true);
+
+        top.Should().HaveCount(1);
+        top[0].Id.Should().Be(newId, "newestFirst must drop the OLDER rows when the limit is hit");
+        top[0].Id.Should().NotBe(oldId);
+    }
+
     [SkippableFact]
     public void ListDocuments_TextSearch_ShouldMatchByDocumentId()
     {

@@ -37,14 +37,14 @@ public class ReportAnomalyService : IReportAnomalyService
 
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
-        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
+        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments, newestFirst: true);
 
         var priorPeriods = new List<(DateTime f, DateTime t, List<Document> d)>();
         for (var i = 1; i <= PeriodsForAverage; i++)
         {
             var pf = from.AddDays(-periodDays * i);
             var pt = to.AddDays(-periodDays * i);
-            var priorDocs = store.ListDocuments(dateFrom: pf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), dateTo: pt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59", branch: branch, section: section, engagement: engagement, limit: MaxDocuments);
+            var priorDocs = store.ListDocuments(dateFrom: pf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), dateTo: pt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59", branch: branch, section: section, engagement: engagement, limit: MaxDocuments, newestFirst: true);
             priorPeriods.Add((pf, pt, priorDocs));
         }
 

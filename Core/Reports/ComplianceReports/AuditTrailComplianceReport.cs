@@ -19,10 +19,15 @@ namespace WorkAudit.Core.Reports.ComplianceReports;
 public static class AuditTrailComplianceReport
 {
     /// <summary>Generates a PDF audit trail report for the given date range. Returns path to generated file.</summary>
-    public static string GeneratePdf(IAuditLogStore auditStore, DateTime from, DateTime to, string? filePath = null, int limit = 5000, ReportWatermark watermark = ReportWatermark.None, IConfigStore? configStore = null, string language = "en")
+    public static string GeneratePdf(IAuditLogStore auditStore, DateTime from, DateTime to, string? filePath = null, int limit = 50_000, ReportWatermark watermark = ReportWatermark.None, IConfigStore? configStore = null, string language = "en")
     {
         var isArabic = language.Equals("ar", StringComparison.OrdinalIgnoreCase);
         var entries = auditStore.Query(from, to, null, null, null, archivedOnly: false, limit, 0);
+
+        // The audit query orders DESC and truncates at `limit`. If the result equals the cap, older
+        // events in the period likely got dropped — surface that explicitly so compliance reviewers
+        // do not assume the report is exhaustive.
+        var possiblyTruncated = entries.Count >= limit;
 
         var path = filePath ?? Path.Combine(
             Path.GetTempPath(),
@@ -73,6 +78,12 @@ public static class AuditTrailComplianceReport
                                     text.Span($"  |  Page {pageIndex + 1}/{pageChunks.Count} (rows {pageIndex * ReportConstants.MaxTableRowsPerPage + 1}-{pageIndex * ReportConstants.MaxTableRowsPerPage + chunk.Count})");
                                 }
                             });
+                            if (possiblyTruncated)
+                            {
+                                column.Item().PaddingTop(4)
+                                    .Text($"⚠ Result was truncated at {limit:N0} rows (newest first); older entries in the selected period may be missing. Narrow the date range for an exhaustive view.")
+                                    .FontSize(9).FontColor(Colors.Red.Medium).Bold();
+                            }
                         });
 
                     page.Content().PaddingTop(10).Table(table =>

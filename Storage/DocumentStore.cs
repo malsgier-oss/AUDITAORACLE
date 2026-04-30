@@ -268,7 +268,7 @@ public class DocumentStore : IDocumentStore
         string? retentionExpiryBefore = null, string? tagFilter = null,
         int? custodianId = null, string? disposalStatus = null,
         string? createdBy = null, string? reviewedBy = null, string? createdOrReviewedBy = null,
-        string? engagement = null, string? dateFilterField = "extracted")
+        string? engagement = null, string? dateFilterField = "extracted", bool newestFirst = false)
     {
         var sql = "SELECT * FROM documents WHERE 1=1";
         var pars = new List<OracleParameter>();
@@ -359,7 +359,9 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         if (!string.IsNullOrEmpty(reviewedBy)) { sql += " AND reviewed_by = @reviewed_by"; pars.Add(new OracleParameter("reviewed_by", reviewedBy)); }
         if (!string.IsNullOrEmpty(createdOrReviewedBy)) { sql += " AND (created_by = @cor OR reviewed_by = @cor)"; pars.Add(new OracleParameter("cor", createdOrReviewedBy)); }
         if (!string.IsNullOrEmpty(engagement)) { sql += " AND engagement = @engagement"; pars.Add(new OracleParameter("engagement", engagement)); }
-        sql += " ORDER BY COALESCE(archived_at, capture_time) ASC, id ASC OFFSET @p_offset ROWS FETCH NEXT @p_limit ROWS ONLY";
+        sql += newestFirst
+            ? " ORDER BY COALESCE(archived_at, capture_time) DESC, id DESC OFFSET @p_offset ROWS FETCH NEXT @p_limit ROWS ONLY"
+            : " ORDER BY COALESCE(archived_at, capture_time) ASC, id ASC OFFSET @p_offset ROWS FETCH NEXT @p_limit ROWS ONLY";
         pars.Add(new OracleParameter("p_limit", limit));
         pars.Add(new OracleParameter("p_offset", offset));
 

@@ -269,7 +269,8 @@ public static class ServiceContainer
             var draftStore = sp.GetRequiredService<IReportDraftStore>();
             var reportService = sp.GetRequiredService<IReportService>();
             var historyStore = sp.GetRequiredService<IReportHistoryStore>();
-            return new ReportDraftService(draftStore, reportService, historyStore);
+            var documentStore = sp.GetService<IDocumentStore>();
+            return new ReportDraftService(draftStore, reportService, historyStore, documentStore);
         });
         services.AddSingleton<IReportTemplateStore>(sp =>
         {

@@ -16,6 +16,9 @@ public interface IDocumentStore
     List<Document> GetByIds(List<int> ids);
     Document? GetByUuid(string uuid);
     Document? GetByFileHash(string fileHash);
+    /// <param name="newestFirst">When true, results are sorted by capture time DESC (most recent first).
+    /// Reports must pass <c>true</c> when paging or capping with <paramref name="limit"/> to avoid silently
+    /// dropping recent rows in favour of the oldest matching ones.</param>
     List<Document> ListDocuments(
         string? branch = null,
         string? section = null,
@@ -37,7 +40,8 @@ public interface IDocumentStore
         string? reviewedBy = null,
         string? createdOrReviewedBy = null,
         string? engagement = null,
-        string? dateFilterField = "extracted");
+        string? dateFilterField = "extracted",
+        bool newestFirst = false);
     /// <param name="appBaseDirectory">When set, also matches <c>file_path</c> values stored relative to this base (legacy / moved installs).</param>
     List<Document> ListDocumentsByFolder(string folderPath, int limit = 1000, string? appBaseDirectory = null);
     List<string> GetDistinctBranches();

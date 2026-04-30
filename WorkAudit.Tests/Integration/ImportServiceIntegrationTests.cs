@@ -28,7 +28,7 @@ public class ImportServiceIntegrationTests : IClassFixture<OracleTestFixture>, I
         _store = _fx.DocumentStore;
 
         var audit = new Mock<IAuditTrailService>();
-        audit.Setup(a => a.LogDocumentActionAsync(It.IsAny<string>(), It.IsAny<Document>(), It.IsAny<string?>()))
+        audit.Setup(a => a.LogDocumentActionAsync(It.IsAny<string>(), It.IsAny<Document>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .Returns(Task.CompletedTask);
         var rename = new Mock<IFileRenameService>();
         var appCfg = new AppConfiguration { BaseDirectory = _baseDir, OracleConnectionString = _fx.ConnectionString ?? "" };

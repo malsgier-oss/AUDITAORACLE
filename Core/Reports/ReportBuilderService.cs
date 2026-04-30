@@ -175,7 +175,8 @@ public class ReportBuilderService : IReportBuilderService
         var documents = _documentStore.ListDocuments(
             dateFrom: startDate?.ToString("O"),
             dateTo: endDate?.ToString("O"),
-            limit: 10000 // High limit for custom reports
+            limit: 10000, // High limit for custom reports
+            newestFirst: true
         );
         
         // Apply template filters in memory

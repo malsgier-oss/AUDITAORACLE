@@ -148,10 +148,30 @@ public partial class AuditorReportsView : UserControl
         if (_documentStore == null) return;
 
         BranchCombo.Items.Clear();
-        var lockedBranch = Branches.ToConcreteBranchOrDefault(_config?.CurrentUserBranch);
-        BranchCombo.Items.Add(lockedBranch);
+        var raw = _config?.CurrentUserBranch;
+        var resolved = Branches.ToConcreteBranchOrDefault(raw);
+        var rawTrimmed = raw?.Trim() ?? "";
+        // ToConcreteBranchOrDefault silently maps unknown / empty values to MainBranch. For an auditor
+        // that means reports could quietly target the wrong branch. Detect those cases and warn the
+        // user instead of pretending everything is fine.
+        var hasExplicitBranch = !string.IsNullOrWhiteSpace(rawTrimmed)
+            && !Branches.ScopesToAllBranches(rawTrimmed)
+            && string.Equals(resolved, rawTrimmed, StringComparison.OrdinalIgnoreCase);
+
+        BranchCombo.Items.Add(resolved);
         BranchCombo.SelectedIndex = 0;
         BranchCombo.IsEnabled = false;
+
+        if (!hasExplicitBranch)
+        {
+            ShowMessage(
+                $"Your account does not have a branch assigned (or it is set to '{rawTrimmed}'). " +
+                $"Reports will default to '{resolved}', which may not be what you expect. Contact an administrator to set your branch.",
+                isError: true);
+            GeneratePdfBtn.IsEnabled = false;
+            GenerateExcelBtn.IsEnabled = false;
+            GenerateCsvBtn.IsEnabled = false;
+        }
 
         SectionCombo.Items.Clear();
         SectionCombo.Items.Add("(All)");
@@ -210,7 +230,9 @@ public partial class AuditorReportsView : UserControl
         {
             var from = DateTime.UtcNow.AddDays(-30);
             var to = DateTime.UtcNow;
-            var history = _reportHistoryStore.List(from, to, 50);
+            // Auditors only see their own report history. Pass null userId means show everyone's
+            // and would leak access to other auditors' files via the Open button.
+            var history = _reportHistoryStore.List(from, to, 50, userId: _config?.CurrentUserId);
             if (history.Count > 0)
             {
                 foreach (var h in history)

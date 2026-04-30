@@ -22,7 +22,7 @@ public static class DailySummaryReport
     {
         var fromStr = from.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var toStr = to.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr + "T23:59:59", branch: branch, section: section, engagement: engagement, limit: MaxDocumentsForGrouping);
+        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr + "T23:59:59", branch: branch, section: section, engagement: engagement, limit: MaxDocumentsForGrouping, newestFirst: true);
 
         var byDay = docs
             .Select(d => ParseDate(d.CaptureTime))

@@ -18,11 +18,12 @@ public static class BranchSummaryReport
     private const int MaxDocuments = 50_000;
 
     public static List<(string Branch, int Count)> GetData(IDocumentStore store, DateTime from, DateTime to,
-        string? section = null, string? status = null, string? engagement = null)
+        string? section = null, string? status = null, string? engagement = null, string? branch = null)
     {
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
-        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, section: section, status: status, engagement: engagement, limit: MaxDocuments);
+        // Push the branch filter into SQL so the row cap doesn't silently drop the requested branch.
+        var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, status: status, engagement: engagement, limit: MaxDocuments, newestFirst: true);
 
         var byBranch = docs
             .GroupBy(d => string.IsNullOrEmpty(d.Branch) ? "(No Branch)" : d.Branch)
@@ -39,9 +40,7 @@ public static class BranchSummaryReport
         string? engagement = null, IConfigStore? configStore = null, string language = "en")
     {
         var isArabic = language.Equals("ar", StringComparison.OrdinalIgnoreCase);
-        var rows = GetData(store, from, to, section, status, engagement);
-        if (!string.IsNullOrEmpty(branch))
-            rows = rows.Where(r => r.Branch == branch).ToList();
+        var rows = GetData(store, from, to, section, status, engagement, branch);
 
         var total = rows.Sum(r => r.Count);
         var path = filePath ?? Path.Combine(Path.GetTempPath(), $"WorkAudit_BranchSummary_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf");
