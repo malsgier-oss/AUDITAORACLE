@@ -8,7 +8,7 @@ applied at startup from `Storage/Oracle/Migrations` and `Storage/Oracle/OracleSe
 
 - Provider: `Oracle.ManagedDataAccess.Client`
 - Baseline installer version: `49`
-- Migration range included in current codebase: `50` through `53`
+- Migration range included in current codebase: `50` through `54`
 
 ## Baseline schema (v49)
 
@@ -496,6 +496,15 @@ CREATE TABLE workaudit_scheduler_locks (
     - `scheduler_leader_election_enabled`
     - `scheduler_lock_lease_minutes`
     - `scheduled_report_last_run_date`
+- `54 - Remove obsolete AI app settings`
+  - Deletes legacy AI/vision rows from `app_settings`:
+    - `classification_confidence_threshold`
+    - `vision_extraction_enabled`
+    - `vision_model_name`
+    - `vision_timeout_seconds`
+    - `ollama_model`
+    - `ollama_endpoint`
+  - Also deletes any residual `app_settings` rows where `category = 'ai'`.
 
 ## Indexes
 
@@ -547,10 +556,8 @@ CREATE TABLE workaudit_scheduler_locks (
     `password_min_length`, `password_require_uppercase`,
     `password_require_lowercase`, `password_require_digit`,
     `password_require_special`.
-- OCR/AI/settings:
-  - `default_ocr_language`, `classification_confidence_threshold`,
-    `text_extraction_method`, `ocr_enabled`, `ocr_engine`,
-    `vision_extraction_enabled`, `vision_model_name`, `vision_timeout_seconds`.
+- OCR settings:
+  - `default_ocr_language`, `text_extraction_method`, `ocr_enabled`, `ocr_engine`.
 - Backup/Oracle settings:
   - `backup_enabled`, `backup_interval_hours`, `backup_retention_count`,
     `backup_include_documents`.

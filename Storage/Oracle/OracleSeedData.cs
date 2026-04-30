@@ -135,9 +135,6 @@ internal static class OracleSeedData
             ("password_require_digit", "true", "security", "Require digits in password", "bool"),
             ("password_require_special", "true", "security", "Require special characters in password", "bool"),
             ("default_ocr_language", "eng", "ocr", "Default OCR language", "string"),
-            ("ollama_model", "llava", "ai", "Ollama model for LLM features", "string"),
-            ("ollama_endpoint", "http://127.0.0.1:11434", "ai", "Ollama API endpoint", "string"),
-            ("classification_confidence_threshold", "0.5", "ai", "Minimum confidence for auto-classification", "float"),
             ("backup_enabled", "true", "backup", "Enable automatic backups", "bool"),
             ("backup_interval_hours", "24", "backup", "Backup interval in hours", "int"),
             ("backup_retention_count", "10", "backup", "Number of backups to retain", "int"),
@@ -153,10 +150,7 @@ internal static class OracleSeedData
             ("archive_cost_per_gb", "0.10", "archive", "Storage cost per GB (USD) for archive analytics", "decimal"),
             ("text_extraction_method", "llava_only", "ocr", "Primary text extraction method", "string"),
             ("ocr_enabled", "true", "ocr", "Enable Tesseract OCR for text extraction", "bool"),
-            ("ocr_engine", "tesseract", "ocr", "OCR engine setting", "string"),
-            ("vision_extraction_enabled", "true", "ai", "Enable vision model for text extraction", "bool"),
-            ("vision_model_name", "gemma3:12b", "ai", "Vision model name for Ollama", "string"),
-            ("vision_timeout_seconds", "120", "ai", "Timeout for vision API calls in seconds", "int")
+            ("ocr_engine", "tesseract", "ocr", "OCR engine setting", "string")
         };
 
         var now = DateTime.UtcNow;

@@ -10,7 +10,8 @@ internal static class OracleMigrationRegistry
             new Migration_050_NormalizeRequiredDocumentText(),
             new Migration_051_NormalizeEventTimeColumns(),
             new Migration_052_OracleBackupAppSettings(),
-            new Migration_053_SchedulerLeaderElection()
+            new Migration_053_SchedulerLeaderElection(),
+            new Migration_054_RemoveObsoleteAiSettings()
         ];
     }
 }

@@ -87,17 +87,15 @@ public static class SettingCategories
 {
     public const string Security = "security";
     public const string Ocr = "ocr";
-    public const string Ai = "ai";
     public const string Backup = "backup";
     public const string Workflow = "workflow";
 
-    public static readonly string[] All = { Security, Ocr, Ai, Backup, Workflow };
+    public static readonly string[] All = { Security, Ocr, Backup, Workflow };
 
     public static string GetDisplayName(string category) => category switch
     {
         Security => "Security",
         Ocr => "OCR Settings",
-        Ai => "AI & LLM",
         Backup => "Backup",
         Workflow => "Workflow",
         _ => category
