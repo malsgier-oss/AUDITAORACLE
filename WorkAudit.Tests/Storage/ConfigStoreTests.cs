@@ -21,7 +21,8 @@ public class ConfigStoreTests : IClassFixture<OracleTestFixture>
         _secureConfigMock = new Mock<ISecureConfigService>();
         _secureConfigMock.Setup(x => x.Encrypt(It.IsAny<string>())).Returns<string>(s => "enc:v1:" + s);
         _secureConfigMock.Setup(x => x.Decrypt(It.IsAny<string>())).Returns<string>(s => s.Replace("enc:v1:", ""));
-        _secureConfigMock.Setup(x => x.IsEncrypted(It.IsAny<string>())).Returns<string>(s => s?.StartsWith("enc:v1:") ?? false);
+        _secureConfigMock.Setup(x => x.IsEncrypted(It.IsAny<string>())).Returns<string>(s =>
+            s?.StartsWith("enc:v1:", StringComparison.Ordinal) ?? false);
     }
 
     [SkippableFact]

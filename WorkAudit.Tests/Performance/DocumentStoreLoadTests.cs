@@ -305,7 +305,7 @@ public class DocumentStoreLoadTests : IClassFixture<OracleTestFixture>
         sw.ElapsedMilliseconds.Should().BeLessThan(1000); // Should complete in < 1 second
     }
 
-    private List<Document> GenerateTestDocuments(int count)
+    private static List<Document> GenerateTestDocuments(int count)
     {
         var documents = new List<Document>();
         var documentTypes = new[] { "Invoice", "Receipt", "Contract", "Statement", "Report" };

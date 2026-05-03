@@ -14,7 +14,7 @@ using Xunit;
 namespace WorkAudit.Tests.Backup;
 
 [Collection("BackupTests")]
-public class BackupServiceTests : IDisposable
+public sealed class BackupServiceTests : IDisposable
 {
     private readonly Mock<IExportEncryptionService> _encryptionMock;
     private readonly AppConfiguration _appConfig;
@@ -216,5 +216,7 @@ public class BackupServiceTests : IDisposable
         {
             // Ignore cleanup errors
         }
+
+        GC.SuppressFinalize(this);
     }
 }

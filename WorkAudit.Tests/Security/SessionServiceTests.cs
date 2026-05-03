@@ -10,7 +10,7 @@ using Xunit;
 
 namespace WorkAudit.Tests.Security;
 
-public class SessionServiceTests : IDisposable
+public sealed class SessionServiceTests : IDisposable
 {
     private readonly Mock<IUserStore> _userStoreMock;
     private readonly Mock<IPasswordService> _passwordServiceMock;
@@ -274,5 +274,7 @@ public class SessionServiceTests : IDisposable
         {
             // Ignore cleanup errors
         }
+
+        GC.SuppressFinalize(this);
     }
 }

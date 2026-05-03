@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using Oracle.ManagedDataAccess.Client;
 using WorkAudit.Core.Services;
@@ -35,7 +36,7 @@ public sealed class OracleCompatibilitySmokeTests : IClassFixture<OracleTestFixt
             """;
         cmd.Parameters.Add(new OracleParameter("tableName", "AUDIT_LOG"));
         cmd.Parameters.Add(new OracleParameter("columnName", "EVENT_TIME"));
-        var dataType = Convert.ToString(cmd.ExecuteScalar());
+        var dataType = Convert.ToString(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         dataType.Should().Be("TIMESTAMP");
     }
 
@@ -70,7 +71,7 @@ public sealed class OracleCompatibilitySmokeTests : IClassFixture<OracleTestFixt
             Action = AuditAction.DocumentViewed,
             Category = AuditCategory.Document,
             EntityType = "Document",
-            EntityId = id.ToString(),
+            EntityId = id.ToString(CultureInfo.InvariantCulture),
             Success = true
         };
         var auditId = auditStore.Insert(auditEntry);

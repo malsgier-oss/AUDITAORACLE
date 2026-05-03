@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using WorkAudit.Core.Reports;
 using WorkAudit.Domain;
@@ -271,14 +272,14 @@ public class ReportBuilderIntegrationTests : IClassFixture<OracleTestFixture>
             Uuid = Guid.NewGuid().ToString(),
             FilePath = "/old.pdf",
             Branch = "Main",
-            ExtractedDate = DateTime.UtcNow.AddDays(-30).ToString("yyyy-MM-dd")
+            ExtractedDate = DateTime.UtcNow.AddDays(-30).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
         };
         var recentDoc = new Document
         {
             Uuid = Guid.NewGuid().ToString(),
             FilePath = "/recent.pdf",
             Branch = "Main",
-            ExtractedDate = DateTime.UtcNow.AddDays(-5).ToString("yyyy-MM-dd")
+            ExtractedDate = DateTime.UtcNow.AddDays(-5).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
         };
         
         _fx.DocumentStore.Insert(oldDoc);

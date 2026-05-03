@@ -12,7 +12,7 @@ using Xunit;
 
 namespace WorkAudit.Tests.Integration;
 
-public class ImportServiceIntegrationTests : IClassFixture<OracleTestFixture>, IDisposable
+public sealed class ImportServiceIntegrationTests : IClassFixture<OracleTestFixture>, IDisposable
 {
     private readonly OracleTestFixture _fx;
     private readonly string _baseDir;
@@ -130,5 +130,6 @@ public class ImportServiceIntegrationTests : IClassFixture<OracleTestFixture>, I
             // ignore
         }
 
+        GC.SuppressFinalize(this);
     }
 }

@@ -79,6 +79,8 @@
     <Compile Remove="installer\**" />
     <EmbeddedResource Remove="installer\**" />
     <None Remove="installer\**" />
+    <!-- Nested tool projects under tools/ have their own csproj; their obj/*.cs must not be compiled here. -->
+    <Compile Remove="tools\**" />
     <Page Remove="MainWindow_restore.xaml" />
     <Page Remove="WorkAudit.CSharp\**" />
   </ItemGroup>

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Oracle.ManagedDataAccess.Client;
 using WorkAudit.Core.Reports;
 using WorkAudit.Storage;
@@ -72,7 +73,7 @@ public sealed class OracleTestFixture : IDisposable
         cmd.BindByName = true;
         cmd.Parameters.AddWithValue("un", username);
         cmd.CommandText = OracleSql.ToOracleBindSyntax(cmd.CommandText);
-        return Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+        return Convert.ToInt32(cmd.ExecuteScalar() ?? 0, CultureInfo.InvariantCulture);
     }
 
     public void Dispose() => Connection?.Dispose();

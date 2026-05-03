@@ -7,7 +7,7 @@ using Xunit;
 
 namespace WorkAudit.Tests.Security;
 
-public class DatabaseEncryptionServiceTests : IDisposable
+public sealed class DatabaseEncryptionServiceTests : IDisposable
 {
     private readonly DatabaseEncryptionService _service;
     private readonly string _testDir;
@@ -203,7 +203,7 @@ public class DatabaseEncryptionServiceTests : IDisposable
         var header = new byte[4];
         using (var fs = File.OpenRead(encryptedPath))
         {
-            fs.Read(header, 0, 4);
+            fs.ReadExactly(header, 0, 4);
         }
 
         header.Should().Equal(new byte[] { 0x57, 0x41, 0x44, 0x42 }); // "WADB"
@@ -220,5 +220,7 @@ public class DatabaseEncryptionServiceTests : IDisposable
         {
             // Ignore cleanup errors
         }
+
+        GC.SuppressFinalize(this);
     }
 }

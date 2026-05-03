@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
@@ -243,7 +244,7 @@ public class DocumentStoreTests : IClassFixture<OracleTestFixture>
             OcrText = "other content"
         });
 
-        var byFullId = _store.ListDocuments(branch: br, textSearch: idA.ToString());
+        var byFullId = _store.ListDocuments(branch: br, textSearch: idA.ToString(CultureInfo.InvariantCulture));
         byFullId.Should().ContainSingle(d => d.Id == idA);
         byFullId.Should().NotContain(d => d.Id == idB);
     }
