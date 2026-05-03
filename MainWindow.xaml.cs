@@ -98,9 +98,8 @@ public partial class MainWindow : Window
             new WorkspaceView(_store, _baseDir, docTypeService),                             // 3: Workspace
             new ArchiveView(_store, docTypeService, searchExportService, archiveService, legalHoldService, immutabilityService, chainOfCustodyService, auditTrailService, permissionService, savedArchiveSearchService, exportEncryptionService, custodianService, disposalService, sessionService), // 4: Archive
             new ToolsView(),                                                                 // 5: Tools
-            new ReportsView(),                                                               // 6: Reports (Manager+)
-            new AuditorReportsView(),                                                        // 7: Auditor Reports (Auditor/Reviewer)
-            new ReportEditorView()                                                           // 8: Report Editor (draft HTML)
+            new ReportsView(),                                                               // 6: Reports (Auditor+; branch-scoped for non-managers)
+            new ReportEditorView()                                                           // 7: Report Editor (draft HTML)
         };
 
         // Start at Dashboard for users with dashboard access, otherwise start at Input
@@ -291,7 +290,7 @@ public partial class MainWindow : Window
         if (MenuGoDashboard != null) MenuGoDashboard.Visibility = canAccessDashboard ? Visibility.Visible : Visibility.Collapsed;
         if (ActivityBarDashboardSeparator != null) ActivityBarDashboardSeparator.Visibility = canAccessDashboard ? Visibility.Visible : Visibility.Collapsed;
         
-        // Reports - Auditor+ (Auditors see "My Reports", Managers see full Reports)
+        // Reports - Auditor+ (same Reports view; branch-scoped for Auditor/Reviewer in ReportsView)
         var canAccessReports = permissionService.HasMinimumRole(Roles.Auditor);
         if (ActReports != null) ActReports.Visibility = canAccessReports ? Visibility.Visible : Visibility.Collapsed;
         if (MenuGoReports != null) MenuGoReports.Visibility = canAccessReports ? Visibility.Visible : Visibility.Collapsed;
@@ -311,7 +310,7 @@ public partial class MainWindow : Window
             var btn = buttons[i];
             if (btn != null)
             {
-                var isActive = i == _currentView || (i == 6 && (_currentView == 7 || _currentView == 8));
+                var isActive = i == _currentView || (i == 6 && _currentView == 7);
                 btn.Opacity = isActive ? 1.0 : 0.7;
             }
         }
@@ -408,10 +407,8 @@ public partial class MainWindow : Window
     private void ActReports_Click(object sender, RoutedEventArgs e)
     {
         var permissionService = ServiceContainer.GetService<IPermissionService>();
-        if (permissionService.HasMinimumRole(Roles.Manager))
+        if (permissionService.HasMinimumRole(Roles.Auditor))
             SwitchToView(6);
-        else
-            SwitchToView(7);
     }
 
     private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -644,10 +641,8 @@ public partial class MainWindow : Window
     private void GoReports_Click(object sender, RoutedEventArgs e)
     {
         var permissionService = ServiceContainer.GetService<IPermissionService>();
-        if (permissionService.HasMinimumRole(Roles.Manager))
+        if (permissionService.HasMinimumRole(Roles.Auditor))
             SwitchToView(6);
-        else
-            SwitchToView(7);
     }
     private void GoAssignments_Click(object sender, RoutedEventArgs e)
     {
@@ -698,21 +693,19 @@ public partial class MainWindow : Window
     public void NavigateToArchive() => SwitchToView(4);
     public void NavigateToView(int viewIndex) => SwitchToView(viewIndex);
 
-    /// <summary>Opens the report editor and loads the given draft (Managers use full Reports view; others use Auditor Reports).</summary>
+    /// <summary>Opens the report editor and loads the given draft.</summary>
     public void NavigateToReportEditor(int draftId)
     {
-        SwitchToView(8);
-        if (_views[8] is ReportEditorView editor)
+        SwitchToView(7);
+        if (_views[7] is ReportEditorView editor)
             editor.LoadDraft(draftId);
     }
 
-    /// <summary>Returns to the Reports area matching the current user's role (same as the Reports activity button).</summary>
+    /// <summary>Returns to the Reports tab (same as the Reports activity button).</summary>
     public void NavigateToReportsForCurrentRole()
     {
         var permissionService = ServiceContainer.GetService<IPermissionService>();
-        if (permissionService.HasMinimumRole(Roles.Manager))
+        if (permissionService.HasMinimumRole(Roles.Auditor))
             SwitchToView(6);
-        else
-            SwitchToView(7);
     }
 }

@@ -15,7 +15,14 @@
         <!-- Top: Camera + mode controls -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
             <TextBlock Text="Camera:" Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <ComboBox x:Name="CameraCombo" Width="180" Margin="0,0,12,0"/>
+            <ComboBox x:Name="CameraCombo" Width="180" Margin="0,0,8,0"/>
+            <Ellipse x:Name="DocCameraStatusDot" Width="10" Height="10"
+                     Fill="#9E9E9E" Stroke="#444" StrokeThickness="0.5"
+                     VerticalAlignment="Center" Margin="0,0,6,0"
+                     ToolTip="Doccamera connection status"/>
+            <TextBlock x:Name="DocCameraStatusLabel" Text="Doccamera: checking…"
+                       Foreground="{DynamicResource SecondaryForeground}" FontSize="11"
+                       VerticalAlignment="Center" Margin="0,0,12,0"/>
             <Button x:Name="BtnStart" Content="Start Camera" Padding="12,6" Click="BtnStart_Click"/>
             <Button x:Name="BtnStop" Content="Stop" Padding="12,6" Margin="8,0,0,0"
                     IsEnabled="False" Click="BtnStop_Click"/>

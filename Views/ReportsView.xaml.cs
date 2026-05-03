@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Serilog;
 using WorkAudit;
+using WorkAudit.Config;
 using WorkAudit.Core.Reports;
 using WorkAudit.Core.Reports.ReportTemplates;
 using WorkAudit.Core.Security;
@@ -39,6 +40,11 @@ public partial class ReportsView : UserControl, IDisposable
     private INotesStore? _notesStore;
     private IIntelligenceService? _intelligenceService;
     private IConfigStore? _configStore;
+    private AppConfiguration? _appConfiguration;
+    /// <summary>Auditor/Reviewer: full report types but branch locked to home branch.</summary>
+    private bool _scopedReportsMode;
+    private bool _scopedBranchInvalid;
+    private string? _scopedConcreteBranch;
 
     public ReportsView()
     {
@@ -56,14 +62,9 @@ public partial class ReportsView : UserControl, IDisposable
     {
         if (!ServiceContainer.IsInitialized) return;
 
-        // Safeguard: Auditors and Reviewers should use Auditor Reports view (index 7), not this Manager/Admin Reports page
-        var permissionService = ServiceContainer.GetService<IPermissionService>();
-        if (!permissionService.HasMinimumRole(Roles.Manager))
-        {
-            var mainWindow = Window.GetWindow(this) as MainWindow;
-            mainWindow?.NavigateToView(7);
-            return;
-        }
+        _permissionService = ServiceContainer.GetService<IPermissionService>();
+        _appConfiguration = ServiceContainer.GetService<AppConfiguration>();
+        _scopedReportsMode = !_permissionService.HasMinimumRole(Roles.Manager);
 
         _documentStore = ServiceContainer.GetService<IDocumentStore>();
         _userStore = ServiceContainer.GetService<IUserStore>();
@@ -76,7 +77,6 @@ public partial class ReportsView : UserControl, IDisposable
         _attestationStore = ServiceContainer.GetOptionalService<IReportAttestationStore>();
         _distributionService = ServiceContainer.GetOptionalService<IReportDistributionService>();
         _reportHistoryStore = ServiceContainer.GetOptionalService<IReportHistoryStore>();
-        _permissionService = ServiceContainer.GetOptionalService<IPermissionService>();
 
         // Initialize Intelligence Dashboard services
         _notesStore = ServiceContainer.GetService<INotesStore>();
@@ -84,10 +84,12 @@ public partial class ReportsView : UserControl, IDisposable
         _configStore = ServiceContainer.GetService<IConfigStore>();
 
         ApplyLocalization();
+        ApplyScopedNonManagerVisibility();
         LoadTimeRangeOptions();
         RefreshDashboard();
         LoadPeriodOptions();
         LoadFilterOptions();
+        ApplyScopedBranchGateMessage();
         LoadFormatOptions();
         LoadTemplateOptions();
         LoadWatermarkOptions();
@@ -100,9 +102,37 @@ public partial class ReportsView : UserControl, IDisposable
     private void ApplyLocalization()
     {
         var config = ServiceContainer.GetService<IConfigStore>();
-        if (ReportsHeader != null) ReportsHeader.Text = ReportLocalizationService.GetString("Reports", config);
+        if (ReportsHeader != null)
+            ReportsHeader.Text = _scopedReportsMode
+                ? ReportLocalizationService.GetString("MyReports", config)
+                : ReportLocalizationService.GetString("Reports", config);
+        if (ReportsSubtitle != null)
+            ReportsSubtitle.Text = _scopedReportsMode
+                ? ReportLocalizationService.GetString("AuditorReportsSubtitle", config)
+                : "Generate reports and analyze document intelligence";
         if (ReportConfigTitle != null) ReportConfigTitle.Text = ReportLocalizationService.GetString("ReportConfiguration", config);
         if (PeriodLabel != null) PeriodLabel.Text = ReportLocalizationService.GetString("Period", config);
+    }
+
+    private void ApplyScopedNonManagerVisibility()
+    {
+        if (!_scopedReportsMode) return;
+        if (RbExecutiveDashboard != null) RbExecutiveDashboard.Visibility = Visibility.Collapsed;
+        if (DashboardPanel != null) DashboardPanel.Visibility = Visibility.Collapsed;
+        if (SavedConfigsRow != null) SavedConfigsRow.Visibility = Visibility.Collapsed;
+        if (AttestationPanel != null) AttestationPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void ApplyScopedBranchGateMessage()
+    {
+        if (!_scopedReportsMode || !_scopedBranchInvalid) return;
+        var raw = _appConfiguration?.CurrentUserBranch?.Trim() ?? "";
+        ShowMessage(
+            $"Your account does not have a branch assigned (or it is set to '{raw}'). " +
+            $"Reports will default to '{_scopedConcreteBranch}', which may not be what you expect. Contact an administrator to set your branch.",
+            isError: true);
+        SetGenerateButtonsEnabled(false);
+        if (CreateDraftBtn != null) CreateDraftBtn.IsEnabled = false;
     }
 
     private void LoadPeriodOptions()
@@ -144,7 +174,7 @@ public partial class ReportsView : UserControl, IDisposable
         TemplateCombo.Items.Add(AuditorTemplate.GetConfig());
         TemplateCombo.Items.Add(RegulatoryTemplate.GetConfig());
         TemplateCombo.Items.Add(OperationsTemplate.GetConfig());
-        TemplateCombo.SelectedIndex = 0;
+        TemplateCombo.SelectedIndex = _scopedReportsMode ? 2 : 0;
     }
 
     private void LoadFilterOptions()
@@ -154,11 +184,29 @@ public partial class ReportsView : UserControl, IDisposable
         _suppressReportScopeSync = true;
         try
         {
+            if (_scopedReportsMode && _appConfiguration != null)
+                LoadScopedBranchAndFilters();
+            else
+                LoadManagerBranchAndFilters();
+
+            CopyComboBoxItemsFromSource(BranchCombo, ToolbarBranchCombo);
+            CopyComboBoxItemsFromSource(SectionCombo, ToolbarSectionCombo);
+        }
+        finally
+        {
+            _suppressReportScopeSync = false;
+        }
+    }
+
+    private void LoadManagerBranchAndFilters()
+    {
         BranchCombo.Items.Clear();
         BranchCombo.Items.Add("(All)");
-        foreach (var b in _documentStore.GetDistinctBranches())
+        foreach (var b in _documentStore!.GetDistinctBranches())
             BranchCombo.Items.Add(b);
         BranchCombo.SelectedIndex = 0;
+        BranchCombo.IsEnabled = true;
+        ToolbarBranchCombo.IsEnabled = true;
 
         SectionCombo.Items.Clear();
         SectionCombo.Items.Add("(All)");
@@ -194,14 +242,57 @@ public partial class ReportsView : UserControl, IDisposable
                 UserCombo.Items.Add(u.Username);
         }
         UserCombo.SelectedIndex = 0;
+    }
 
-        CopyComboBoxItemsFromSource(BranchCombo, ToolbarBranchCombo);
-        CopyComboBoxItemsFromSource(SectionCombo, ToolbarSectionCombo);
-        }
-        finally
-        {
-            _suppressReportScopeSync = false;
-        }
+    private void LoadScopedBranchAndFilters()
+    {
+        var raw = _appConfiguration!.CurrentUserBranch;
+        var resolved = Branches.ToConcreteBranchOrDefault(raw);
+        var rawTrimmed = raw?.Trim() ?? "";
+        var hasExplicitBranch = !string.IsNullOrWhiteSpace(rawTrimmed)
+            && !Branches.ScopesToAllBranches(rawTrimmed)
+            && string.Equals(resolved, rawTrimmed, StringComparison.OrdinalIgnoreCase);
+        _scopedBranchInvalid = !hasExplicitBranch;
+        _scopedConcreteBranch = resolved;
+
+        BranchCombo.Items.Clear();
+        BranchCombo.Items.Add(resolved);
+        BranchCombo.SelectedIndex = 0;
+        BranchCombo.IsEnabled = false;
+        ToolbarBranchCombo.IsEnabled = false;
+
+        SectionCombo.Items.Clear();
+        SectionCombo.Items.Add("(All)");
+        foreach (var s in Enums.SectionValues)
+            SectionCombo.Items.Add(s);
+        SectionCombo.SelectedIndex = 0;
+
+        StatusCombo.Items.Clear();
+        StatusCombo.Items.Add("(All)");
+        foreach (var s in Enums.StatusValues)
+            StatusCombo.Items.Add(s);
+        StatusCombo.SelectedIndex = 0;
+
+        DocumentTypeCombo.Items.Clear();
+        DocumentTypeCombo.Items.Add("(All)");
+        foreach (var dt in _documentStore!.GetDistinctDocumentTypes(resolved, null))
+            if (!string.IsNullOrEmpty(dt))
+                DocumentTypeCombo.Items.Add(dt);
+        DocumentTypeCombo.SelectedIndex = 0;
+
+        EngagementCombo.Items.Clear();
+        EngagementCombo.Items.Add("(All)");
+        foreach (var eng in _documentStore.GetDistinctEngagements(resolved))
+            if (!string.IsNullOrEmpty(eng))
+                EngagementCombo.Items.Add(eng);
+        EngagementCombo.SelectedIndex = 0;
+
+        UserCombo.Items.Clear();
+        UserCombo.Items.Add("(All)");
+        var me = _appConfiguration.CurrentUserName?.Trim();
+        if (!string.IsNullOrEmpty(me))
+            UserCombo.Items.Add(me);
+        UserCombo.SelectedIndex = 0;
     }
 
     private static void CopyComboBoxItemsFromSource(System.Windows.Controls.ComboBox source, System.Windows.Controls.ComboBox target)
@@ -315,7 +406,10 @@ public partial class ReportsView : UserControl, IDisposable
             IncludeDisclaimer = IncludeDisclaimerCheck?.IsChecked ?? true
         };
 
-        if (BranchCombo.SelectedItem is string branch && branch != "(All)") config.Branch = branch;
+        if (_scopedReportsMode && !string.IsNullOrEmpty(_scopedConcreteBranch))
+            config.Branch = _scopedConcreteBranch;
+        else if (BranchCombo.SelectedItem is string branch && branch != "(All)")
+            config.Branch = branch;
         if (SectionCombo.SelectedItem is string section && section != "(All)") config.Section = section;
         if (StatusCombo.SelectedItem is string status && status != "(All)") config.Status = status;
         if (DocumentTypeCombo.SelectedItem is string dt && dt != "(All)") config.DocumentType = dt;
@@ -351,6 +445,7 @@ public partial class ReportsView : UserControl, IDisposable
 
     private void LoadSavedConfigs()
     {
+        if (_scopedReportsMode) return;
         if (_savedConfigService == null) return;
         SavedConfigCombo.Items.Clear();
         SavedConfigCombo.Items.Add(new SavedConfigComboItem { Name = "(Select saved config)", DisplayName = "(Select saved config)", Config = null });
@@ -425,6 +520,7 @@ public partial class ReportsView : UserControl, IDisposable
 
     private void UpdateFavoriteButtonState()
     {
+        if (_scopedReportsMode) return;
         if (FavoriteConfigBtn == null) return;
         var isFav = SavedConfigCombo.SelectedItem is SavedConfigComboItem item && item.Config?.IsFavorite == true;
         FavoriteConfigBtn.Content = isFav ? "★" : "☆";
@@ -477,9 +573,8 @@ public partial class ReportsView : UserControl, IDisposable
         {
             var from = DateTime.UtcNow.AddDays(-30);
             var to = DateTime.UtcNow;
-            // Manager/Admin view shows the global history (userId == null). Roles below Manager
-            // never reach this view; they use AuditorReportsView which scopes by user id.
-            var history = _reportHistoryStore.List(from, to, 50, userId: null);
+            // Manager+: global history. Auditor/Reviewer: only their own generations.
+            var history = _reportHistoryStore.List(from, to, 50, userId: _scopedReportsMode ? GetCurrentUserId() : null);
             if (history.Count > 0)
             {
                 foreach (var h in history)
@@ -562,6 +657,12 @@ public partial class ReportsView : UserControl, IDisposable
         if (_reportService == null || _validationService == null)
         {
             ShowMessage("Reports service not available.", isError: true);
+            return;
+        }
+
+        if (_scopedReportsMode && _scopedBranchInvalid)
+        {
+            ShowMessage("Fix your branch assignment before generating reports.", isError: true);
             return;
         }
 
@@ -734,6 +835,12 @@ public partial class ReportsView : UserControl, IDisposable
 
     private void CreateDraftBtn_Click(object sender, RoutedEventArgs e)
     {
+        if (_scopedReportsMode && _scopedBranchInvalid)
+        {
+            ShowMessage("Fix your branch assignment before creating drafts.", isError: true);
+            return;
+        }
+
         if (_draftService == null)
         {
             ShowMessage("Draft service not available.", isError: true);
@@ -779,10 +886,13 @@ public partial class ReportsView : UserControl, IDisposable
 
     private void SetBusy(bool busy)
     {
-        GeneratePdfBtn.IsEnabled = !busy;
-        GenerateExcelBtn.IsEnabled = !busy;
-        GenerateCsvBtn.IsEnabled = !busy;
-        
+        var allowInput = !busy && !(_scopedReportsMode && _scopedBranchInvalid);
+        GeneratePdfBtn.IsEnabled = allowInput;
+        GenerateExcelBtn.IsEnabled = allowInput;
+        GenerateCsvBtn.IsEnabled = allowInput;
+        if (CreateDraftBtn != null)
+            CreateDraftBtn.IsEnabled = allowInput;
+
         if (CancelGenerationBtn != null)
             CancelGenerationBtn.IsEnabled = busy;
         
@@ -801,6 +911,7 @@ public partial class ReportsView : UserControl, IDisposable
     {
         _selectedAttestation = null;
         AttestationPanel.Visibility = Visibility.Collapsed;
+        if (_scopedReportsMode) return;
         if (_attestationStore == null || string.IsNullOrEmpty(reportPath)) return;
 
         var a = _attestationStore.GetByReportPath(reportPath);
@@ -846,9 +957,10 @@ public partial class ReportsView : UserControl, IDisposable
 
     private void SetGenerateButtonsEnabled(bool enabled)
     {
-        if (GeneratePdfBtn != null) GeneratePdfBtn.IsEnabled = enabled;
-        if (GenerateExcelBtn != null) GenerateExcelBtn.IsEnabled = enabled;
-        if (GenerateCsvBtn != null) GenerateCsvBtn.IsEnabled = enabled;
+        var effective = enabled && !(_scopedReportsMode && _scopedBranchInvalid);
+        if (GeneratePdfBtn != null) GeneratePdfBtn.IsEnabled = effective;
+        if (GenerateExcelBtn != null) GenerateExcelBtn.IsEnabled = effective;
+        if (GenerateCsvBtn != null) GenerateCsvBtn.IsEnabled = effective;
     }
 
     private void DateRange_Changed(object? sender, SelectionChangedEventArgs e)

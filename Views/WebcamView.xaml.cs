@@ -163,8 +163,25 @@ public partial class WebcamView : UserControl
         else if (!found && CameraCombo.Items.Count > 0)
             _log.Warning("Preferred camera '{Preferred}' not found", PreferredCameraName);
 
+        UpdateDocCameraStatusIndicator(found);
         UpdateCameraInfoLabel();
         CameraCombo.IsEnabled = false;
+    }
+
+    private void UpdateDocCameraStatusIndicator(bool connected)
+    {
+        if (DocCameraStatusDot == null || DocCameraStatusLabel == null) return;
+
+        if (connected)
+        {
+            DocCameraStatusDot.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2E, 0xCC, 0x71));
+            DocCameraStatusLabel.Text = "Doccamera: connected";
+        }
+        else
+        {
+            DocCameraStatusDot.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE7, 0x4C, 0x3C));
+            DocCameraStatusLabel.Text = "Doccamera: not connected";
+        }
     }
 
     private void PopulateCamerasAsync()

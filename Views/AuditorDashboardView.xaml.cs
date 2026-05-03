@@ -313,6 +313,18 @@ public partial class AuditorDashboardView : UserControl
         return string.Equals(docBranch, _userEffectiveBranch, StringComparison.OrdinalIgnoreCase);
     }
 
+    private bool IssueNoteMatchesUserBranch(Note n)
+    {
+        var gr = _store.GetResult(n.DocumentId);
+        if (!gr.IsSuccess)
+        {
+            _log.Warning("Could not load document {Id} for branch filter: {Error}", n.DocumentId, gr.Error);
+            return false;
+        }
+
+        return UserBranchMatchesDocument(gr.Value!);
+    }
+
     private void LoadBranchOverview()
     {
         var branchDocs = _store.ListDocuments()
@@ -398,20 +410,20 @@ public partial class AuditorDashboardView : UserControl
         }
         else if (filter == "My Branch")
         {
-            issueNotes = issueNotes.Where(n =>
-            {
-                var gr = _store.GetResult(n.DocumentId);
-                if (!gr.IsSuccess)
-                {
-                    _log.Warning("Could not load document {Id} for branch filter: {Error}", n.DocumentId, gr.Error);
-                    return false;
-                }
-                return UserBranchMatchesDocument(gr.Value!);
-            }).ToList();
+            issueNotes = issueNotes.Where(IssueNoteMatchesUserBranch).ToList();
         }
         else if (filter == "High Priority")
         {
             issueNotes = issueNotes.Where(n => n.Severity == NoteSeverity.Critical).ToList();
+        }
+
+        // "All" and "High Priority" must respect branch for branch-scoped auditors (same as Branch Overview).
+        // "Assigned to Me" stays assignment-only; "My Branch" already filtered above.
+        if (!_userBranchScopeAll
+            && filter != "Assigned to Me"
+            && filter != "My Branch")
+        {
+            issueNotes = issueNotes.Where(IssueNoteMatchesUserBranch).ToList();
         }
 
         var issueRows = new List<IssueRow>();
@@ -1039,7 +1051,7 @@ public partial class AuditorDashboardView : UserControl
 
     private void BtnQuickReport_Click(object sender, RoutedEventArgs e)
     {
-        NavigateToView(7); // Auditor Reports view (My Reports)
+        NavigateToView(6); // Reports (branch-scoped for Auditor/Reviewer)
     }
 
     private void BtnQuickWorkspace_Click(object sender, RoutedEventArgs e)

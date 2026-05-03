@@ -34,7 +34,7 @@
                     <StackPanel Grid.Column="0">
                         <TextBlock x:Name="ReportsHeader" Text="Reports &amp; Intelligence" FontSize="24" FontWeight="Bold"
                                    Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,4"/>
-                        <TextBlock Text="Generate reports and analyze document intelligence" FontSize="13"
+                        <TextBlock x:Name="ReportsSubtitle" Text="Generate reports and analyze document intelligence" FontSize="13"
                                    Foreground="{DynamicResource DimForeground}"/>
                     </StackPanel>
                     <Button x:Name="RefreshDashboardBtn" Grid.Column="1" Content="🔄 Refresh" Padding="12,8" Margin="0,0,12,0"
@@ -338,7 +338,7 @@
                         </StackPanel>
                         
                         <!-- Saved Configs Row -->
-                        <StackPanel Grid.Row="2" Orientation="Horizontal">
+                        <StackPanel x:Name="SavedConfigsRow" Grid.Row="2" Orientation="Horizontal">
                             <TextBlock Text="Saved Configs:" VerticalAlignment="Center" Margin="0,0,12,0" 
                                        Foreground="{DynamicResource SecondaryForeground}"/>
                             <ComboBox x:Name="SavedConfigCombo" Width="220" DisplayMemberPath="DisplayName"
