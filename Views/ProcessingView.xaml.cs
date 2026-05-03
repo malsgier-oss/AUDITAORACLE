@@ -380,7 +380,7 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
             if (toMove == null)
             {
                 // Always append the merge result last after completion, even if type/date query omitted it from `documents`.
-                var extra = _store.Get(highlightId);
+                var extra = _store.GetById(highlightId);
                 if (extra != null)
                     toMove = CreateProcessingDocumentItem(extra, config);
             }
@@ -938,7 +938,7 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
             return;
         }
 
-        var doc = _store?.Get(item.Id) ?? item.Document;
+        var doc = _store?.GetById(item.Id) ?? item.Document;
         if (doc == null)
         {
             DocumentPreviewViewer.Clear();
@@ -1039,7 +1039,7 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
         Document? ctx = null;
         if (first != null)
         {
-            ctx = _store.Get(first.Id) ?? first.Document;
+            ctx = _store.GetById(first.Id) ?? first.Document;
             if (ctx != null)
                 first.Document = ctx;
         }

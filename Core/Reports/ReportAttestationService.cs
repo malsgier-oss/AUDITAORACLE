@@ -15,7 +15,7 @@ namespace WorkAudit.Core.Reports;
 /// </summary>
 public interface IReportAttestationService
 {
-    ReportAttestation CreateAttestation(string reportType, string reportPath, DateTime from, DateTime to, string? branch, string? section, string? userId, string? username);
+    ReportAttestation CreateAttestation(string reportType, string reportPath, DateTime from, DateTime rangeEnd, string? branch, string? section, string? userId, string? username);
     ReportAttestation? GetByReportPath(string reportPath);
     bool VerifyHash(string reportPath, string expectedHash);
     void MarkReviewed(long attestationId, string userId, string username);
@@ -36,7 +36,7 @@ public class ReportAttestationService : IReportAttestationService
         _auditTrail = auditTrail;
     }
 
-    public ReportAttestation CreateAttestation(string reportType, string reportPath, DateTime from, DateTime to, string? branch, string? section, string? userId, string? username)
+    public ReportAttestation CreateAttestation(string reportType, string reportPath, DateTime from, DateTime rangeEnd, string? branch, string? section, string? userId, string? username)
     {
         var hash = ComputeSha256(reportPath);
         var a = new ReportAttestation
@@ -45,7 +45,7 @@ public class ReportAttestationService : IReportAttestationService
             ReportType = reportType,
             ReportPath = reportPath,
             DateFrom = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            DateTo = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            DateTo = rangeEnd.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             Branch = branch,
             Section = section,
             Sha256Hash = hash,

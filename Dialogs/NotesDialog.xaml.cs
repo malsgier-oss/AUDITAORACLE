@@ -108,7 +108,7 @@ public partial class NotesDialog : Window
         if (combo.Tag is not int noteId) return;
         if (e.AddedItems[0] is not ComboBoxItem item || item.Tag is not string newStatus) return;
 
-        var note = _notesStore.Get(noteId);
+        var note = _notesStore.GetById(noteId);
         if (note == null || note.Status == newStatus) return; // Prevent redundant updates and loop
         var previousStatus = note.Status;
 

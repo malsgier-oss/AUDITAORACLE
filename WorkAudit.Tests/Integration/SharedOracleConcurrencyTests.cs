@@ -61,7 +61,7 @@ public sealed class SharedOracleConcurrencyTests : IClassFixture<OracleTestFixtu
         });
         id.Should().BeGreaterThan(0);
 
-        var loaded = store.Get((int)id);
+        var loaded = store.GetById((int)id);
         loaded.Should().NotBeNull();
         store.UpdateStatus((int)id, Enums.Status.ReadyForAudit);
 
@@ -85,7 +85,7 @@ public sealed class SharedOracleConcurrencyTests : IClassFixture<OracleTestFixtu
             Section = "ConcurrencySmoke",
             Status = Enums.Status.Draft
         });
-        var loaded = store.Get((int)id)!;
+        var loaded = store.GetById((int)id)!;
         var expectedUtc = DateTime.Parse(loaded.UpdatedAt!, null, System.Globalization.DateTimeStyles.RoundtripKind)
             .ToUniversalTime();
         loaded.Explanation = "multi-pc test";

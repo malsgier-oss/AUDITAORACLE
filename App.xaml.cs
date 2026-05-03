@@ -508,7 +508,7 @@ public partial class App : Application
                 Log.Information("Password changed successfully for user: {Username}", currentUser.Username);
 
                 // Reload user to get updated data
-                currentUser = userStore.Get(currentUser.Id);
+                currentUser = userStore.GetById(currentUser.Id);
                 if (currentUser != null)
                 {
                     ServiceContainer.SetCurrentUser(currentUser);
@@ -547,9 +547,9 @@ public partial class App : Application
         try
         {
             var scheduledBackup = ServiceContainer.GetOptionalService<IScheduledBackupService>();
-            scheduledBackup?.Stop();
+            scheduledBackup?.Shutdown();
             var scheduledReport = ServiceContainer.GetOptionalService<IScheduledReportService>();
-            scheduledReport?.Stop();
+            scheduledReport?.Shutdown();
         }
         catch (Exception ex)
         {

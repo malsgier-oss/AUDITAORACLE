@@ -27,7 +27,7 @@ public class ReportTemplateStore : IReportTemplateStore
         };
     }
 
-    public async Task<int> CreateTemplateAsync(CustomReportTemplate template)
+    public async Task<int> CreateTemplateAsync(CustomReportTemplate reportTemplate)
     {
         using var conn = new OracleConnection(_connectionString);
         await conn.OpenAsync();
@@ -44,23 +44,23 @@ public class ReportTemplateStore : IReportTemplateStore
             RETURNING id INTO @rid
         ";
 
-        cmd.Parameters.AddWithValue("@name", template.Name);
-        cmd.Parameters.AddWithValue("@description", (object?)template.Description ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@reportType", template.ReportType);
-        cmd.Parameters.AddWithValue("@createdBy", template.CreatedBy);
-        cmd.Parameters.Add(new OracleParameter("@createdAt", OracleDbType.TimeStamp) { Value = template.CreatedAt });
-        cmd.Parameters.AddWithValue("@isShared", template.IsShared ? 1 : 0);
-        cmd.Parameters.AddWithValue("@fieldsJson", JsonSerializer.Serialize(template.Fields, _jsonOptions));
-        cmd.Parameters.AddWithValue("@filtersJson", JsonSerializer.Serialize(template.Filters, _jsonOptions));
-        cmd.Parameters.AddWithValue("@sortingJson", JsonSerializer.Serialize(template.Sorting, _jsonOptions));
-        cmd.Parameters.AddWithValue("@groupingJson", template.Grouping != null ? JsonSerializer.Serialize(template.Grouping, _jsonOptions) : DBNull.Value);
+        cmd.Parameters.AddWithValue("@name", reportTemplate.Name);
+        cmd.Parameters.AddWithValue("@description", (object?)reportTemplate.Description ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@reportType", reportTemplate.ReportType);
+        cmd.Parameters.AddWithValue("@createdBy", reportTemplate.CreatedBy);
+        cmd.Parameters.Add(new OracleParameter("@createdAt", OracleDbType.TimeStamp) { Value = reportTemplate.CreatedAt });
+        cmd.Parameters.AddWithValue("@isShared", reportTemplate.IsShared ? 1 : 0);
+        cmd.Parameters.AddWithValue("@fieldsJson", JsonSerializer.Serialize(reportTemplate.Fields, _jsonOptions));
+        cmd.Parameters.AddWithValue("@filtersJson", JsonSerializer.Serialize(reportTemplate.Filters, _jsonOptions));
+        cmd.Parameters.AddWithValue("@sortingJson", JsonSerializer.Serialize(reportTemplate.Sorting, _jsonOptions));
+        cmd.Parameters.AddWithValue("@groupingJson", reportTemplate.Grouping != null ? JsonSerializer.Serialize(reportTemplate.Grouping, _jsonOptions) : DBNull.Value);
         var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
         cmd.Parameters.Add(idParam);
         Prep(cmd);
 
         await cmd.ExecuteNonQueryAsync();
         var id = Convert.ToInt32(idParam.Value, CultureInfo.InvariantCulture);
-        template.Id = id;
+        reportTemplate.Id = id;
         return id;
     }
 
@@ -165,7 +165,7 @@ public class ReportTemplateStore : IReportTemplateStore
         return templates;
     }
 
-    public async Task UpdateTemplateAsync(CustomReportTemplate template)
+    public async Task UpdateTemplateAsync(CustomReportTemplate reportTemplate)
     {
         using var conn = new OracleConnection(_connectionString);
         await conn.OpenAsync();
@@ -185,16 +185,16 @@ public class ReportTemplateStore : IReportTemplateStore
             WHERE id = @id
         ";
 
-        cmd.Parameters.AddWithValue("@id", template.Id);
-        cmd.Parameters.AddWithValue("@name", template.Name);
-        cmd.Parameters.AddWithValue("@description", (object?)template.Description ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@reportType", template.ReportType);
+        cmd.Parameters.AddWithValue("@id", reportTemplate.Id);
+        cmd.Parameters.AddWithValue("@name", reportTemplate.Name);
+        cmd.Parameters.AddWithValue("@description", (object?)reportTemplate.Description ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@reportType", reportTemplate.ReportType);
         cmd.Parameters.Add(new OracleParameter("@updatedAt", OracleDbType.TimeStamp) { Value = DateTime.UtcNow });
-        cmd.Parameters.AddWithValue("@isShared", template.IsShared ? 1 : 0);
-        cmd.Parameters.AddWithValue("@fieldsJson", JsonSerializer.Serialize(template.Fields, _jsonOptions));
-        cmd.Parameters.AddWithValue("@filtersJson", JsonSerializer.Serialize(template.Filters, _jsonOptions));
-        cmd.Parameters.AddWithValue("@sortingJson", JsonSerializer.Serialize(template.Sorting, _jsonOptions));
-        cmd.Parameters.AddWithValue("@groupingJson", template.Grouping != null ? JsonSerializer.Serialize(template.Grouping, _jsonOptions) : DBNull.Value);
+        cmd.Parameters.AddWithValue("@isShared", reportTemplate.IsShared ? 1 : 0);
+        cmd.Parameters.AddWithValue("@fieldsJson", JsonSerializer.Serialize(reportTemplate.Fields, _jsonOptions));
+        cmd.Parameters.AddWithValue("@filtersJson", JsonSerializer.Serialize(reportTemplate.Filters, _jsonOptions));
+        cmd.Parameters.AddWithValue("@sortingJson", JsonSerializer.Serialize(reportTemplate.Sorting, _jsonOptions));
+        cmd.Parameters.AddWithValue("@groupingJson", reportTemplate.Grouping != null ? JsonSerializer.Serialize(reportTemplate.Grouping, _jsonOptions) : DBNull.Value);
         Prep(cmd);
 
         await cmd.ExecuteNonQueryAsync();

@@ -9,7 +9,7 @@ namespace WorkAudit.Core.Reports;
 /// </summary>
 public interface IQualityMetricsService
 {
-    QualityMetricsResult GetMetrics(IDocumentStore store, DateTime from, DateTime to, string? branch = null, string? section = null);
+    QualityMetricsResult GetMetrics(IDocumentStore store, DateTime from, DateTime rangeEnd, string? branch = null, string? section = null);
 }
 
 public class QualityMetricsResult
@@ -34,10 +34,10 @@ public class QualityMetricsService : IQualityMetricsService
     private const double ClassThreshold = 0.9;
     private const double SlaHours = 24;
 
-    public QualityMetricsResult GetMetrics(IDocumentStore store, DateTime from, DateTime to, string? branch = null, string? section = null)
+    public QualityMetricsResult GetMetrics(IDocumentStore store, DateTime from, DateTime rangeEnd, string? branch = null, string? section = null)
     {
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
+        var toStr = rangeEnd.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, limit: MaxDocuments, newestFirst: true);
         var list = docs.AsEnumerable();
         if (!string.IsNullOrEmpty(branch)) list = list.Where(d => d.Branch == branch);

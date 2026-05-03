@@ -13,8 +13,8 @@ namespace WorkAudit.Core.Compliance;
 /// </summary>
 public interface IAuditExportService
 {
-    Task<string> ExportToCsvAsync(DateTime from, DateTime to, string? userId = null, string? category = null, bool archivedOnly = false, int limit = 10000);
-    Task ExportToFileAsync(string filePath, DateTime from, DateTime to, string? userId = null, string? category = null, bool archivedOnly = false, int limit = 10000);
+    Task<string> ExportToCsvAsync(DateTime from, DateTime rangeEnd, string? userId = null, string? category = null, bool archivedOnly = false, int limit = 10000);
+    Task ExportToFileAsync(string filePath, DateTime from, DateTime rangeEnd, string? userId = null, string? category = null, bool archivedOnly = false, int limit = 10000);
 }
 
 public class AuditExportService : IAuditExportService
@@ -29,10 +29,10 @@ public class AuditExportService : IAuditExportService
         _auditTrail = auditTrail;
     }
 
-    public async Task<string> ExportToCsvAsync(DateTime from, DateTime to, string? userId = null, string? category = null, bool archivedOnly = false, int limit = 10000)
+    public async Task<string> ExportToCsvAsync(DateTime from, DateTime rangeEnd, string? userId = null, string? category = null, bool archivedOnly = false, int limit = 10000)
     {
         var fromUtc = AuditTimeHelper.ToUtcFromDateUtcPlus2(from);
-        var toUtc = AuditTimeHelper.ToUtcToDateUtcPlus2(to);
+        var toUtc = AuditTimeHelper.ToUtcToDateUtcPlus2(rangeEnd);
         var entries = _auditStore.Query(fromUtc, toUtc, userId, null, category, archivedOnly, limit);
         var sb = new StringBuilder();
 
@@ -56,14 +56,14 @@ public class AuditExportService : IAuditExportService
             sb.AppendLine(line);
         }
 
-        await _auditTrail.LogSystemActionAsync("AuditLogExported", $"Exported {entries.Count} entries from {from:yyyy-MM-dd} to {to:yyyy-MM-dd}");
+        await _auditTrail.LogSystemActionAsync("AuditLogExported", $"Exported {entries.Count} entries from {from:yyyy-MM-dd} to {rangeEnd:yyyy-MM-dd}");
         _log.Information("Exported {Count} audit log entries to CSV", entries.Count);
         return sb.ToString();
     }
 
-    public async Task ExportToFileAsync(string filePath, DateTime from, DateTime to, string? userId = null, string? category = null, bool archivedOnly = false, int limit = 10000)
+    public async Task ExportToFileAsync(string filePath, DateTime from, DateTime rangeEnd, string? userId = null, string? category = null, bool archivedOnly = false, int limit = 10000)
     {
-        var csv = await ExportToCsvAsync(from, to, userId, category, archivedOnly, limit);
+        var csv = await ExportToCsvAsync(from, rangeEnd, userId, category, archivedOnly, limit);
         await File.WriteAllTextAsync(filePath, csv, Encoding.UTF8);
     }
 

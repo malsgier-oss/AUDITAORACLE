@@ -25,7 +25,7 @@ public interface ISavedReportConfigService
     IReadOnlyList<SavedReportConfig> List();
     void Save(SavedReportConfig item);
     void Delete(string id);
-    SavedReportConfig? Get(string id);
+    SavedReportConfig? GetById(string id);
     void Reorder(IReadOnlyList<string> orderedIds);
 }
 
@@ -66,7 +66,7 @@ public class SavedReportConfigService : ISavedReportConfigService
         Persist();
     }
 
-    public SavedReportConfig? Get(string id)
+    public SavedReportConfig? GetById(string id)
     {
         EnsureLoaded();
         return _cache.FirstOrDefault(s => s.Id == id);

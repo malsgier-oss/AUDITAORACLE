@@ -12,7 +12,7 @@ public interface IDocumentStore
     long Insert(Document doc);
     /// <summary>Gets a document by ID. Returns Result with error details on failure.</summary>
     Result<Document> GetResult(int id);
-    Document? Get(int id);
+    Document? GetById(int id);
     List<Document> GetByIds(List<int> ids);
     Document? GetByUuid(string uuid);
     Document? GetByFileHash(string fileHash);

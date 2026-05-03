@@ -13,7 +13,7 @@ public interface ITeamTaskStore
     int Insert(TeamTask t);
     bool Update(TeamTask t);
     bool Delete(int id);
-    TeamTask? Get(int id);
+    TeamTask? GetById(int id);
     List<TeamTask> ListAll(int? assignedToUserId = null, int limit = 2000);
     /// <summary>Active tasks for assignee where today is within start/end (caller passes today as yyyy-MM-dd).</summary>
     List<TeamTask> ListActiveForAssignee(int userId, string todayYyyyMmDd);
@@ -154,7 +154,7 @@ public class TeamTaskStore : ITeamTaskStore
         }, nameof(Delete), false);
     }
 
-    public TeamTask? Get(int id)
+    public TeamTask? GetById(int id)
     {
         return ExecuteDbOperation(() =>
         {
@@ -165,7 +165,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@id", id);
             Prep(cmd); using var r = cmd.ExecuteReader();
             return r.Read() ? ReadTask(r) : null;
-        }, nameof(Get), null);
+        }, nameof(GetById), null);
     }
 
     public List<TeamTask> ListAll(int? assignedToUserId = null, int limit = 2000)

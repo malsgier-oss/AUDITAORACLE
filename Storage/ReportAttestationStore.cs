@@ -18,9 +18,9 @@ public interface IReportAttestationStore
     void Update(ReportAttestation a);
     /// <summary>Gets an attestation by row id with explicit error details on failure.</summary>
     Result<ReportAttestation> GetResult(long id);
-    ReportAttestation? Get(long id);
+    ReportAttestation? GetById(long id);
     ReportAttestation? GetByReportPath(string reportPath);
-    List<ReportAttestation> List(string? reportType = null, string? status = null, DateTime? from = null, DateTime? to = null, int limit = 100);
+    List<ReportAttestation> List(string? reportType = null, string? status = null, DateTime? from = null, DateTime? rangeEnd = null, int limit = 100);
 }
 
 public class ReportAttestationStore : IReportAttestationStore
@@ -116,22 +116,22 @@ public class ReportAttestationStore : IReportAttestationStore
             cmd.Parameters.AddWithValue("@id", id);
             Prep(cmd); using var reader = cmd.ExecuteReader();
             if (reader.Read())
-                return Result<ReportAttestation>.Success(ReadAttestation(reader));
-            return Result<ReportAttestation>.Failure($"Report attestation with ID {id} not found");
+                return Result.Success(ReadAttestation(reader));
+            return Result.Failure<ReportAttestation>($"Report attestation with ID {id} not found");
         }
         catch (OracleException ex)
         {
             _log.Error(ex, "Database error getting report attestation {Id}: {Message}", id, ex.Message);
-            return Result<ReportAttestation>.Failure($"Database error: {ex.Message}", ex);
+            return Result.Failure<ReportAttestation>($"Database error: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
             _log.Error(ex, "Unexpected error getting report attestation {Id}: {Message}", id, ex.Message);
-            return Result<ReportAttestation>.Failure($"Unexpected error: {ex.Message}", ex);
+            return Result.Failure<ReportAttestation>($"Unexpected error: {ex.Message}", ex);
         }
     }
 
-    public ReportAttestation? Get(long id)
+    public ReportAttestation? GetById(long id)
     {
         var result = GetResult(id);
         return result.IsSuccess ? result.Value : null;
@@ -148,7 +148,7 @@ public class ReportAttestationStore : IReportAttestationStore
         return reader.Read() ? ReadAttestation(reader) : null;
     }
 
-    public List<ReportAttestation> List(string? reportType = null, string? status = null, DateTime? from = null, DateTime? to = null, int limit = 100)
+    public List<ReportAttestation> List(string? reportType = null, string? status = null, DateTime? from = null, DateTime? rangeEnd = null, int limit = 100)
     {
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
@@ -156,7 +156,7 @@ public class ReportAttestationStore : IReportAttestationStore
         if (!string.IsNullOrEmpty(reportType)) sql += " AND report_type = @report_type";
         if (!string.IsNullOrEmpty(status)) sql += " AND status = @status";
         if (from.HasValue) sql += " AND generated_at >= @p_from";
-        if (to.HasValue) sql += " AND generated_at <= @p_to";
+        if (rangeEnd.HasValue) sql += " AND generated_at <= @p_to";
         sql += " ORDER BY id DESC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
@@ -164,7 +164,7 @@ public class ReportAttestationStore : IReportAttestationStore
         if (!string.IsNullOrEmpty(reportType)) cmd.Parameters.AddWithValue("@report_type", reportType);
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("@status", status);
         if (from.HasValue) cmd.Parameters.Add(new OracleParameter("p_from", from.Value) { OracleDbType = OracleDbType.TimeStamp });
-        if (to.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", to.Value) { OracleDbType = OracleDbType.TimeStamp });
+        if (rangeEnd.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", rangeEnd.Value) { OracleDbType = OracleDbType.TimeStamp });
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var list = new List<ReportAttestation>();

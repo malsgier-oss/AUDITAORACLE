@@ -887,7 +887,7 @@ public partial class DashboardView : UserControl
     {
         if (CriticalIssuesList.SelectedItem is IssueItem issue && issue.NoteId > 0)
         {
-            var note = _notesStore.Get(issue.NoteId);
+            var note = _notesStore.GetById(issue.NoteId);
             if (note != null)
             {
                 var previousStatus = note.Status;

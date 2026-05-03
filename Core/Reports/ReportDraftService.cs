@@ -91,7 +91,7 @@ public class ReportDraftService : IReportDraftService
 
     public void UpdateDraftContent(int draftId, string htmlContent)
     {
-        var draft = _draftStore.Get(draftId);
+        var draft = _draftStore.GetById(draftId);
         if (draft == null)
             throw new ArgumentException($"Draft {draftId} not found");
 
@@ -103,7 +103,7 @@ public class ReportDraftService : IReportDraftService
 
     public string ExportDraft(int draftId, ReportFormat format)
     {
-        var draft = _draftStore.Get(draftId);
+        var draft = _draftStore.GetById(draftId);
         if (draft == null)
             throw new ArgumentException($"Draft {draftId} not found");
 
@@ -124,7 +124,7 @@ public class ReportDraftService : IReportDraftService
 
     public void DeleteDraft(int draftId)
     {
-        var draft = _draftStore.Get(draftId);
+        var draft = _draftStore.GetById(draftId);
         if (draft == null) return;
 
         if (File.Exists(draft.DraftFilePath))
@@ -149,7 +149,7 @@ public class ReportDraftService : IReportDraftService
 
     public ReportDraft? GetDraft(int draftId)
     {
-        return _draftStore.Get(draftId);
+        return _draftStore.GetById(draftId);
     }
 
     private string GenerateInitialHtml(ReportConfig config) => BuildInitialHtml(config, _documentStore);

@@ -613,7 +613,7 @@ public partial class WebcamView : UserControl
         {
             _cameraService = ServiceContainer.GetService<ICameraService>();
             _cameraService.FrameReady += OnFrameReady;
-            _cameraService.Error += OnCameraError;
+            _cameraService.CaptureError += OnCameraError;
 
             var cameraIndex = 0;
             if (CameraCombo.SelectedItem is CameraInfo info)
@@ -683,7 +683,7 @@ public partial class WebcamView : UserControl
         if (_cameraService != null)
         {
             _cameraService.FrameReady -= OnFrameReady;
-            _cameraService.Error -= OnCameraError;
+            _cameraService.CaptureError -= OnCameraError;
             _cameraService.StopCapture();
             _cameraService = null;
         }

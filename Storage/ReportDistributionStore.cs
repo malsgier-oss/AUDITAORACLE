@@ -14,7 +14,7 @@ namespace WorkAudit.Storage;
 public interface IReportDistributionStore
 {
     long Log(string reportPath, string reportType, string eventType, string userId, string username, string? details = null);
-    List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? to = null, int limit = 500);
+    List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? rangeEnd = null, int limit = 500);
 }
 
 public class ReportDistributionStore : IReportDistributionStore
@@ -56,7 +56,7 @@ public class ReportDistributionStore : IReportDistributionStore
         return Convert.ToInt64(idParam.Value, CultureInfo.InvariantCulture);
     }
 
-    public List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? to = null, int limit = 500)
+    public List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? rangeEnd = null, int limit = 500)
     {
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
@@ -64,7 +64,7 @@ public class ReportDistributionStore : IReportDistributionStore
         if (!string.IsNullOrEmpty(reportPath)) sql += " AND report_path = @report_path";
         if (!string.IsNullOrEmpty(userId)) sql += " AND user_id = @user_id";
         if (from.HasValue) sql += " AND event_time >= @p_from";
-        if (to.HasValue) sql += " AND event_time <= @p_to";
+        if (rangeEnd.HasValue) sql += " AND event_time <= @p_to";
         sql += " ORDER BY id DESC FETCH FIRST @limit ROWS ONLY";
 
         using var cmd = conn.CreateCommand();
@@ -72,7 +72,7 @@ public class ReportDistributionStore : IReportDistributionStore
         if (!string.IsNullOrEmpty(reportPath)) cmd.Parameters.AddWithValue("@report_path", reportPath);
         if (!string.IsNullOrEmpty(userId)) cmd.Parameters.AddWithValue("@user_id", userId);
         if (from.HasValue) cmd.Parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value });
-        if (to.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = to.Value });
+        if (rangeEnd.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = rangeEnd.Value });
         cmd.Parameters.AddWithValue("@limit", limit);
 
         var list = new List<ReportDistribution>();

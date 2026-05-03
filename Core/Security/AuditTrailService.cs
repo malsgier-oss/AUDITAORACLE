@@ -13,7 +13,7 @@ namespace WorkAudit.Core.Security;
 public interface IAuditTrailService
 {
     Task LogAsync(string action, string category, string entityType, string? entityId,
-        string? oldValue = null, string? newValue = null, string? details = null, bool success = true, string? error = null);
+        string? oldValue = null, string? newValue = null, string? details = null, bool success = true, string? errorDetail = null);
 
     Task LogDocumentActionAsync(string action, Document document, string? details = null,
         string? oldValue = null, string? newValue = null);
@@ -21,7 +21,7 @@ public interface IAuditTrailService
     Task LogSystemActionAsync(string action, string? details = null);
 
     Task<List<AuditLogEntry>> GetLogsAsync(
-        DateTime? from = null, DateTime? to = null,
+        DateTime? from = null, DateTime? rangeEnd = null,
         string? userId = null, string? action = null, string? category = null,
         int limit = 1000);
 
@@ -42,7 +42,7 @@ public class AuditTrailService : IAuditTrailService
     }
 
     public Task LogAsync(string action, string category, string entityType, string? entityId,
-        string? oldValue = null, string? newValue = null, string? details = null, bool success = true, string? error = null)
+        string? oldValue = null, string? newValue = null, string? details = null, bool success = true, string? errorDetail = null)
     {
         var session = GetCurrentSession();
 
@@ -61,7 +61,7 @@ public class AuditTrailService : IAuditTrailService
             NewValue = newValue,
             Details = details,
             Success = success,
-            ErrorMessage = error
+            ErrorMessage = errorDetail
         };
 
         try
@@ -115,11 +115,11 @@ public class AuditTrailService : IAuditTrailService
     }
 
     public Task<List<AuditLogEntry>> GetLogsAsync(
-        DateTime? from = null, DateTime? to = null,
+        DateTime? from = null, DateTime? rangeEnd = null,
         string? userId = null, string? action = null, string? category = null,
         int limit = 1000)
     {
-        var logs = _auditStore.Query(from, to, userId, action, category, archivedOnly: false, limit);
+        var logs = _auditStore.Query(from, rangeEnd, userId, action, category, archivedOnly: false, limit);
         return Task.FromResult(logs);
     }
 

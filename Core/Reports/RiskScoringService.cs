@@ -9,7 +9,7 @@ namespace WorkAudit.Core.Reports;
 /// </summary>
 public interface IRiskScoringService
 {
-    IReadOnlyList<RiskIndicator> GetRiskIndicators(IDocumentStore store, IDocumentAssignmentStore? assignmentStore, DateTime from, DateTime to);
+    IReadOnlyList<RiskIndicator> GetRiskIndicators(IDocumentStore store, IDocumentAssignmentStore? assignmentStore, DateTime from, DateTime rangeEnd);
 }
 
 public class RiskScoringService : IRiskScoringService
@@ -20,11 +20,11 @@ public class RiskScoringService : IRiskScoringService
     private const int OutstandingIssuesThreshold = 50;
     private const int OverdueAssignmentsThreshold = 10;
 
-    public IReadOnlyList<RiskIndicator> GetRiskIndicators(IDocumentStore store, IDocumentAssignmentStore? assignmentStore, DateTime from, DateTime to)
+    public IReadOnlyList<RiskIndicator> GetRiskIndicators(IDocumentStore store, IDocumentAssignmentStore? assignmentStore, DateTime from, DateTime rangeEnd)
     {
         var indicators = new List<RiskIndicator>();
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
+        var toStr = rangeEnd.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, limit: 50_000, newestFirst: true);
 
         foreach (var branch in docs.Select(d => string.IsNullOrEmpty(d.Branch) ? "(No Branch)" : d.Branch).Distinct())
@@ -36,7 +36,7 @@ public class RiskScoringService : IRiskScoringService
             var active = branchDocs.Count(d => d.Status != Enums.Status.Archived);
             var clearingRate = active > 0 ? (decimal)cleared / active * 100 : 0;
             var issueRate = total > 0 ? (decimal)issueCount / total * 100 : 0;
-            var days = Math.Max(1, (to - from).Days + 1);
+            var days = Math.Max(1, (rangeEnd - from).Days + 1);
             var throughput = (decimal)total / days;
 
             if (issueRate >= IssueRateThreshold)

@@ -58,7 +58,7 @@ public class TeamTaskService : ITeamTaskService
         if (current == null)
             throw new InvalidOperationException("Not signed in.");
 
-        var assignTo = _userStore.Get(assignedToUserId)
+        var assignTo = _userStore.GetById(assignedToUserId)
             ?? throw new ArgumentException("Assignee not found.", nameof(assignedToUserId));
 
         var startStr = startDateLocal.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -95,7 +95,7 @@ public class TeamTaskService : ITeamTaskService
         if (!TeamTaskRecurrence.All.Contains(task.Recurrence))
             throw new ArgumentException("Invalid recurrence.");
 
-        var assignTo = _userStore.Get(task.AssignedToUserId);
+        var assignTo = _userStore.GetById(task.AssignedToUserId);
         if (assignTo != null)
         {
             task.AssignedToUsername = assignTo.DisplayName ?? assignTo.Username;
@@ -111,7 +111,7 @@ public class TeamTaskService : ITeamTaskService
     public bool Delete(int id)
     {
         RequireManagePermission();
-        var existing = _store.Get(id);
+        var existing = _store.GetById(id);
         var ok = _store.Delete(id);
         if (ok && existing != null)
             _ = _auditTrail.LogAsync(AuditAction.TeamTaskDeleted, AuditCategory.System, "TeamTask", existing.Uuid,
@@ -153,7 +153,7 @@ public class TeamTaskService : ITeamTaskService
         if (user == null)
             return null;
 
-        var task = _store.Get(teamTaskId);
+        var task = _store.GetById(teamTaskId);
         if (task == null || task.AssignedToUserId != user.Id)
             return null;
 
@@ -171,7 +171,7 @@ public class TeamTaskService : ITeamTaskService
         if (user == null)
             return false;
 
-        var task = _store.Get(teamTaskId);
+        var task = _store.GetById(teamTaskId);
         if (task == null || task.AssignedToUserId != user.Id)
             return false;
 
@@ -189,7 +189,7 @@ public class TeamTaskService : ITeamTaskService
         if (user == null)
             return null;
 
-        var task = _store.Get(teamTaskId);
+        var task = _store.GetById(teamTaskId);
         if (task == null || task.AssignedToUserId != user.Id)
             return null;
 

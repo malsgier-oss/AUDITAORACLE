@@ -15,7 +15,7 @@ public interface INotesStore
     /// <summary>
     /// Retrieves a note by its numeric ID.
     /// </summary>
-    Note? Get(int id);
+    Note? GetById(int id);
 
     /// <summary>
     /// Retrieves a note by its UUID.

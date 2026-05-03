@@ -33,7 +33,7 @@ public interface ICameraService : IDisposable
     Task<string?> CaptureAndSaveAsync(string outputPath);
 
     event Action<BitmapSource>? FrameReady;
-    event Action<string>? Error;
+    event Action<string>? CaptureError;
 }
 
 public class CameraService : ICameraService
@@ -73,7 +73,7 @@ public class CameraService : ICameraService
     public int CurrentHeight { get; private set; }
 
     public event Action<BitmapSource>? FrameReady;
-    public event Action<string>? Error;
+    public event Action<string>? CaptureError;
 
     public CameraService(IConfigStore configStore)
     {
@@ -223,7 +223,7 @@ public class CameraService : ICameraService
                 if (!capture.IsOpened())
                 {
                     _log.Error("Failed to open camera {Index}", cameraIndex);
-                    Application.Current?.Dispatcher.BeginInvoke(() => Error?.Invoke($"Failed to open camera {cameraIndex}"));
+                    Application.Current?.Dispatcher.BeginInvoke(() => CaptureError?.Invoke($"Failed to open camera {cameraIndex}"));
                     capture.Dispose();
                     return false;
                 }
@@ -286,7 +286,7 @@ public class CameraService : ICameraService
         catch (Exception ex)
         {
             _log.Error(ex, "Error starting camera capture");
-            Application.Current?.Dispatcher.BeginInvoke(() => Error?.Invoke($"Error starting camera: {ex.Message}"));
+            Application.Current?.Dispatcher.BeginInvoke(() => CaptureError?.Invoke($"Error starting camera: {ex.Message}"));
             return false;
         }
     }

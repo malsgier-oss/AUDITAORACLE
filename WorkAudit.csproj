@@ -6,7 +6,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
-    <SupportedOSPlatform>windows10.0.19041.0</SupportedOSPlatform>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -71,6 +71,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="DESIGN_DOCS\**\*.cs" />
     <Compile Remove="SetupVision\**" />
     <Compile Remove="WorkAudit.Tests\**" />
     <Compile Remove="scripts\**" />

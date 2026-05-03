@@ -11,7 +11,7 @@ namespace WorkAudit.Core.Backup;
 public interface IScheduledBackupService
 {
     void Start();
-    void Stop();
+    void Shutdown();
     bool IsRunning { get; }
     DateTime? LastBackupAt { get; }
 }
@@ -56,7 +56,7 @@ public class ScheduledBackupService : IScheduledBackupService, IDisposable
             period: _pollInterval);
     }
 
-    public void Stop()
+    public void Shutdown()
     {
         _timer?.Dispose();
         _timer = null;
@@ -65,7 +65,7 @@ public class ScheduledBackupService : IScheduledBackupService, IDisposable
 
     public void Dispose()
     {
-        Stop();
+        Shutdown();
         GC.SuppressFinalize(this);
     }
 

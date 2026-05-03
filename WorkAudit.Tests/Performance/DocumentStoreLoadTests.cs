@@ -129,7 +129,7 @@ public class DocumentStoreLoadTests : IClassFixture<OracleTestFixture>
         
         foreach (var id in randomIds)
         {
-            var doc = _store.Get(id);
+            var doc = _store.GetById(id);
             doc.Should().NotBeNull();
         }
         
@@ -186,7 +186,7 @@ public class DocumentStoreLoadTests : IClassFixture<OracleTestFixture>
         avgPerUpdate.Should().BeLessThan(20); // < 20ms per update on average
 
         // Verify updates
-        var updatedDoc = _store.Get(documents[0].Id);
+        var updatedDoc = _store.GetById(documents[0].Id);
         updatedDoc!.Status.Should().Be("Reviewed");
     }
 
@@ -222,7 +222,7 @@ public class DocumentStoreLoadTests : IClassFixture<OracleTestFixture>
                 for (int i = 0; i < readsPerThread; i++)
                 {
                     var randomId = ids[Random.Shared.Next(ids.Count)];
-                    var doc = _store.Get(randomId);
+                    var doc = _store.GetById(randomId);
                     doc.Should().NotBeNull();
                 }
             });

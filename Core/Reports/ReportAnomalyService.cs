@@ -9,7 +9,7 @@ namespace WorkAudit.Core.Reports;
 /// </summary>
 public interface IReportAnomalyService
 {
-    IReadOnlyList<ReportAnomaly> GetAnomalies(IDocumentStore store, DateTime from, DateTime to, string? branch = null, string? section = null, string? engagement = null);
+    IReadOnlyList<ReportAnomaly> GetAnomalies(IDocumentStore store, DateTime from, DateTime rangeEnd, string? branch = null, string? section = null, string? engagement = null);
 }
 
 public class ReportAnomaly
@@ -30,20 +30,20 @@ public class ReportAnomalyService : IReportAnomalyService
     private const decimal ThroughputDropThreshold = 0.30m;
     private const decimal StdDevThreshold = 2.0m;
 
-    public IReadOnlyList<ReportAnomaly> GetAnomalies(IDocumentStore store, DateTime from, DateTime to, string? branch = null, string? section = null, string? engagement = null)
+    public IReadOnlyList<ReportAnomaly> GetAnomalies(IDocumentStore store, DateTime from, DateTime rangeEnd, string? branch = null, string? section = null, string? engagement = null)
     {
         var anomalies = new List<ReportAnomaly>();
-        var periodDays = (to - from).Days + 1;
+        var periodDays = (rangeEnd - from).Days + 1;
 
         var fromStr = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        var toStr = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
+        var toStr = rangeEnd.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59";
         var docs = store.ListDocuments(dateFrom: fromStr, dateTo: toStr, branch: branch, section: section, engagement: engagement, limit: MaxDocuments, newestFirst: true);
 
         var priorPeriods = new List<(DateTime f, DateTime t, List<Document> d)>();
         for (var i = 1; i <= PeriodsForAverage; i++)
         {
             var pf = from.AddDays(-periodDays * i);
-            var pt = to.AddDays(-periodDays * i);
+            var pt = rangeEnd.AddDays(-periodDays * i);
             var priorDocs = store.ListDocuments(dateFrom: pf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), dateTo: pt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59", branch: branch, section: section, engagement: engagement, limit: MaxDocuments, newestFirst: true);
             priorPeriods.Add((pf, pt, priorDocs));
         }

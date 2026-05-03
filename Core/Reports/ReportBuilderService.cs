@@ -6,11 +6,11 @@ namespace WorkAudit.Core.Reports;
 public interface IReportBuilderService
 {
     // Template Management
-    Task<int> CreateTemplateAsync(CustomReportTemplate template);
+    Task<int> CreateTemplateAsync(CustomReportTemplate reportTemplate);
     Task<CustomReportTemplate?> GetTemplateAsync(int id);
     Task<List<CustomReportTemplate>> GetUserTemplatesAsync(int userId);
     Task<List<CustomReportTemplate>> GetAllAccessibleTemplatesAsync(int userId);
-    Task UpdateTemplateAsync(CustomReportTemplate template);
+    Task UpdateTemplateAsync(CustomReportTemplate reportTemplate);
     Task DeleteTemplateAsync(int id);
     
     // Field Discovery
@@ -18,10 +18,10 @@ public interface IReportBuilderService
     List<FilterOperator> GetOperatorsForField(FieldType type);
     
     // Report Generation
-    Task<ReportResult> GenerateReportAsync(CustomReportTemplate template, DateTime? startDate = null, DateTime? endDate = null);
+    Task<ReportResult> GenerateReportAsync(CustomReportTemplate reportTemplate, DateTime? startDate = null, DateTime? endDate = null);
     
     // Validation
-    (bool IsValid, List<string> Errors) ValidateTemplate(CustomReportTemplate template);
+    (bool IsValid, List<string> Errors) ValidateTemplate(CustomReportTemplate reportTemplate);
 }
 
 public class ReportBuilderService : IReportBuilderService
@@ -35,10 +35,10 @@ public class ReportBuilderService : IReportBuilderService
         _documentStore = documentStore;
     }
 
-    public Task<int> CreateTemplateAsync(CustomReportTemplate template)
+    public Task<int> CreateTemplateAsync(CustomReportTemplate reportTemplate)
     {
-        template.CreatedAt = DateTime.UtcNow;
-        return _templateStore.CreateTemplateAsync(template);
+        reportTemplate.CreatedAt = DateTime.UtcNow;
+        return _templateStore.CreateTemplateAsync(reportTemplate);
     }
 
     public Task<CustomReportTemplate?> GetTemplateAsync(int id)
@@ -56,10 +56,10 @@ public class ReportBuilderService : IReportBuilderService
         return _templateStore.GetAllAccessibleTemplatesAsync(userId);
     }
 
-    public Task UpdateTemplateAsync(CustomReportTemplate template)
+    public Task UpdateTemplateAsync(CustomReportTemplate reportTemplate)
     {
-        template.UpdatedAt = DateTime.UtcNow;
-        return _templateStore.UpdateTemplateAsync(template);
+        reportTemplate.UpdatedAt = DateTime.UtcNow;
+        return _templateStore.UpdateTemplateAsync(reportTemplate);
     }
 
     public Task DeleteTemplateAsync(int id)
@@ -168,7 +168,7 @@ public class ReportBuilderService : IReportBuilderService
         };
     }
 
-    public async Task<ReportResult> GenerateReportAsync(CustomReportTemplate template, DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<ReportResult> GenerateReportAsync(CustomReportTemplate reportTemplate, DateTime? startDate = null, DateTime? endDate = null)
     {
         // For simplicity, use ListDocuments and filter in memory
         // In a production system, you would want to build a more sophisticated query
@@ -180,14 +180,14 @@ public class ReportBuilderService : IReportBuilderService
         );
         
         // Apply template filters in memory
-        var filteredDocs = ApplyFilters(documents, template.Filters);
+        var filteredDocs = ApplyFilters(documents, reportTemplate.Filters);
         
         // Apply sorting
-        var sortedDocs = ApplySorting(filteredDocs, template.Sorting);
+        var sortedDocs = ApplySorting(filteredDocs, reportTemplate.Sorting);
         
         var result = new ReportResult
         {
-            Template = template,
+            Template = reportTemplate,
             GeneratedAt = DateTime.UtcNow,
             TotalCount = sortedDocs.Count
         };
@@ -196,7 +196,7 @@ public class ReportBuilderService : IReportBuilderService
         foreach (var doc in sortedDocs)
         {
             var row = new Dictionary<string, object?>();
-            foreach (var field in template.Fields.Where(f => f.IsVisible).OrderBy(f => f.Order))
+            foreach (var field in reportTemplate.Fields.Where(f => f.IsVisible).OrderBy(f => f.Order))
             {
                 row[field.FieldName] = GetFieldValue(doc, field.FieldName);
             }
@@ -206,22 +206,22 @@ public class ReportBuilderService : IReportBuilderService
         return Task.FromResult(result).Result;
     }
 
-    public (bool IsValid, List<string> Errors) ValidateTemplate(CustomReportTemplate template)
+    public (bool IsValid, List<string> Errors) ValidateTemplate(CustomReportTemplate reportTemplate)
     {
         var errors = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(template.Name))
+        if (string.IsNullOrWhiteSpace(reportTemplate.Name))
         {
             errors.Add("Template name is required");
         }
 
-        if (!template.Fields.Any())
+        if (!reportTemplate.Fields.Any())
         {
             errors.Add("At least one field must be selected");
         }
 
         // Validate filters
-        foreach (var filter in template.Filters)
+        foreach (var filter in reportTemplate.Filters)
         {
             if (string.IsNullOrWhiteSpace(filter.FieldName))
             {

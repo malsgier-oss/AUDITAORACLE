@@ -69,7 +69,7 @@ public class NotesStore : INotesStore
         return note;
     }
 
-    public Note? Get(int id)
+    public Note? GetById(int id)
     {
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
@@ -192,7 +192,7 @@ public class NotesStore : INotesStore
 
     public bool Update(Note note)
     {
-        var existing = Get(note.Id);
+        var existing = GetById(note.Id);
         if (existing != null
             && string.Equals(existing.Type, NoteType.Issue, StringComparison.Ordinal)
             && string.Equals(existing.Status, NoteStatus.Resolved, StringComparison.Ordinal)

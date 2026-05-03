@@ -18,6 +18,13 @@ public class Result
 
     public static Result Success() => new Result(true);
     public static Result Failure(string error, Exception? exception = null) => new Result(false, error, exception);
+
+    /// <summary>Creates a successful typed result (static factory lives on non-generic <see cref="Result"/> to satisfy CA1000).</summary>
+    public static Result<T> Success<T>(T value) => new Result<T>(true, value);
+
+    /// <summary>Creates a failed typed result.</summary>
+    public static Result<T> Failure<T>(string error, Exception? exception = null) =>
+        new Result<T>(false, default, error, exception);
 }
 
 /// <summary>
@@ -27,14 +34,11 @@ public class Result<T> : Result
 {
     public T? Value { get; }
 
-    private Result(bool isSuccess, T? value, string? error = null, Exception? exception = null)
+    internal Result(bool isSuccess, T? value, string? error = null, Exception? exception = null)
         : base(isSuccess, error, exception)
     {
         Value = value;
     }
-
-    public static Result<T> Success(T value) => new Result<T>(true, value);
-    public static new Result<T> Failure(string error, Exception? exception = null) => new Result<T>(false, default, error, exception);
 
     public bool TryGetValue(out T value)
     {

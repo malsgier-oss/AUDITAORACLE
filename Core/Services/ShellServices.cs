@@ -30,11 +30,11 @@ public sealed class ShellPolicyService : IShellPolicyService
 
 public interface ILocalizationApplier
 {
-    string Get(IConfigStore config, string key, params object[] args);
+    string GetLocalizedString(IConfigStore config, string key, params object[] args);
 }
 
 public sealed class LocalizationApplier : ILocalizationApplier
 {
-    public string Get(IConfigStore config, string key, params object[] args) =>
+    public string GetLocalizedString(IConfigStore config, string key, params object[] args) =>
         ReportLocalizationService.GetString(key, config, args);
 }

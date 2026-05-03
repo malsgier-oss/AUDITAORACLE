@@ -140,17 +140,17 @@ public class DocumentStore : IDocumentStore
             var id = Convert.ToInt64(rid.Value?.ToString() ?? "0", CultureInfo.InvariantCulture);
 
             _log.Information("Document inserted: {Id} ({Type})", id, doc.DocumentType ?? "Unknown");
-            return Result<long>.Success(id);
+            return Result.Success(id);
         }
         catch (OracleException ex)
         {
             _log.Error(ex, "Database error inserting document: {Message}", ex.Message);
-            return Result<long>.Failure($"Database error: {ex.Message}", ex);
+            return Result.Failure<long>($"Database error: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
             _log.Error(ex, "Unexpected error inserting document: {Message}", ex.Message);
-            return Result<long>.Failure($"Unexpected error: {ex.Message}", ex);
+            return Result.Failure<long>($"Unexpected error: {ex.Message}", ex);
         }
     }
 
@@ -167,30 +167,30 @@ public class DocumentStore : IDocumentStore
             if (r.Read())
             {
                 var doc = ReadDocument(r);
-                return Result<Document>.Success(doc);
+                return Result.Success(doc);
             }
-            return Result<Document>.Failure($"Document with ID {id} not found");
+            return Result.Failure<Document>($"Document with ID {id} not found");
         }
         catch (OracleException ex)
         {
             _log.Error(ex, "Database error getting document {Id}: {Message}", id, ex.Message);
-            return Result<Document>.Failure($"Database error: {ex.Message}", ex);
+            return Result.Failure<Document>($"Database error: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
             _log.Error(ex, "Unexpected error getting document {Id}: {Message}", id, ex.Message);
-            return Result<Document>.Failure($"Unexpected error: {ex.Message}", ex);
+            return Result.Failure<Document>($"Unexpected error: {ex.Message}", ex);
         }
     }
 
-    public Document? Get(int id)
+    public Document? GetById(int id)
     {
         var result = GetResult(id);
         return result.TryGetValue(out var doc) ? doc : null;
     }
 
     /// <summary>
-    /// Batch retrieve documents by IDs. More efficient than calling Get() multiple times.
+    /// Batch retrieve documents by IDs. More efficient than calling GetById() multiple times.
     /// </summary>
     public List<Document> GetByIds(List<int> ids)
     {
@@ -942,7 +942,7 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
 
     public bool UpdateDisposalStatus(int id, string disposalStatus, int? requestedBy = null, int? approvedBy = null, int? rejectedBy = null, string? rejectionReason = null)
     {
-        var doc = Get(id);
+        var doc = GetById(id);
         if (doc == null) return false;
 
             var now = DateTime.UtcNow;

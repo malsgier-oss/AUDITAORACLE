@@ -933,7 +933,7 @@ public partial class ReportsView : UserControl, IDisposable
     {
         if (_selectedAttestation == null || _attestationService == null) return;
         _attestationService.MarkReviewed(_selectedAttestation.Id, GetCurrentUserId(), GetCurrentUsername());
-        _selectedAttestation = _attestationStore?.Get(_selectedAttestation.Id) ?? _selectedAttestation;
+        _selectedAttestation = _attestationStore?.GetById(_selectedAttestation.Id) ?? _selectedAttestation;
         RefreshAttestationPanel(_selectedAttestation.ReportPath, _selectedAttestation.ReportType);
         ShowMessage("Report marked as Reviewed.", isError: false);
     }
@@ -973,7 +973,7 @@ public partial class ReportsView : UserControl, IDisposable
     {
         if (_selectedAttestation == null || _attestationService == null) return;
         _attestationService.MarkApproved(_selectedAttestation.Id, GetCurrentUserId(), GetCurrentUsername());
-        _selectedAttestation = _attestationStore?.Get(_selectedAttestation.Id) ?? _selectedAttestation;
+        _selectedAttestation = _attestationStore?.GetById(_selectedAttestation.Id) ?? _selectedAttestation;
         RefreshAttestationPanel(_selectedAttestation.ReportPath, _selectedAttestation.ReportType);
         ShowMessage("Report approved.", isError: false);
     }

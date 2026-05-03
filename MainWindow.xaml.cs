@@ -147,14 +147,14 @@ public partial class MainWindow : Window
         // Keep shell layout fixed in LTR; language selection only changes localized strings.
         FlowDirection = ReportLocalizationService.ShellFlowDirection;
 
-        Title = _localization.Get(config, "AppTitle");
-        if (StatusText != null) StatusText.Text = _localization.Get(config, "Ready");
+        Title = _localization.GetLocalizedString(config, "AppTitle");
+        if (StatusText != null) StatusText.Text = _localization.GetLocalizedString(config, "Ready");
 
-        if (MenuFile != null) MenuFile.Header = _localization.Get(config, "File");
-        if (MenuOpenFiles != null) MenuOpenFiles.Header = _localization.Get(config, "OpenFiles");
-        if (MenuOpenFolder != null) MenuOpenFolder.Header = _localization.Get(config, "OpenFolder");
-        if (FileLogout != null) FileLogout.Header = _localization.Get(config, "SignOut");
-        if (MenuExit != null) MenuExit.Header = _localization.Get(config, "Exit");
+        if (MenuFile != null) MenuFile.Header = _localization.GetLocalizedString(config, "File");
+        if (MenuOpenFiles != null) MenuOpenFiles.Header = _localization.GetLocalizedString(config, "OpenFiles");
+        if (MenuOpenFolder != null) MenuOpenFolder.Header = _localization.GetLocalizedString(config, "OpenFolder");
+        if (FileLogout != null) FileLogout.Header = _localization.GetLocalizedString(config, "SignOut");
+        if (MenuExit != null) MenuExit.Header = _localization.GetLocalizedString(config, "Exit");
 
         if (MenuEdit != null) MenuEdit.Header = ReportLocalizationService.GetString("Edit", config);
         if (MenuPreferences != null) MenuPreferences.Header = ReportLocalizationService.GetString("Preferences", config);
@@ -191,11 +191,11 @@ public partial class MainWindow : Window
         if (ActReports != null) { ActReports.Content = ReportLocalizationService.GetString("Reports", config); ActReports.ToolTip = ReportLocalizationService.GetString("TooltipReports", config); }
 
 
-        if (ProgressCancelBtn != null) ProgressCancelBtn.Content = _localization.Get(config, "Cancel");
+        if (ProgressCancelBtn != null) ProgressCancelBtn.Content = _localization.GetLocalizedString(config, "Cancel");
 
         var appConfig = ServiceContainer.GetService<AppConfiguration>();
         if (UserDisplay != null && appConfig?.CurrentUserName != null)
-            UserDisplay.Text = _localization.Get(config, "SignedInAs", appConfig.CurrentUserName);
+            UserDisplay.Text = _localization.GetLocalizedString(config, "SignedInAs", appConfig.CurrentUserName);
     }
 
     private void OnProcessingProgressChanged(object? sender, ProcessingProgressEventArgs e)

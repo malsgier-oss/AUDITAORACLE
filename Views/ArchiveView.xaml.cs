@@ -135,11 +135,11 @@ public partial class ArchiveView : UserControl
     private void ApplyLocalization()
     {
         var config = ServiceContainer.GetService<IConfigStore>();
-        if (FiltersHeaderLabel != null) FiltersHeaderLabel.Text = _localization.Get(config, "Filters");
-        if (BranchLabel != null) BranchLabel.Text = _localization.Get(config, "Branch");
-        if (SectionLabel != null) SectionLabel.Text = _localization.Get(config, "Section");
-        if (TypeLabel != null) TypeLabel.Text = _localization.Get(config, "Type");
-        if (LegalHoldLabel != null) LegalHoldLabel.Text = _localization.Get(config, "LegalHold");
+        if (FiltersHeaderLabel != null) FiltersHeaderLabel.Text = _localization.GetLocalizedString(config, "Filters");
+        if (BranchLabel != null) BranchLabel.Text = _localization.GetLocalizedString(config, "Branch");
+        if (SectionLabel != null) SectionLabel.Text = _localization.GetLocalizedString(config, "Section");
+        if (TypeLabel != null) TypeLabel.Text = _localization.GetLocalizedString(config, "Type");
+        if (LegalHoldLabel != null) LegalHoldLabel.Text = _localization.GetLocalizedString(config, "LegalHold");
         if (CaptureDateFromLabel != null) CaptureDateFromLabel.Text = ReportLocalizationService.GetString("DocumentDateFrom", config);
         if (CaptureDateToLabel != null) CaptureDateToLabel.Text = ReportLocalizationService.GetString("DocumentDateTo", config);
         if (ExpiringWithinLabel != null) ExpiringWithinLabel.Text = ReportLocalizationService.GetString("ExpiringWithin", config);

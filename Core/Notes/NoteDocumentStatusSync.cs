@@ -63,7 +63,7 @@ public sealed class NoteDocumentStatusSync : INoteDocumentStatusSync
     {
         try
         {
-            var doc = _documentStore.Get(documentId);
+            var doc = _documentStore.GetById(documentId);
             if (doc == null)
                 return;
             if (string.Equals(doc.Status, Enums.Status.Archived, StringComparison.Ordinal))

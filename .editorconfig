@@ -3,6 +3,12 @@ root = true
 [*.cs]
 # Production-code analyzer severities are inherited from Directory.Build.props
 # (AnalysisLevel=latest-recommended). Keep them at full strength here.
+# WPF/desktop app: suppress high-churn / low-signal rules (see plan phase 3/6).
+dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.CA1859.severity = none
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.CA1860.severity = none
+dotnet_diagnostic.CA1845.severity = none
 
 # Roslyn glob: `**/*.cs` does not match .cs files directly under WorkAudit.Tests; include both.
 [WorkAudit.Tests/*.cs]

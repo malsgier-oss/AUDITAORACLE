@@ -14,7 +14,7 @@ namespace WorkAudit.Core.Reports;
 public interface IScheduledReportService
 {
     void Start();
-    void Stop();
+    void Shutdown();
     bool IsRunning { get; }
     DateTime? LastReportAt { get; }
 }
@@ -58,7 +58,7 @@ public class ScheduledReportService : IScheduledReportService, IDisposable
             TimeSpan.FromMinutes(1));
     }
 
-    public void Stop()
+    public void Shutdown()
     {
         _timer?.Dispose();
         _timer = null;
@@ -67,7 +67,7 @@ public class ScheduledReportService : IScheduledReportService, IDisposable
 
     public void Dispose()
     {
-        Stop();
+        Shutdown();
         GC.SuppressFinalize(this);
     }
 

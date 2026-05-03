@@ -29,7 +29,7 @@ public interface ISavedSearchService
     IReadOnlyList<SavedSearch> List();
     void Save(SavedSearch search);
     void Delete(string id);
-    SavedSearch? Get(string id);
+    SavedSearch? GetById(string id);
 }
 
 public class SavedSearchService : ISavedSearchService
@@ -65,7 +65,7 @@ public class SavedSearchService : ISavedSearchService
         Persist();
     }
 
-    public SavedSearch? Get(string id)
+    public SavedSearch? GetById(string id)
     {
         EnsureLoaded();
         return _cache.FirstOrDefault(s => s.Id == id);

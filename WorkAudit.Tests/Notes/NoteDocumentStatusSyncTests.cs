@@ -33,7 +33,7 @@ public class NoteDocumentStatusSyncTests
     {
         var sut = CreateSut();
         var doc = new Document { Id = 10, Uuid = "doc-1", Status = Enums.Status.Reviewed };
-        _documentStore.Setup(s => s.Get(10)).Returns(doc);
+        _documentStore.Setup(s => s.GetById(10)).Returns(doc);
         _documentStore.Setup(s => s.UpdateStatus(10, Enums.Status.Issue)).Returns(true);
 
         var note = new Note { Id = 1, DocumentId = 10, Type = NoteType.Issue, Status = NoteStatus.Open };
@@ -64,7 +64,7 @@ public class NoteDocumentStatusSyncTests
     public async Task OnNoteAddedAsync_archivedDoc_doesNothing()
     {
         var sut = CreateSut();
-        _documentStore.Setup(s => s.Get(10)).Returns(new Document { Id = 10, Uuid = "doc-1", Status = Enums.Status.Archived });
+        _documentStore.Setup(s => s.GetById(10)).Returns(new Document { Id = 10, Uuid = "doc-1", Status = Enums.Status.Archived });
 
         var note = new Note { Id = 3, DocumentId = 10, Type = NoteType.Issue, Status = NoteStatus.Open };
         await sut.OnNoteAddedAsync(note);
@@ -77,7 +77,7 @@ public class NoteDocumentStatusSyncTests
     {
         var sut = CreateSut();
         var doc = new Document { Id = 10, Uuid = "doc-1", Status = Enums.Status.Issue };
-        _documentStore.Setup(s => s.Get(10)).Returns(doc);
+        _documentStore.Setup(s => s.GetById(10)).Returns(doc);
         _documentStore.Setup(s => s.UpdateStatus(10, Enums.Status.Reviewed)).Returns(true);
         _notesStore.Setup(s => s.GetByDocumentId(10)).Returns(new List<Note>
         {

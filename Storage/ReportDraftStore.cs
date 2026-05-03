@@ -11,7 +11,7 @@ public interface IReportDraftStore
     int Insert(ReportDraft draft);
     void Update(ReportDraft draft);
     void Delete(int id);
-    ReportDraft? Get(int id);
+    ReportDraft? GetById(int id);
     ReportDraft? GetByUuid(string uuid);
     List<ReportDraft> GetByUserId(string userId);
     List<ReportDraft> GetAll();
@@ -111,7 +111,7 @@ public class ReportDraftStore : IReportDraftStore
         cmd.ExecuteNonQuery();
     }
 
-    public ReportDraft? Get(int id)
+    public ReportDraft? GetById(int id)
     {
         using var conn = new OracleConnection(_connectionString);
         conn.Open();

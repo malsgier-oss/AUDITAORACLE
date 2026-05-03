@@ -9,7 +9,7 @@ namespace WorkAudit.Core.Reports;
 public interface IReportHistoryFilterService
 {
     List<ReportHistory> FilterByTags(List<ReportHistory> reports, string[] tags);
-    List<ReportHistory> FilterByDateRange(List<ReportHistory> reports, DateTime? from, DateTime? to);
+    List<ReportHistory> FilterByDateRange(List<ReportHistory> reports, DateTime? from, DateTime? rangeEnd);
     List<ReportHistory> FilterByReportType(List<ReportHistory> reports, string[] reportTypes);
     List<ReportHistory> FilterByUser(List<ReportHistory> reports, string userId);
     List<ReportHistory> Search(List<ReportHistory> reports, string searchText);
@@ -56,13 +56,13 @@ public class ReportHistoryFilterService : IReportHistoryFilterService
         }).ToList();
     }
 
-    public List<ReportHistory> FilterByDateRange(List<ReportHistory> reports, DateTime? from, DateTime? to)
+    public List<ReportHistory> FilterByDateRange(List<ReportHistory> reports, DateTime? from, DateTime? rangeEnd)
     {
         return reports.Where(r =>
         {
             if (!DateTime.TryParse(r.GeneratedAt, out var generatedDate)) return true;
             if (from.HasValue && generatedDate < from.Value) return false;
-            if (to.HasValue && generatedDate > to.Value) return false;
+            if (rangeEnd.HasValue && generatedDate > rangeEnd.Value) return false;
             return true;
         }).ToList();
     }

@@ -74,7 +74,7 @@ public class SessionService : ISessionService
         }
 
         // Re-validate user from DB: if deactivated or locked, force logout immediately
-        var currentUserFromDb = _userStore.Get(session.UserId);
+        var currentUserFromDb = _userStore.GetById(session.UserId);
         if (currentUserFromDb == null || !currentUserFromDb.IsActive || currentUserFromDb.IsLocked)
         {
             _log.Information("Session ended: user deactivated or locked: {Username}", user?.Username);
@@ -272,7 +272,7 @@ public class SessionService : ISessionService
         }
 
         // User must still be active and not locked
-        var user = _userStore.Get(session.UserId);
+        var user = _userStore.GetById(session.UserId);
         if (user == null || !user.IsActive || user.IsLocked)
         {
             _userStore.InvalidateSession(token);

@@ -17,7 +17,7 @@ public interface IDocumentAssignmentStore
     int Insert(DocumentAssignment a);
     /// <summary>Gets an assignment by ID with explicit error details on failure.</summary>
     Result<DocumentAssignment> GetResult(int id);
-    DocumentAssignment? Get(int id);
+    DocumentAssignment? GetById(int id);
     DocumentAssignment? GetByUuid(string uuid);
     List<DocumentAssignment> ListByUser(int userId, string? status = null, bool overdueOnly = false, int limit = 500);
     List<DocumentAssignment> ListByDocument(int documentId);
@@ -111,22 +111,22 @@ public class DocumentAssignmentStore : IDocumentAssignmentStore
             cmd.Parameters.AddWithValue("@id", id);
             Prep(cmd); using var r = cmd.ExecuteReader();
             if (r.Read())
-                return Result<DocumentAssignment>.Success(ReadRow(r));
-            return Result<DocumentAssignment>.Failure($"Assignment with ID {id} not found");
+                return Result.Success(ReadRow(r));
+            return Result.Failure<DocumentAssignment>($"Assignment with ID {id} not found");
         }
         catch (OracleException ex)
         {
             _log.Error(ex, "Database error getting assignment {Id}: {Message}", id, ex.Message);
-            return Result<DocumentAssignment>.Failure($"Database error: {ex.Message}", ex);
+            return Result.Failure<DocumentAssignment>($"Database error: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
             _log.Error(ex, "Unexpected error getting assignment {Id}: {Message}", id, ex.Message);
-            return Result<DocumentAssignment>.Failure($"Unexpected error: {ex.Message}", ex);
+            return Result.Failure<DocumentAssignment>($"Unexpected error: {ex.Message}", ex);
         }
     }
 
-    public DocumentAssignment? Get(int id)
+    public DocumentAssignment? GetById(int id)
     {
         var result = GetResult(id);
         return result.IsSuccess ? result.Value : null;

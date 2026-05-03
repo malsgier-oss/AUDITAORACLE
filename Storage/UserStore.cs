@@ -18,7 +18,7 @@ public interface IUserStore
     long Insert(User user);
     /// <param name="requirePasswordChangeOnNextLogin">When true, sets <c>must_change_password</c> to 1; when false, sets to 0; when null, leaves the column unchanged.</param>
     bool UpdatePassword(int id, string passwordHash, string? updatedBy = null, bool? requirePasswordChangeOnNextLogin = null);
-    User? Get(int id);
+    User? GetById(int id);
     User? GetByUuid(string uuid);
     User? GetByUsername(string username);
     List<User> ListUsers(string? role = null, bool? isActive = null, int limit = 1000);
@@ -164,7 +164,7 @@ public class UserStore : IUserStore
         }, nameof(UpdatePassword), false);
     }
 
-    public User? Get(int id)
+    public User? GetById(int id)
     {
         return ExecuteDbOperation(() =>
         {
@@ -175,7 +175,7 @@ public class UserStore : IUserStore
             cmd.Parameters.AddWithValue("id", id);
             Prep(cmd); using var reader = cmd.ExecuteReader();
             return reader.Read() ? ReadUser(reader) : null;
-        }, nameof(Get), null);
+        }, nameof(GetById), null);
     }
 
     public User? GetByUuid(string uuid)

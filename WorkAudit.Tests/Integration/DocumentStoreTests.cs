@@ -29,7 +29,7 @@ public class DocumentStoreTests : IClassFixture<OracleTestFixture>
         var id = _store.Insert(doc);
 
         id.Should().BeGreaterThan(0);
-        var retrieved = _store.Get((int)id);
+        var retrieved = _store.GetById((int)id);
         retrieved.Should().NotBeNull();
         retrieved!.DocumentType.Should().Be("Check");
     }
@@ -46,7 +46,7 @@ public class DocumentStoreTests : IClassFixture<OracleTestFixture>
         var success = _store.Update(doc);
 
         success.Should().BeTrue();
-        var retrieved = _store.Get((int)id);
+        var retrieved = _store.GetById((int)id);
         retrieved!.DocumentType.Should().Be("Invoice");
     }
 
@@ -66,7 +66,7 @@ public class DocumentStoreTests : IClassFixture<OracleTestFixture>
         var id = _store.Insert(doc);
         doc.Id = (int)id;
 
-        var loaded = _store.Get(doc.Id);
+        var loaded = _store.GetById(doc.Id);
         loaded!.AccountName.Should().Be("Jane Auditor");
         loaded.AccountNumber.Should().Be("00012345");
         loaded.TransactionReference.Should().Be("WIRE-99-AB");
@@ -76,7 +76,7 @@ public class DocumentStoreTests : IClassFixture<OracleTestFixture>
         loaded.TransactionReference = "CHK-1";
         _store.Update(loaded).Should().BeTrue();
 
-        var after = _store.Get(doc.Id);
+        var after = _store.GetById(doc.Id);
         after!.AccountName.Should().Be("Updated Name");
         after.AccountNumber.Should().BeNull();
         after.TransactionReference.Should().Be("CHK-1");
@@ -92,7 +92,7 @@ public class DocumentStoreTests : IClassFixture<OracleTestFixture>
         var success = _store.Delete((int)id);
 
         success.Should().BeTrue();
-        var retrieved = _store.Get((int)id);
+        var retrieved = _store.GetById((int)id);
         retrieved.Should().BeNull();
     }
 

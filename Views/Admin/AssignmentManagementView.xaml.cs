@@ -187,7 +187,7 @@ public partial class AssignmentManagementView : UserControl
         var user = ServiceContainer.GetService<ISessionService>()?.CurrentUser;
         if (user == null) return;
 
-        var docs = selected.Select(r => _documentStore!.Get(r.Assignment.DocumentId)).Where(d => d != null).Cast<Domain.Document>().ToList();
+        var docs = selected.Select(r => _documentStore!.GetById(r.Assignment.DocumentId)).Where(d => d != null).Cast<Domain.Document>().ToList();
         if (docs.Count == 0)
         {
             MessageBox.Show("No valid documents found for selected assignments.", "Bulk Assign", MessageBoxButton.OK, MessageBoxImage.Warning);

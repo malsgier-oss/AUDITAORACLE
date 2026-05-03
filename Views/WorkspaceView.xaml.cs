@@ -1206,15 +1206,15 @@ public partial class WorkspaceView : UserControl, IDisposable
     {
         var config = ServiceContainer.IsInitialized ? ServiceContainer.GetService<IConfigStore>() : null;
         if (config == null) return;
-        if (AssignmentFilterLabel != null) AssignmentFilterLabel.Text = _localization.Get(config, "Filter");
-        if (RbAssignmentPending != null) RbAssignmentPending.Content = _localization.Get(config, "Pending");
-        if (RbAssignmentInProgress != null) RbAssignmentInProgress.Content = _localization.Get(config, "InProgress");
-        if (RbAssignmentCompleted != null) RbAssignmentCompleted.Content = _localization.Get(config, "Completed");
-        if (AssignmentOverdueOnlyCheck != null) AssignmentOverdueOnlyCheck.Content = _localization.Get(config, "ShowOverdueOnly");
-        if (MarkCompleteBtn != null) MarkCompleteBtn.ToolTip = _localization.Get(config, "MarkComplete");
-        if (ViewDocumentBtn != null) ViewDocumentBtn.ToolTip = _localization.Get(config, "ViewDocument");
-        if (CancelAssignmentBtn != null) CancelAssignmentBtn.ToolTip = _localization.Get(config, "CancelAssignment");
-        if (MoveToArchiveBtn != null) MoveToArchiveBtn.ToolTip = _localization.Get(config, "MoveToArchiveTooltip");
+        if (AssignmentFilterLabel != null) AssignmentFilterLabel.Text = _localization.GetLocalizedString(config, "Filter");
+        if (RbAssignmentPending != null) RbAssignmentPending.Content = _localization.GetLocalizedString(config, "Pending");
+        if (RbAssignmentInProgress != null) RbAssignmentInProgress.Content = _localization.GetLocalizedString(config, "InProgress");
+        if (RbAssignmentCompleted != null) RbAssignmentCompleted.Content = _localization.GetLocalizedString(config, "Completed");
+        if (AssignmentOverdueOnlyCheck != null) AssignmentOverdueOnlyCheck.Content = _localization.GetLocalizedString(config, "ShowOverdueOnly");
+        if (MarkCompleteBtn != null) MarkCompleteBtn.ToolTip = _localization.GetLocalizedString(config, "MarkComplete");
+        if (ViewDocumentBtn != null) ViewDocumentBtn.ToolTip = _localization.GetLocalizedString(config, "ViewDocument");
+        if (CancelAssignmentBtn != null) CancelAssignmentBtn.ToolTip = _localization.GetLocalizedString(config, "CancelAssignment");
+        if (MoveToArchiveBtn != null) MoveToArchiveBtn.ToolTip = _localization.GetLocalizedString(config, "MoveToArchiveTooltip");
     }
 
     private void AssignmentFilter_Changed(object sender, RoutedEventArgs e)

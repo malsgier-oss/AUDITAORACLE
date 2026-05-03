@@ -14,14 +14,14 @@ namespace WorkAudit.Storage;
 public interface IAuditLogStore
 {
     long Insert(AuditLogEntry entry);
-    AuditLogEntry? Get(long id);
+    AuditLogEntry? GetById(long id);
     List<AuditLogEntry> Query(
-        DateTime? from = null, DateTime? to = null,
+        DateTime? from = null, DateTime? rangeEnd = null,
         string? userId = null, string? action = null, string? category = null,
         bool archivedOnly = false,
         int limit = 1000, int offset = 0);
     List<AuditLogEntry> GetByEntityId(string entityType, string entityId);
-    int Count(DateTime? from = null, DateTime? to = null);
+    int Count(DateTime? from = null, DateTime? rangeEnd = null);
     void Cleanup(DateTime olderThan);
 }
 
@@ -115,7 +115,7 @@ public class AuditLogStore : IAuditLogStore
         }, nameof(Insert), -1L);
     }
 
-    public AuditLogEntry? Get(long id)
+    public AuditLogEntry? GetById(long id)
     {
         return ExecuteDbOperation(() =>
         {
@@ -126,11 +126,11 @@ public class AuditLogStore : IAuditLogStore
             cmd.Parameters.AddWithValue("id", id);
             Prep(cmd); using var reader = cmd.ExecuteReader();
             return reader.Read() ? ReadEntry(reader) : null;
-        }, nameof(Get), null);
+        }, nameof(GetById), null);
     }
 
     public List<AuditLogEntry> Query(
-        DateTime? from = null, DateTime? to = null,
+        DateTime? from = null, DateTime? rangeEnd = null,
         string? userId = null, string? action = null, string? category = null,
         bool archivedOnly = false,
         int limit = 1000, int offset = 0)
@@ -147,10 +147,10 @@ public class AuditLogStore : IAuditLogStore
             parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value });
         }
 
-        if (to.HasValue)
+        if (rangeEnd.HasValue)
         {
             sql += " AND event_time <= @p_to";
-            parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = to.Value });
+            parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = rangeEnd.Value });
         }
 
         if (!string.IsNullOrEmpty(userId))
@@ -218,7 +218,7 @@ public class AuditLogStore : IAuditLogStore
         }, nameof(GetByEntityId), new List<AuditLogEntry>());
     }
 
-    public int Count(DateTime? from = null, DateTime? to = null)
+    public int Count(DateTime? from = null, DateTime? rangeEnd = null)
     {
         return ExecuteDbOperation(() =>
         {
@@ -234,10 +234,10 @@ public class AuditLogStore : IAuditLogStore
                 cmd.Parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value });
             }
 
-            if (to.HasValue)
+            if (rangeEnd.HasValue)
             {
                 sql += " AND event_time <= @p_to";
-                cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = to.Value });
+                cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = rangeEnd.Value });
             }
 
             cmd.CommandText = sql;
