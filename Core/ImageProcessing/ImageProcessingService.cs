@@ -372,8 +372,99 @@ public class ImageProcessingService : IImageProcessingService
         {
             DocumentEnhanceMode.Grayscale => UnsharpMask(EnhanceContrast(ConvertToGrayscale(image))),
             DocumentEnhanceMode.BlackAndWhite => ApplyBwScan(image),
-            _ => image.Clone() // Color mode: Keep it raw as per user request (live view is high quality)
+            _ => EnhanceColorDocument(image)
         };
+    }
+
+    /// <summary>
+    /// Neutral "document mode" colour pipeline: per-channel paper-aware white-balance,
+    /// gentle luminance-only contrast stretch, and a light unsharp mask. Designed to
+    /// match a scanner-style faithful look without over-saturating or pushing colours.
+    /// Keeps the image as 3-channel BGR CV_8U.
+    /// </summary>
+    private static Mat EnhanceColorDocument(Mat image)
+    {
+        if (image.Empty() || image.Channels() != 3)
+            return image.Clone();
+
+        // 1) Per-channel WB: bring the 95th-percentile of each channel toward white.
+        //    Cap the gain so a coloured original (e.g. a blue form) is not bleached.
+        const double TargetWhite = 240.0;
+        const double MaxGain = 1.6;
+        var channels = Cv2.Split(image);
+        try
+        {
+            for (int i = 0; i < channels.Length; i++)
+            {
+                var p95 = ComputePercentile(channels[i], 0.95);
+                var gain = p95 > 1.0 ? Math.Min(MaxGain, TargetWhite / p95) : 1.0;
+                channels[i].ConvertTo(channels[i], MatType.CV_8U, gain, 0);
+            }
+
+            using var balanced = new Mat();
+            Cv2.Merge(channels, balanced);
+
+            // 2) Mild luminance contrast stretch (1st..99th percentile of Y) — colours unchanged.
+            using var ycc = new Mat();
+            Cv2.CvtColor(balanced, ycc, ColorConversionCodes.BGR2YCrCb);
+            var yccCh = Cv2.Split(ycc);
+            try
+            {
+                var lo = ComputePercentile(yccCh[0], 0.01);
+                var hi = ComputePercentile(yccCh[0], 0.99);
+                if (hi - lo > 10)
+                {
+                    var alpha = 255.0 / (hi - lo);
+                    yccCh[0].ConvertTo(yccCh[0], MatType.CV_8U, alpha, -lo * alpha);
+                }
+
+                using var stretchedYcc = new Mat();
+                Cv2.Merge(yccCh, stretchedYcc);
+
+                using var stretched = new Mat();
+                Cv2.CvtColor(stretchedYcc, stretched, ColorConversionCodes.YCrCb2BGR);
+
+                // 3) Light unsharp mask (sigma 1.2, amount 0.3) — text crisper, no halos.
+                using var blur = new Mat();
+                Cv2.GaussianBlur(stretched, blur, new OpenCvSharp.Size(0, 0), 1.2);
+                var result = new Mat();
+                Cv2.AddWeighted(stretched, 1.3, blur, -0.3, 0, result);
+                return result;
+            }
+            finally
+            {
+                foreach (var c in yccCh) c.Dispose();
+            }
+        }
+        finally
+        {
+            foreach (var c in channels) c.Dispose();
+        }
+    }
+
+    /// <summary>Histogram-based percentile (0..1) of a single-channel CV_8U Mat. Returns a value in [0..255].</summary>
+    private static double ComputePercentile(Mat singleChannel, double pct)
+    {
+        if (singleChannel.Empty()) return 0;
+        using var hist = new Mat();
+        Cv2.CalcHist(
+            images: new[] { singleChannel },
+            channels: new[] { 0 },
+            mask: null,
+            hist: hist,
+            dims: 1,
+            histSize: new[] { 256 },
+            ranges: new[] { new Rangef(0, 256) });
+
+        var total = (double)singleChannel.Rows * singleChannel.Cols;
+        var target = total * Math.Clamp(pct, 0.0, 1.0);
+        double cum = 0;
+        for (int i = 0; i < 256; i++)
+        {
+            cum += hist.At<float>(i);
+            if (cum >= target) return i;
+        }
+        return 255;
     }
 
     private static Mat UnsharpMask(Mat image)

@@ -5,9 +5,6 @@ using PDFtoImage;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using Serilog;
 using SkiaSharp;
 using WorkAudit.Core.Services;
@@ -191,8 +188,7 @@ public class SearchExportService : ISearchExportService
                 }
                 catch (Exception ex)
                 {
-                    _log.Warning(ex, "PdfSharp image embed failed; using QuestPDF fallback for {Path}", doc.FilePath);
-                    AppendSingleImagePdfViaQuestPdf(output, doc.FilePath!);
+                    _log.Warning(ex, "PdfSharp image embed failed; skipping document {Id}: {Path}", doc.Id, doc.FilePath);
                 }
             }
             else
@@ -271,32 +267,6 @@ public class SearchExportService : ISearchExportService
         var x = (pageW - w) / 2;
         var y = (pageH - h) / 2;
         gfx.DrawImage(img, x, y, w, h);
-    }
-
-    private void AppendSingleImagePdfViaQuestPdf(PdfDocument output, string imagePath)
-    {
-        QuestPDF.Settings.License = LicenseType.Community;
-        var bytes = File.ReadAllBytes(imagePath);
-        using var ms = new MemoryStream();
-        Document.Create(container =>
-        {
-            container.Page(page =>
-            {
-                page.Size(PageSizes.A4);
-                page.Margin(0);
-                // Match PdfCreationService: keep source pixels, no lossy JPEG re-encode
-                // and no DPI down-sampling of high-resolution captures.
-                page.Content()
-                    .Image(bytes)
-                    .WithCompressionQuality(ImageCompressionQuality.Best)
-                    .WithRasterDpi(1200)
-                    .FitArea();
-            });
-        }).GeneratePdf(ms);
-        ms.Position = 0;
-        using var input = PdfReader.Open(ms, PdfDocumentOpenMode.Import);
-        for (var i = 0; i < input.PageCount; i++)
-            output.AddPage(input.Pages[i]);
     }
 
     private void AppendPdfPagesRasterFallback(PdfDocument output, string pdfPath)

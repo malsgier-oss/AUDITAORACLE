@@ -1,7 +1,6 @@
 using System.IO;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
+using PdfSharp.Drawing;
+using PdfSharp.Pdf;
 using Serilog;
 using WorkAudit.Core.Services;
 
@@ -9,7 +8,8 @@ namespace WorkAudit.Core.Export;
 
 /// <summary>
 /// Dedicated service for creating PDFs from image files (e.g. document scanning).
-/// Isolated from SearchExportService for clarity.
+/// Uses PdfSharp directly so PNG inputs are embedded losslessly via Flate
+/// (no JPEG re-encode, no raster DPI down-sampling).
 /// </summary>
 public static class PdfCreationService
 {
@@ -31,30 +31,27 @@ public static class PdfCreationService
             }
         }
 
-        QuestPDF.Settings.License = LicenseType.Community;
-
-        var document = Document.Create(container =>
+        using var doc = new PdfDocument();
+        foreach (var imagePath in paths)
         {
-            foreach (var imagePath in paths)
-            {
-                container.Page(page =>
-                {
-                    page.Size(PageSizes.A4);
-                    page.Margin(0);
-                    var imageBytes = File.ReadAllBytes(imagePath);
-                    // Preserve source pixels: Best disables lossy JPEG re-encoding,
-                    // and a high raster DPI prevents QuestPDF from down-sampling
-                    // high-resolution captures to the page render DPI (default 72).
-                    page.Content()
-                        .Image(imageBytes)
-                        .WithCompressionQuality(ImageCompressionQuality.Best)
-                        .WithRasterDpi(1200)
-                        .FitArea();
-                });
-            }
-        });
+            var page = doc.AddPage();
+            page.Size = PdfSharp.PageSize.A4;
+            using var gfx = XGraphics.FromPdfPage(page);
+            using var img = XImage.FromFile(imagePath);
+            var pageW = page.Width.Point;
+            var pageH = page.Height.Point;
+            var iw = img.PointWidth;
+            var ih = img.PointHeight;
+            if (iw <= 0 || ih <= 0) continue;
+            var scale = Math.Min(pageW / iw, pageH / ih);
+            var w = iw * scale;
+            var h = ih * scale;
+            var x = (pageW - w) / 2;
+            var y = (pageH - h) / 2;
+            gfx.DrawImage(img, x, y, w, h);
+        }
 
-        document.GeneratePdf(outputPath);
+        doc.Save(outputPath);
         _log.Information("Created PDF from {Count} images: {Path}", paths.Count, outputPath);
         return outputPath;
     }
