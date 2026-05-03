@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Media;
@@ -8,6 +9,7 @@ using OpenCvSharp;
 using OpenCvSharp.WpfExtensions;
 using Serilog;
 using WorkAudit.Core.Services;
+using WorkAudit.Storage;
 
 namespace WorkAudit.Core.Camera;
 
@@ -58,6 +60,7 @@ public class CameraService : ICameraService
     };
 
     private readonly ILogger _log = LoggingService.ForContext<CameraService>();
+    private readonly IConfigStore _configStore;
     private VideoCapture? _capture;
     private Mat? _frame;
     private Thread? _captureThread;
@@ -71,6 +74,24 @@ public class CameraService : ICameraService
 
     public event Action<BitmapSource>? FrameReady;
     public event Action<string>? Error;
+
+    public CameraService(IConfigStore configStore)
+    {
+        _configStore = configStore;
+    }
+
+    /// <summary>
+    /// Applies optional <c>webcam_max_capture_long_edge_px</c>: when positive, only resolution ladder entries
+    /// whose longest side is at most that value are negotiated (0 = full ladder).
+    /// </summary>
+    private (int W, int H)[] GetCaptureResolutionLadder()
+    {
+        var cap = _configStore.GetSettingInt("webcam_max_capture_long_edge_px", 0);
+        if (cap <= 0)
+            return DocumentCaptureResolutions;
+        var filtered = DocumentCaptureResolutions.Where(t => Math.Max(t.W, t.H) <= cap).ToArray();
+        return filtered.Length > 0 ? filtered : DocumentCaptureResolutions;
+    }
 
     public List<CameraInfo> GetAvailableCameras()
     {
@@ -207,11 +228,12 @@ public class CameraService : ICameraService
                     return false;
                 }
 
+                var resolutionLadder = GetCaptureResolutionLadder();
                 TrySetPreferredFourCC(capture);
-                if (!TryNegotiateResolution(capture, DocumentCaptureResolutions, "MJPEG"))
+                if (!TryNegotiateResolution(capture, resolutionLadder, "MJPEG"))
                 {
                     TryClearFourCCForFallback(capture);
-                    if (!TryNegotiateResolution(capture, DocumentCaptureResolutions, "driver default codec"))
+                    if (!TryNegotiateResolution(capture, resolutionLadder, "driver default codec"))
                     {
                         var fw = (int)capture.Get(VideoCaptureProperties.FrameWidth);
                         var fh = (int)capture.Get(VideoCaptureProperties.FrameHeight);

@@ -102,7 +102,7 @@ public partial class WebcamView : UserControl
         Focusable = true;
         Focus();
 
-        // Transient page/PDF files live under %TEMP%\WorkAudit_Webcam\ until import copies the PDF to branch/section/type.
+        // Transient page images (JPEG) + PDF live under %TEMP%\WorkAudit_Webcam\ until import copies the PDF to branch/section/type.
         CameraCombo.Items.Clear();
         CameraCombo.Items.Add("Loading cameras...");
         CameraCombo.SelectedIndex = 0;
@@ -1153,6 +1153,7 @@ public partial class WebcamView : UserControl
         var pageNum = isRetaking ? _pages[replaceIndex].PageNumber : _pages.Count + 1;
         var cameraService = _cameraService;
         var imageProcessing = _imageProcessing;
+        var configStore = _configStore;
 
         EnsureSessionFolder();
         BtnCapture.IsEnabled = false;
@@ -1230,9 +1231,13 @@ public partial class WebcamView : UserControl
 
                 var enhanced = imageProcessing.ApplyEnhanceMode(processed, enhanceMode);
                 processed.Dispose();
-                
-                var pagePath = Path.Combine(_sessionFolder, $"page_{pageNum:D3}.png");
-                Cv2.ImWrite(pagePath, enhanced);
+
+                var maxPageLongEdge = configStore?.GetSettingInt("webcam_max_page_long_edge_px", 2480) ?? 2480;
+                enhanced = DownscaleIfExceedsLongEdge(enhanced, maxPageLongEdge);
+
+                var jpegQuality = Math.Clamp(configStore?.GetSettingInt("webcam_jpeg_quality", 93) ?? 93, 1, 100);
+                var pagePath = Path.Combine(_sessionFolder, $"page_{pageNum:D3}.jpg");
+                Cv2.ImWrite(pagePath, enhanced, new ImageEncodingParam(ImwriteFlags.JpegQuality, jpegQuality));
                 var thumbPath = Path.Combine(_sessionFolder, $"thumb_{pageNum:D3}.png");
                 using var thumb = new Mat();
                 Cv2.Resize(enhanced, thumb, new OpenCvSharp.Size(80, 100));
@@ -1292,6 +1297,26 @@ public partial class WebcamView : UserControl
                 Dispatcher.BeginInvoke(() => { MessageBox.Show($"Capture failed: {ex.Message}", "Error"); BtnCapture.IsEnabled = true; });
             }
         });
+    }
+
+    /// <summary>
+    /// When maxLongEdgePx is positive and the long edge exceeds it, downscales with area interpolation (disposing source).
+    /// Otherwise returns source unchanged.
+    /// </summary>
+    private static Mat DownscaleIfExceedsLongEdge(Mat source, int maxLongEdgePx)
+    {
+        if (maxLongEdgePx <= 0)
+            return source;
+        var longEdge = Math.Max(source.Width, source.Height);
+        if (longEdge <= maxLongEdgePx)
+            return source;
+        var scale = (double)maxLongEdgePx / longEdge;
+        var nw = Math.Max(1, (int)Math.Round(source.Width * scale));
+        var nh = Math.Max(1, (int)Math.Round(source.Height * scale));
+        var dst = new Mat();
+        Cv2.Resize(source, dst, new OpenCvSharp.Size(nw, nh), 0, 0, InterpolationFlags.Area);
+        source.Dispose();
+        return dst;
     }
 
     /// <summary>Compute Laplacian variance as a sharpness metric (higher = sharper).</summary>

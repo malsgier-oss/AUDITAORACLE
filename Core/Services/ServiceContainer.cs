@@ -308,7 +308,8 @@ public static class ServiceContainer
         services.AddSingleton<ISearchExportService, SearchExportService>();
 
         // Camera & Import
-        services.AddSingleton<ICameraService, CameraService>();
+        services.AddSingleton<ICameraService>(sp =>
+            new CameraService(sp.GetRequiredService<IConfigStore>()));
         services.AddSingleton<IFileRenameService, FileRenameService>();
         services.AddSingleton<IImportService, ImportService>();
         services.AddSingleton<IFolderWatchService, FolderWatchService>();
