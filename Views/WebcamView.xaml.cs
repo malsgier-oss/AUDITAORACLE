@@ -278,9 +278,9 @@ public partial class WebcamView : UserControl
     private bool IsScanAreaAutoCaptureEnabled() =>
         IsScanAreaMode() && ScanAreaAutoCaptureCheck?.IsChecked == true;
 
-    /// <summary>Multi-frame sharpness pick for classic Auto or Scan Area with Area auto on.</summary>
-    private bool UseBestFrameCapture() =>
-        IsClassicAutoMode() || IsScanAreaAutoCaptureEnabled();
+    /// <summary>Always pick the sharpest of N consecutive frames (Manual, Auto, and Scan Area)
+    /// so the saved capture is the highest-quality available frame, not just the latest one.</summary>
+    private bool UseBestFrameCapture() => true;
 
     private void ClearRoi(bool keepScanAreaCheckbox = false)
     {

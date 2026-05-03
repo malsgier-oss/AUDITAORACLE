@@ -42,7 +42,14 @@ public static class PdfCreationService
                     page.Size(PageSizes.A4);
                     page.Margin(0);
                     var imageBytes = File.ReadAllBytes(imagePath);
-                    page.Content().Image(imageBytes).FitArea();
+                    // Preserve source pixels: Best disables lossy JPEG re-encoding,
+                    // and a high raster DPI prevents QuestPDF from down-sampling
+                    // high-resolution captures to the page render DPI (default 72).
+                    page.Content()
+                        .Image(imageBytes)
+                        .WithCompressionQuality(ImageCompressionQuality.Best)
+                        .WithRasterDpi(1200)
+                        .FitArea();
                 });
             }
         });

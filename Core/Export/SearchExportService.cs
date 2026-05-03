@@ -284,7 +284,13 @@ public class SearchExportService : ISearchExportService
             {
                 page.Size(PageSizes.A4);
                 page.Margin(0);
-                page.Content().Image(bytes).FitArea();
+                // Match PdfCreationService: keep source pixels, no lossy JPEG re-encode
+                // and no DPI down-sampling of high-resolution captures.
+                page.Content()
+                    .Image(bytes)
+                    .WithCompressionQuality(ImageCompressionQuality.Best)
+                    .WithRasterDpi(1200)
+                    .FitArea();
             });
         }).GeneratePdf(ms);
         ms.Position = 0;
