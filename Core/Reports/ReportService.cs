@@ -162,7 +162,9 @@ public class ReportService : IReportService
                 $"Report type: {reportTypeName}, Period: {config.DateFrom:yyyy-MM-dd} to {config.DateTo:yyyy-MM-dd}",
                 true);
 
-            // Persist report history with full config
+            // Persist report history with full config. A failure here is the exact bug behind the
+            // "Recent Reports stays empty after generating" symptom, so log it as an Error (not a
+            // Warning) and include the report type/path so support can correlate quickly.
             try
             {
                 var appVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
@@ -180,7 +182,9 @@ public class ReportService : IReportService
             }
             catch (Exception ex)
             {
-                _log.Warning(ex, "Failed to record report history for {Path}", path);
+                _log.Error(ex,
+                    "Failed to record report history for {Path} ({Type}). The report will not appear in Recent Reports until this is resolved.",
+                    path, reportTypeName);
             }
 
             if (config.Format == ReportFormat.Pdf && File.Exists(path) && config.ReportType != ReportType.ExecutiveSummary)

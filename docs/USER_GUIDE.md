@@ -439,6 +439,6 @@ If configured by your administrator, reports will be automatically generated and
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-02-22  
-**For**: WorkAudit v1.0.0
+**Document Version**: 1.0.2  
+**Last Updated**: 2026-05-04  
+**For**: WorkAudit v1.0.2

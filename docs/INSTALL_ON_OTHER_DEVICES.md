@@ -11,9 +11,9 @@ Use one of these two methods to install WorkAudit on other PCs (e.g. bank branch
 1. **Create the deployment package**
    ```powershell
    cd D:\AuditaProject\WorkAudit.CSharp
-   .\scripts\Create-DeploymentPackage.ps1 -Version "1.0.0"
+   .\scripts\Create-DeploymentPackage.ps1 -Version "1.0.2"
    ```
-   This creates: `WorkAudit-v1.0.0-Deployment.zip` in the project folder.
+   This creates: `WorkAudit-v1.0.2-Deployment.zip` in the project folder.
 
 2. **Copy the ZIP to the target device**
    - USB drive, network share, or secure transfer.
@@ -25,7 +25,7 @@ Use one of these two methods to install WorkAudit on other PCs (e.g. bank branch
    - Install **.NET Desktop Runtime 8.0** (not SDK).
 
 2. **Extract the ZIP**
-   - Right-click `WorkAudit-v1.0.0-Deployment.zip` → **Extract All**  
+   - Right-click `WorkAudit-v1.0.2-Deployment.zip` → **Extract All**  
    - Choose a folder (e.g. `C:\Temp\WorkAudit`).
 
 3. **Run the installer**
@@ -111,8 +111,8 @@ Then restart the PC or log off and back on before starting WorkAudit.
 
 | Step | Action |
 |------|--------|
-| 1 | On your PC: run `.\scripts\Create-DeploymentPackage.ps1 -Version "1.0.0"` |
-| 2 | Copy `WorkAudit-v1.0.0-Deployment.zip` to the other device |
+| 1 | On your PC: run `.\scripts\Create-DeploymentPackage.ps1 -Version "1.0.2"` |
+| 2 | Copy `WorkAudit-v1.0.2-Deployment.zip` to the other device |
 | 3 | On the other device: install .NET 8.0 Desktop Runtime if needed |
 | 4 | Extract the ZIP, then right-click `install.bat` → **Run as administrator** |
 | 5 | Open WorkAudit from Desktop/Start Menu and change the admin password |

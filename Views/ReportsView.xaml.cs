@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Globalization;
 using System.Linq;
@@ -16,6 +16,7 @@ using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
+using WorkAudit.ViewModels;
 
 namespace WorkAudit.Views;
 
@@ -663,34 +664,74 @@ public partial class ReportsView : UserControl, IDisposable
     private void LoadReportHistory()
     {
         _reportHistoryAll.Clear();
+        var from = DateTime.UtcNow.AddDays(-30);
+        var to = DateTime.UtcNow;
+        var pathsSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var merged = new List<(DateTime SortUtc, ReportHistoryEntry Entry)>();
+        var historyLoadFailed = false;
+        var auditLoadFailed = false;
+
         if (_reportHistoryStore != null)
         {
-            var from = DateTime.UtcNow.AddDays(-30);
-            var to = DateTime.UtcNow;
-            // Manager+: global history. Auditor/Reviewer: only their own generations.
-            var history = _reportHistoryStore.List(from, to, 50, userId: _scopedReportsMode ? GetCurrentUserId() : null);
-            if (history.Count > 0)
+            try
             {
+                // Manager+: global history. Auditor/Reviewer: only their own generations.
+                var history = _reportHistoryStore.List(from, to, 200, userId: _scopedReportsMode ? GetCurrentUserId() : null);
                 foreach (var h in history)
                 {
-                    var ts = DateTime.TryParse(h.GeneratedAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : h.GeneratedAt;
-                    _reportHistoryAll.Add(new ReportHistoryEntry(ts, h.ReportType, h.FilePath));
+                    if (string.IsNullOrEmpty(h.FilePath) || !pathsSeen.Add(h.FilePath))
+                        continue;
+                    var sortUtc = DateTime.TryParse(h.GeneratedAt, null, DateTimeStyles.RoundtripKind, out var dt) ? dt : DateTime.MinValue;
+                    var ts = sortUtc == DateTime.MinValue ? h.GeneratedAt : sortUtc.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+                    merged.Add((sortUtc, new ReportHistoryEntry(ts, h.ReportType, h.FilePath)));
                 }
-                ApplyReportHistoryFilter();
-                return;
+            }
+            catch (Exception ex)
+            {
+                historyLoadFailed = true;
+                Log.Error(ex, "Report history list failed; the Recent Reports list will be incomplete.");
             }
         }
-        if (_auditLogStore == null) return;
-        var entries = _auditLogStore.Query(DateTime.UtcNow.AddDays(-30), DateTime.UtcNow, null, Domain.AuditAction.ReportGenerated, Domain.AuditCategory.Report, false, 50, 0);
-        foreach (var e in entries.Where(x => x.Success && !string.IsNullOrEmpty(x.NewValue)))
+
+        if (_auditLogStore != null)
         {
-            var ts = DateTime.TryParse(e.Timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : e.Timestamp;
-            var reportType = "Report";
-            if (!string.IsNullOrEmpty(e.Details) && e.Details.StartsWith("Report type: ", StringComparison.Ordinal))
-                reportType = e.Details.Split(',')[0].Replace("Report type: ", "").Trim();
-            _reportHistoryAll.Add(new ReportHistoryEntry(ts, reportType, e.NewValue!));
+            try
+            {
+                var entries = _auditLogStore.Query(from, to, null, Domain.AuditAction.ReportGenerated, Domain.AuditCategory.Report, false, 200, 0);
+                foreach (var e in entries.Where(x => x.Success && !string.IsNullOrEmpty(x.NewValue)))
+                {
+                    var path = e.NewValue!.Trim();
+                    if (string.IsNullOrEmpty(path) || !pathsSeen.Add(path))
+                        continue;
+                    var sortUtc = DateTime.TryParse(e.Timestamp, null, DateTimeStyles.RoundtripKind, out var dt) ? dt : DateTime.MinValue;
+                    var ts = sortUtc == DateTime.MinValue ? e.Timestamp : sortUtc.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+                    var reportType = "Report";
+                    if (!string.IsNullOrEmpty(e.Details) && e.Details.StartsWith("Report type: ", StringComparison.Ordinal))
+                        reportType = e.Details.Split(',')[0].Replace("Report type: ", "").Trim();
+                    merged.Add((sortUtc, new ReportHistoryEntry(ts, reportType, path)));
+                }
+            }
+            catch (Exception ex)
+            {
+                auditLoadFailed = true;
+                Log.Warning(ex, "Audit log query for report history failed.");
+            }
         }
+
+        foreach (var (_, entry) in merged.OrderByDescending(x => x.SortUtc).Take(50))
+            _reportHistoryAll.Add(entry);
+
         ApplyReportHistoryFilter();
+
+        // Tell the user when both back-ends failed (so they don't think the app silently lost their
+        // reports) or when only the history table failed (the audit-log fallback may still surface
+        // some reports, but the user should know the primary source is broken).
+        if (historyLoadFailed && _reportHistoryAll.Count == 0)
+            ShowMessage("Could not load Recent Reports. Check the application log for details.", isError: true);
+        else if (historyLoadFailed)
+            ShowMessage("Recent Reports is showing audit-log fallback data only; the report history table could not be queried.", isError: true);
+        else if (auditLoadFailed && _reportHistoryAll.Count == 0)
+            ShowMessage("Could not load Recent Reports from the audit log. Check the application log for details.", isError: true);
     }
 
     private void ReportHistoryFilter_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
@@ -711,14 +752,20 @@ public partial class ReportsView : UserControl, IDisposable
     {
         if (ReportHistoryList.SelectedItem is not ReportHistoryEntry entry) return;
 
-        if (File.Exists(entry.FilePath))
+        Log.Information("Attempting to open report: Type={ReportType}, Path={Path}", entry.ReportType, entry.FilePath);
+
+        if (ReportOutputLauncher.TryOpen(entry.FilePath, out var openError))
         {
-            try
-            {
-                _distributionService?.LogView(entry.FilePath, entry.ReportType, GetCurrentUserId(), GetCurrentUsername());
-                Process.Start(new ProcessStartInfo(entry.FilePath) { UseShellExecute = true });
-            }
-            catch (Exception ex) { Log.Debug(ex, "Could not open file: {Path}", entry.FilePath); }
+            _distributionService?.LogView(entry.FilePath, entry.ReportType, GetCurrentUserId(), GetCurrentUsername());
+            Log.Information("Successfully opened report: {Path}", entry.FilePath);
+        }
+        else
+        {
+            Log.Warning("Failed to open report: Path={Path}, Error={Error}", entry.FilePath, openError);
+            if (!string.IsNullOrEmpty(openError))
+                MessageBox.Show(openError, "Open report", MessageBoxButton.OK, MessageBoxImage.Warning);
+            else
+                MessageBox.Show("Could not open the report file. The file may have been moved or deleted.", "Open report", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         RefreshAttestationPanel(entry.FilePath, entry.ReportType);
@@ -874,23 +921,25 @@ public partial class ReportsView : UserControl, IDisposable
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
 
-            if (result == MessageBoxResult.Yes && File.Exists(path))
+            if (result == MessageBoxResult.Yes)
             {
-                try
-                {
+                if (ReportOutputLauncher.TryOpen(path, out var openError))
                     _distributionService?.LogView(path, config.ReportType.ToString(), GetCurrentUserId(), GetCurrentUsername());
-                    Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-                }
-                catch
-                {
-                    // Ignore if we can't open (e.g. no default app)
-                }
+                else if (!string.IsNullOrEmpty(openError))
+                    MessageBox.Show(openError, "Open report", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
             if (config.Format == ReportFormat.Pdf)
                 RefreshAttestationPanel(path, config.ReportType.ToString());
 
-            _ = Dispatcher.BeginInvoke(new Action(LoadReportHistory), System.Windows.Threading.DispatcherPriority.Loaded);
+            try
+            {
+                Dispatcher.Invoke(LoadReportHistory, System.Windows.Threading.DispatcherPriority.Normal);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Refreshing report history after generation failed.");
+            }
         }
         catch (OperationCanceledException)
         {
@@ -1090,13 +1139,10 @@ public partial class ReportsView : UserControl, IDisposable
     private void LoadTimeRangeOptions()
     {
         if (TimeRangeCombo == null) return;
-        
+
         TimeRangeCombo.Items.Clear();
-        TimeRangeCombo.Items.Add("Today");
-        TimeRangeCombo.Items.Add("This Week");
-        TimeRangeCombo.Items.Add("This Month");
-        TimeRangeCombo.Items.Add("Last 30 Days");
-        TimeRangeCombo.Items.Add("All Time");
+        foreach (var label in DashboardViewModel.TimeRangeOptions)
+            TimeRangeCombo.Items.Add(label);
         TimeRangeCombo.SelectedIndex = 2; // Default to "This Month"
     }
 
@@ -1105,18 +1151,22 @@ public partial class ReportsView : UserControl, IDisposable
         if (IsLoaded) RefreshDashboard();
     }
 
-    private (DateTime start, DateTime end) GetDateRangeFromTimeSelector()
+    private (DateTime? start, DateTime? end) GetDateRangeFromTimeSelector()
     {
         var selected = TimeRangeCombo?.SelectedItem?.ToString() ?? "This Month";
         var now = DateTime.Now;
+        var d = now.Date;
 
         return selected switch
         {
             "Today" => (now.Date, now.Date.AddDays(1)),
             "This Week" => (now.Date.AddDays(-(int)now.DayOfWeek), now.Date.AddDays(7 - (int)now.DayOfWeek)),
             "This Month" => (new DateTime(now.Year, now.Month, 1), new DateTime(now.Year, now.Month, 1).AddMonths(1)),
-            "Last 30 Days" => (now.AddDays(-30), now),
-            "All Time" => (new DateTime(2000, 1, 1), now), // Use reasonable start date instead of DateTime.MinValue
+            "Last Three Months" => (d.AddMonths(-3), d),
+            "Last Six Months" => (d.AddMonths(-6), d),
+            "Last Nine Months" => (d.AddMonths(-9), d),
+            "Last 1 Year" => (d.AddYears(-1), d),
+            "All Time" => (null, null),
             _ => (new DateTime(now.Year, now.Month, 1), new DateTime(now.Year, now.Month, 1).AddMonths(1))
         };
     }
@@ -1135,10 +1185,15 @@ public partial class ReportsView : UserControl, IDisposable
             // Get date range from time range selector
             var (dateFrom, dateTo) = GetDateRangeFromTimeSelector();
 
+            var dateFromStr = dateFrom?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var dateToStr = dateTo.HasValue
+                ? dateTo.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59"
+                : null;
+
             // Load documents for the period
             var docs = _documentStore.ListDocuments(
-                dateFrom: dateFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                dateTo: dateTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "T23:59:59",
+                dateFrom: dateFromStr,
+                dateTo: dateToStr,
                 limit: 10000
             );
 

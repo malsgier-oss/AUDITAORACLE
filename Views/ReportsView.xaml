@@ -41,7 +41,7 @@
                     <Button x:Name="RefreshDashboardBtn" Grid.Column="1" Content="🔄 Refresh" Padding="12,8" Margin="0,0,12,0"
                             Background="#17A2B8" Foreground="White" BorderThickness="0" Cursor="Hand" Click="RefreshDashboardBtn_Click"
                             ToolTip="Refresh dashboard data" FontWeight="SemiBold"/>
-                    <ComboBox x:Name="TimeRangeCombo" Grid.Column="2" MinWidth="170" MaxWidth="220"
+                    <ComboBox x:Name="TimeRangeCombo" Grid.Column="2" MinWidth="190" MaxWidth="240"
                               SelectionChanged="TimeRangeCombo_Changed"
                               ToolTip="Select time range for intelligence metrics"/>
                 </Grid>

@@ -210,7 +210,7 @@ public static class ReportLocalizationService
         ["Identity"] = ("Identity", "الهوية"),
         ["OK"] = ("OK", "موافق"),
         ["Import"] = ("Import", "استيراد"),
-        ["Webcam"] = ("Webcam", "الكاميرا"),
+        ["Webcam"] = ("Scan", "مسح ضوئي"),
         // ProcessingView
         ["NoDocuments"] = ("No documents", "لا توجد مستندات"),
         ["Shown"] = ("Shown: {0}", "المعروض: {0}"),

@@ -1,8 +1,6 @@
 using Oracle.ManagedDataAccess.Client;
-using Oracle.ManagedDataAccess.Types;
 using Serilog;
 using System.Data;
-using System.Globalization;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
 using WorkAudit.Storage.Oracle;
@@ -38,73 +36,93 @@ public class ReportHistoryStore : IReportHistoryStore
     public int Insert(ReportHistory entry)
     {
         entry.Uuid = Guid.NewGuid().ToString();
-        entry.GeneratedAt = DateTime.UtcNow.ToString("O");
+        var generatedAtUtc = DateTime.UtcNow;
+        entry.GeneratedAt = generatedAtUtc.ToString("O");
 
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-            INSERT INTO report_history (uuid, user_id, username, report_type, file_path, generated_at, config_json, 
-                tags, purpose, description, version, parent_report_id, app_version)
-            VALUES (@uuid, @user_id, @username, @report_type, @file_path, @generated_at, @config_json,
-                @tags, @purpose, @description, @version, @parent_report_id, @app_version)";
-        cmd.Parameters.AddWithValue("@uuid", entry.Uuid);
-        cmd.Parameters.AddWithValue("@user_id", entry.UserId ?? "");
-        cmd.Parameters.AddWithValue("@username", entry.Username ?? "");
-        cmd.Parameters.AddWithValue("@report_type", entry.ReportType);
-        cmd.Parameters.AddWithValue("@file_path", entry.FilePath);
-        cmd.Parameters.Add(new OracleParameter("generated_at", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(entry.GeneratedAt) });
-        cmd.Parameters.AddWithValue("@config_json", entry.ConfigJson ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@tags", entry.Tags ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@purpose", entry.Purpose ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@description", entry.Description ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@version", entry.Version ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@parent_report_id", entry.ParentReportId ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@app_version", entry.AppVersion ?? (object)DBNull.Value);
-        var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
-        cmd.Parameters.Add(idParam);
-        cmd.CommandText += " RETURNING id INTO @rid";
-        Prep(cmd);
-        cmd.ExecuteNonQuery();
-        entry.Id = ToInt32(idParam.Value);
-        return entry.Id;
+        try
+        {
+            using var conn = new OracleConnection(_connectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO report_history (uuid, user_id, username, report_type, file_path, generated_at, config_json, 
+                    tags, purpose, description, version, parent_report_id, app_version)
+                VALUES (@uuid, @user_id, @username, @report_type, @file_path, @generated_at, @config_json,
+                    @tags, @purpose, @description, @version, @parent_report_id, @app_version)";
+            cmd.Parameters.AddWithValue("@uuid", entry.Uuid);
+            cmd.Parameters.AddWithValue("@user_id", entry.UserId ?? "");
+            cmd.Parameters.AddWithValue("@username", entry.Username ?? "");
+            cmd.Parameters.AddWithValue("@report_type", entry.ReportType);
+            cmd.Parameters.AddWithValue("@file_path", entry.FilePath);
+            cmd.Parameters.Add(new OracleParameter("generated_at", OracleDbType.TimeStamp) { Value = generatedAtUtc });
+            cmd.Parameters.AddWithValue("@config_json", entry.ConfigJson ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@tags", entry.Tags ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@purpose", entry.Purpose ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@description", entry.Description ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@version", entry.Version ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@parent_report_id", entry.ParentReportId ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@app_version", entry.AppVersion ?? (object)DBNull.Value);
+            var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
+            cmd.Parameters.Add(idParam);
+            cmd.CommandText += " RETURNING id INTO @rid";
+            Prep(cmd);
+            cmd.ExecuteNonQuery();
+            entry.Id = OracleValueConversion.ScalarToInt32(idParam.Value);
+            _log.Information("Recorded report history id={Id} type={Type} path={Path}", entry.Id, entry.ReportType, entry.FilePath);
+            return entry.Id;
+        }
+        catch (Exception ex)
+        {
+            // Surface as Error (not Warning) so the Recent Reports outage shows up in support logs
+            // and isn't lost in the noise. Re-throw so the caller can decide whether to swallow.
+            _log.Error(ex, "Failed to insert report_history row for {Path} ({Type})", entry.FilePath, entry.ReportType);
+            throw;
+        }
     }
 
     public List<ReportHistory> List(DateTime? from = null, DateTime? rangeEnd = null, int limit = 50, string? userId = null)
     {
         var list = new List<ReportHistory>();
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
-        var sql = "SELECT * FROM report_history WHERE 1=1";
-        if (from.HasValue) sql += " AND generated_at >= @p_from";
-        if (rangeEnd.HasValue) sql += " AND generated_at <= @p_to";
-        if (!string.IsNullOrEmpty(userId)) sql += " AND user_id = @p_user_id";
-        sql += " ORDER BY generated_at DESC FETCH FIRST @limit ROWS ONLY";
+        try
+        {
+            using var conn = new OracleConnection(_connectionString);
+            conn.Open();
+            var sql = "SELECT * FROM report_history WHERE 1=1";
+            if (from.HasValue) sql += " AND generated_at >= @p_from";
+            if (rangeEnd.HasValue) sql += " AND generated_at <= @p_to";
+            if (!string.IsNullOrEmpty(userId)) sql += " AND user_id = @p_user_id";
+            sql += " ORDER BY generated_at DESC FETCH FIRST @p_limit ROWS ONLY";
 
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
-        if (from.HasValue) cmd.Parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value.ToUniversalTime() });
-        if (rangeEnd.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = rangeEnd.Value.ToUniversalTime() });
-        if (!string.IsNullOrEmpty(userId)) cmd.Parameters.AddWithValue("@p_user_id", userId);
-        cmd.Parameters.AddWithValue("@limit", limit);
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            if (from.HasValue) cmd.Parameters.Add(new OracleParameter("p_from", OracleDbType.TimeStamp) { Value = from.Value.ToUniversalTime() });
+            if (rangeEnd.HasValue) cmd.Parameters.Add(new OracleParameter("p_to", OracleDbType.TimeStamp) { Value = rangeEnd.Value.ToUniversalTime() });
+            if (!string.IsNullOrEmpty(userId)) cmd.Parameters.AddWithValue("@p_user_id", userId);
+            cmd.Parameters.Add(new OracleParameter("p_limit", OracleDbType.Int32) { Value = limit });
 
-        Prep(cmd); using var r = cmd.ExecuteReader();
-        while (r.Read())
-            list.Add(ReadRow(r));
-        return list;
+            Prep(cmd); using var r = cmd.ExecuteReader();
+            while (r.Read())
+                list.Add(ReadRow(r));
+            return list;
+        }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "Failed to list report_history (from={From} to={To} userId={UserId})", from, rangeEnd, userId);
+            throw;
+        }
     }
 
     private static ReportHistory ReadRow(OracleDataReader r)
     {
         return new ReportHistory
         {
-            Id = r.GetInt32(r.GetOrdinal("id")),
+            Id = OracleDataReaderNumeric.GetInt32(r, "id"),
             Uuid = r.GetString(r.GetOrdinal("uuid")),
             UserId = r.GetString(r.GetOrdinal("user_id")),
             Username = r.GetString(r.GetOrdinal("username")),
             ReportType = r.GetString(r.GetOrdinal("report_type")),
             FilePath = r.GetString(r.GetOrdinal("file_path")),
-            GeneratedAt = GetStringOrDateTimeOrNull(r, "generated_at") ?? string.Empty,
+            GeneratedAt = ReadGeneratedAt(r, "generated_at"),
             ConfigJson = r.IsDBNull(r.GetOrdinal("config_json")) ? null : r.GetString(r.GetOrdinal("config_json")),
             Tags = GetStringOrNull(r, "tags"),
             Purpose = GetStringOrNull(r, "purpose"),
@@ -115,25 +133,34 @@ public class ReportHistoryStore : IReportHistoryStore
         };
     }
 
-    private static DateTime ParseDateTimeOrNow(string? value)
-    {
-        if (DateTime.TryParse(value, out var dt))
-            return dt;
-        return DateTime.UtcNow;
-    }
-
-    private static string? GetStringOrDateTimeOrNull(OracleDataReader r, string columnName)
+    /// <summary>
+    /// Reads the <c>generated_at</c> column. Post-migration this is TIMESTAMP and arrives as a
+    /// <see cref="DateTime"/>; Oracle drops the timezone kind, so we re-tag as UTC (the value was
+    /// always stored in UTC by <see cref="Insert"/>). Falls back to the string read for the brief
+    /// window where a deployment has the new code but the old VARCHAR2 column.
+    /// </summary>
+    private static string ReadGeneratedAt(OracleDataReader r, string columnName)
     {
         var ordinal = r.GetOrdinal(columnName);
         if (r.IsDBNull(ordinal))
-            return null;
+            return string.Empty;
         try
         {
-            return r.GetDateTime(ordinal).ToString("O");
+            var dt = r.GetDateTime(ordinal);
+            if (dt.Kind == DateTimeKind.Unspecified)
+                dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+            return dt.ToString("O");
         }
         catch
         {
-            return r.GetString(ordinal);
+            try
+            {
+                return r.GetString(ordinal);
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
     }
 
@@ -154,8 +181,7 @@ public class ReportHistoryStore : IReportHistoryStore
     {
         try
         {
-            var ordinal = r.GetOrdinal(columnName);
-            return r.IsDBNull(ordinal) ? null : r.GetInt32(ordinal);
+            return OracleDataReaderNumeric.GetNullableInt32(r, columnName);
         }
         catch
         {
@@ -163,12 +189,4 @@ public class ReportHistoryStore : IReportHistoryStore
         }
     }
 
-    private static int ToInt32(object? value)
-    {
-        if (value is null || value == DBNull.Value)
-            return 0;
-        if (value is OracleDecimal oracleDecimal)
-            return oracleDecimal.ToInt32();
-        return Convert.ToInt32(value, CultureInfo.InvariantCulture);
-    }
 }

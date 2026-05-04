@@ -1109,6 +1109,15 @@ public partial class DashboardView : UserControl
             return;
         }
         var doc = getResult.Value!;
+        if (NoteAnchors.IsJournalAnchorDocument(doc.Uuid))
+        {
+            MessageBox.Show(
+                "This is an internal system record used for daily journal notes. It is not an audit document and cannot be opened here.",
+                "Document unavailable",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
         DrillDownRequested.Raise(new DrillDownRequest
         {
             Branch = doc.Branch,

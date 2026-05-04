@@ -14,8 +14,8 @@
 
         <!-- Top: Camera + mode controls -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-            <TextBlock Text="Camera:" Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <ComboBox x:Name="CameraCombo" Width="180" Margin="0,0,8,0"/>
+            <TextBlock Text="Camera:" Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center" Margin="0,0,8,0" Visibility="Collapsed"/>
+            <ComboBox x:Name="CameraCombo" Width="180" Margin="0,0,8,0" Visibility="Collapsed"/>
             <Ellipse x:Name="DocCameraStatusDot" Width="10" Height="10"
                      Fill="#9E9E9E" Stroke="#444" StrokeThickness="0.5"
                      VerticalAlignment="Center" Margin="0,0,6,0"

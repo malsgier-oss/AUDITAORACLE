@@ -8,7 +8,7 @@ applied at startup from `Storage/Oracle/Migrations` and `Storage/Oracle/OracleSe
 
 - Provider: `Oracle.ManagedDataAccess.Client`
 - Baseline installer version: `49`
-- Migration range included in current codebase: `50` through `54`
+- Migration range included in current codebase: `50` through `58`
 
 ## Baseline schema (v49)
 
@@ -505,6 +505,14 @@ CREATE TABLE workaudit_scheduler_locks (
     - `ollama_model`
     - `ollama_endpoint`
   - Also deletes any residual `app_settings` rows where `category = 'ai'`.
+- `55 - Cleanup obsolete AI settings`
+  - Additional cleanup of AI-related settings.
+- `56 - User auditor UI preferences`
+  - Adds auditor UI preference settings for user customization.
+- `57 - Journal anchor document`
+  - Adds journal anchoring functionality.
+- `58 - Report history generated_at timestamp`
+  - Converts report history `generated_at` to proper timestamp type.
 
 ## Indexes
 

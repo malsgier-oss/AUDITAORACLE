@@ -14,7 +14,8 @@ internal static class OracleMigrationRegistry
             new Migration_054_RemoveObsoleteAiSettings(),
             new Migration_055_CleanupObsoleteAiSettings(),
             new Migration_056_UserAuditorUiPreferences(),
-            new Migration_057_JournalAnchorDocument()
+            new Migration_057_JournalAnchorDocument(),
+            new Migration_058_ReportHistoryGeneratedAtTimestamp()
         ];
     }
 }

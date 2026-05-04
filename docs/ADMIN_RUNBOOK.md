@@ -1,7 +1,7 @@
 # WorkAudit System Administrator Runbook
 
-## Version: 1.0.0
-## Last Updated: 2026-02-22
+## Version: 1.0.2
+## Last Updated: 2026-05-04
 ## Audience: Bank IT Staff, System Administrators
 
 ---
@@ -66,7 +66,7 @@ WorkAudit is a document management system designed for banking compliance, audit
 
 #### Method B: ZIP Deployment Package
 
-1. Extract `WorkAudit-v1.0.0-Deployment.zip`
+1. Extract `WorkAudit-v1.0.2-Deployment.zip`
 2. Right-click `install.bat` → "Run as Administrator"
 3. Follow on-screen prompts
 4. Verify shortcuts created on Desktop and Start Menu
@@ -662,6 +662,6 @@ New-NetFirewallRule -DisplayName "WorkAudit SMTP" `
 
 ---
 
-**Document Version**: 1.0  
-**Effective Date**: 2026-02-22  
-**Review Date**: 2026-08-22 (6 months)
+**Document Version**: 1.0.2  
+**Effective Date**: 2026-05-04  
+**Review Date**: 2026-11-04 (6 months)

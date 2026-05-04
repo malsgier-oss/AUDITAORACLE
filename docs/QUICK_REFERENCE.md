@@ -62,7 +62,7 @@ msiexec /i WorkAudit-Setup.msi /quiet /norestart /l*v install.log
 ### Install via ZIP
 ```powershell
 # Extract deployment package
-Expand-Archive WorkAudit-v1.0.0-Deployment.zip -DestinationPath C:\Temp\WorkAudit
+Expand-Archive WorkAudit-v1.0.2-Deployment.zip -DestinationPath C:\Temp\WorkAudit
 
 # Run installer
 cd C:\Temp\WorkAudit
@@ -266,7 +266,7 @@ dotnet build && dotnet test WorkAudit.Tests\WorkAudit.Tests.csproj
 
 ### Create Deployment Package
 ```powershell
-.\scripts\Create-DeploymentPackage.ps1 -Version "1.0.0"
+.\scripts\Create-DeploymentPackage.ps1 -Version "1.0.2"
 ```
 
 ### Build MSI Installer
@@ -310,10 +310,12 @@ Auto-Update: Disabled (manual approval required)
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.0.2 | 2026-05-04 | Current production release |
+| 1.0.1 | 2026-03-15 | Maintenance update |
 | 1.0.0 | 2026-02-22 | Initial production release |
 
 ---
 
-**Last Updated**: 2026-02-22  
+**Last Updated**: 2026-05-04  
 **For**: Deployment Team, IT Staff  
 **Keep This Handy During Deployment**

@@ -633,6 +633,17 @@ public partial class ArchiveView : UserControl
             _log.Information("Archive preview denied for document {DocId} (branch/aging gate)", doc.Id);
             return;
         }
+        if (NoteAnchors.IsJournalAnchorDocument(doc.Uuid))
+        {
+            DocumentPreviewViewer.Clear();
+            DocumentPreviewViewer.Visibility = Visibility.Collapsed;
+            SetPdfPreviewSource(null);
+            if (PdfPreviewViewer != null) PdfPreviewViewer.Visibility = Visibility.Collapsed;
+            if (ArchivePdfPreviewTools != null) ArchivePdfPreviewTools.Visibility = Visibility.Collapsed;
+            PreviewPlaceholder.Visibility = Visibility.Visible;
+            PreviewPlaceholderText.Text = "Internal system record (daily journal anchor); no file preview.";
+            return;
+        }
         var path = doc.FilePath;
         if (string.IsNullOrEmpty(path))
         {
@@ -713,6 +724,12 @@ public partial class ArchiveView : UserControl
 
     private void RefreshDetailText(Document doc)
     {
+        if (NoteAnchors.IsJournalAnchorDocument(doc.Uuid))
+        {
+            DetailText.Text =
+                "This is an internal system record used for daily journal notes. It is not an audit document.";
+            return;
+        }
         var archivedAt = string.IsNullOrEmpty(doc.ArchivedAt) ? "-" : doc.ArchivedAt.Length > 19 ? doc.ArchivedAt[..19] : doc.ArchivedAt;
         var lines = new List<string>
         {

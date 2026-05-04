@@ -263,7 +263,7 @@ public class AuditLogStore : IAuditLogStore
     {
         return new AuditLogEntry
         {
-            Id = r.GetInt64(r.GetOrdinal("id")),
+            Id = OracleDataReaderNumeric.GetInt64(r, "id"),
             Uuid = r.GetString(r.GetOrdinal("uuid")),
             Timestamp = r.GetDateTime(r.GetOrdinal("event_time")).ToString("O"),
             UserId = r.GetString(r.GetOrdinal("user_id")),
@@ -278,7 +278,7 @@ public class AuditLogStore : IAuditLogStore
             NewValue = GetStringOrNull(r, "new_value"),
             IpAddress = GetStringOrNull(r, "ip_address"),
             Details = GetStringOrNull(r, "details"),
-            Success = r.GetInt32(r.GetOrdinal("success")) == 1,
+            Success = OracleDataReaderNumeric.GetInt32(r, "success") == 1,
             ErrorMessage = GetStringOrNull(r, "error_message")
         };
     }

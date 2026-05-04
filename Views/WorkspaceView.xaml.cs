@@ -31,7 +31,9 @@ using WorkAudit.Core.TextExtraction;
 using WorkAudit.ViewModels;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Web.WebView2.Core;
 using PDFtoImage;
+using MediaColor = System.Windows.Media.Color;
 
 namespace WorkAudit.Views;
 
@@ -911,9 +913,27 @@ public partial class WorkspaceView : UserControl, IDisposable
             if (get.IsSuccess && get.Value != null)
             {
                 doc = get.Value;
+                if (NoteAnchors.IsJournalAnchorDocument(doc.Uuid))
+                {
+                    MessageBox.Show(
+                        "This is an internal system record used for daily journal notes. It is not an audit document and cannot be opened in the workspace.",
+                        "Document unavailable",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
                 if (_workspaceViewModel.CurrentDocuments.All(d => d.Id != documentId))
                     _workspaceViewModel.CurrentDocuments.Insert(0, doc);
             }
+        }
+        else if (NoteAnchors.IsJournalAnchorDocument(doc.Uuid))
+        {
+            MessageBox.Show(
+                "This is an internal system record used for daily journal notes. It is not an audit document and cannot be opened in the workspace.",
+                "Document unavailable",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
         }
 
         _documentListView?.Refresh();
@@ -1990,12 +2010,59 @@ public partial class WorkspaceView : UserControl, IDisposable
         {
             if (WebBrowser == null) return;
             var env = await WebView2EnvironmentHelper.CreateForAppAsync("Workspace");
-            await WebBrowser.EnsureCoreWebView2Async(env);
+            var mediaColor = GetWorkspaceContentBackgroundMediaColor(WebBrowser);
+            // ControllerOptions.DefaultBackgroundColor is applied at controller creation; WPF-only property can miss the first frame (still black).
+            var controllerOptions = env.CreateCoreWebView2ControllerOptions();
+            controllerOptions.DefaultBackgroundColor = ToDrawingColorOpaqueForWebView2(mediaColor);
+            ApplyWorkspaceWebViewDefaultBackground(mediaColor);
+            await WebBrowser.EnsureCoreWebView2Async(env, controllerOptions);
+            ApplyWorkspaceWebViewDefaultBackground(mediaColor);
+            WebBrowser.NavigateToString(BuildWorkspaceWebViewBlankHtml(mediaColor));
         }
         catch (Exception ex)
         {
             _log.Warning(ex, "Workspace WebView2 initialization failed");
         }
+    }
+
+    private static MediaColor GetWorkspaceContentBackgroundMediaColor(FrameworkElement? context)
+    {
+        if (context?.TryFindResource("ContentBackground") is SolidColorBrush brush)
+            return brush.Color;
+        if (Application.Current?.TryFindResource("ContentBackground") is SolidColorBrush appBrush)
+            return appBrush.Color;
+        return Colors.White;
+    }
+
+    /// <summary>
+    /// WebView2 default background only allows alpha 0 (transparent) or 255 (opaque), not translucent values.
+    /// </summary>
+    private static System.Drawing.Color ToDrawingColorOpaqueForWebView2(MediaColor c)
+    {
+        byte a = c.A;
+        if (a != 0 && a != 255)
+            a = 255;
+        return System.Drawing.Color.FromArgb(a, c.R, c.G, c.B);
+    }
+
+    private static string BuildWorkspaceWebViewBlankHtml(MediaColor c)
+    {
+        return string.Format(CultureInfo.InvariantCulture,
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>html,body{{margin:0;height:100%;background:rgb({0},{1},{2});}}</style></head><body></body></html>",
+            c.R, c.G, c.B);
+    }
+
+    /// <summary>
+    /// WebView2 defaults to an opaque black compositor background before navigation; align with the ContentBackground theme brush.
+    /// </summary>
+    private void ApplyWorkspaceWebViewDefaultBackground(MediaColor? mediaColor = null)
+    {
+        if (WebBrowser == null) return;
+        var c = mediaColor ?? GetWorkspaceContentBackgroundMediaColor(WebBrowser);
+        byte a = c.A;
+        if (a != 0 && a != 255)
+            a = 255;
+        WebBrowser.DefaultBackgroundColor = System.Drawing.Color.FromArgb(a, c.R, c.G, c.B);
     }
 
     private async Task EnsureWorkspaceWebViewReadyAsync()

@@ -270,8 +270,11 @@ public class DocumentStore : IDocumentStore
         string? createdBy = null, string? reviewedBy = null, string? createdOrReviewedBy = null,
         string? engagement = null, string? dateFilterField = "extracted", bool newestFirst = false)
     {
-        var sql = "SELECT * FROM documents WHERE 1=1";
-        var pars = new List<OracleParameter>();
+        var sql = "SELECT * FROM documents WHERE 1=1 AND uuid <> @exclude_journal_anchor";
+        var pars = new List<OracleParameter>
+        {
+            new("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid)
+        };
 
         if (!string.IsNullOrEmpty(branch)) { sql += " AND branch = @branch"; pars.Add(new OracleParameter("branch", branch)); }
         if (!string.IsNullOrEmpty(section)) { sql += " AND section = @sec"; pars.Add(new OracleParameter("sec", section)); }
@@ -398,7 +401,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             cmd.Parameters.AddWithValue("fp" + i, patterns[i]);
         }
         cmd.BindByName = true;
-        cmd.CommandText = "SELECT * FROM documents WHERE (" + string.Join(" OR ", orParts) + ") ORDER BY capture_time ASC, id ASC FETCH FIRST @limit ROWS ONLY";
+        cmd.CommandText = "SELECT * FROM documents WHERE (" + string.Join(" OR ", orParts) + ") AND uuid <> @exclude_journal_anchor ORDER BY capture_time ASC, id ASC FETCH FIRST @limit ROWS ONLY";
+        cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
         cmd.Parameters.AddWithValue("limit", limit);
         PrepCmd(cmd); using var r = cmd.ExecuteReader();
         while (r.Read()) list.Add(ReadDocument(r));
@@ -462,8 +466,11 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
 
     public List<string> GetDistinctEngagements(string? branch = null)
     {
-        var sql = "SELECT DISTINCT engagement FROM documents WHERE engagement IS NOT NULL AND TRIM(engagement) != ''";
-        var pars = new List<OracleParameter>();
+        var sql = "SELECT DISTINCT engagement FROM documents WHERE engagement IS NOT NULL AND TRIM(engagement) != '' AND uuid <> @exclude_journal_anchor";
+        var pars = new List<OracleParameter>
+        {
+            new("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid)
+        };
         if (!string.IsNullOrEmpty(branch)) { sql += " AND branch = @branch"; pars.Add(new OracleParameter("branch", branch)); }
         sql += " ORDER BY 1";
         var list = new List<string>();
@@ -485,13 +492,14 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
     public List<string> GetDistinctTags(string? status = null)
     {
         var list = new List<string>();
-        var sql = "SELECT tags FROM documents WHERE tags IS NOT NULL AND TRIM(tags) != ''";
+        var sql = "SELECT tags FROM documents WHERE tags IS NOT NULL AND TRIM(tags) != '' AND uuid <> @exclude_journal_anchor";
         if (!string.IsNullOrEmpty(status)) { sql += " AND status = @status"; }
         sql += " ORDER BY 1";
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
+        cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
         if (!string.IsNullOrEmpty(status)) cmd.Parameters.AddWithValue("status", status);
         PrepCmd(cmd); using var r = cmd.ExecuteReader();
         var tagSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -524,8 +532,11 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             return new List<string>();
         }
 
-        var sql = $"SELECT DISTINCT {column} FROM documents WHERE {column} IS NOT NULL AND TRIM({column}) != ''";
-        var pars = new List<OracleParameter>();
+        var sql = $"SELECT DISTINCT {column} FROM documents WHERE {column} IS NOT NULL AND TRIM({column}) != '' AND uuid <> @exclude_journal_anchor";
+        var pars = new List<OracleParameter>
+        {
+            new("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid)
+        };
         if (!string.IsNullOrEmpty(branch)) { sql += " AND branch = @branch"; pars.Add(new OracleParameter("branch", branch)); }
         if (!string.IsNullOrEmpty(section)) { sql += " AND section = @sec"; pars.Add(new OracleParameter("sec", section)); }
         sql += " ORDER BY 1";
@@ -569,11 +580,12 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
                     CONTAINS(snippet, @q, 2) > 0 OR
                     CONTAINS(notes, @q, 3) > 0 OR
                     CONTAINS(document_type, @q, 4) > 0
-                )" + (normalizedBranch != null ? " AND branch = @branch" : "") + @"
+                ) AND uuid <> @exclude_journal_anchor" + (normalizedBranch != null ? " AND branch = @branch" : "") + @"
                 ORDER BY (NVL(SCORE(1), 0) + NVL(SCORE(2), 0) + NVL(SCORE(3), 0) + NVL(SCORE(4), 0)) DESC,
                          capture_time DESC
                 FETCH FIRST @p_limit ROWS ONLY";
             cmd.Parameters.AddWithValue("@q", containsQuery);
+            cmd.Parameters.AddWithValue("@exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (normalizedBranch != null) cmd.Parameters.AddWithValue("@branch", normalizedBranch);
             cmd.Parameters.AddWithValue("@p_limit", safeLimit);
 
@@ -1154,8 +1166,9 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         using var conn = new OracleConnection(_connectionString);
         conn.Open();
 
-        var sql = "SELECT COUNT(*) FROM documents WHERE 1=1";
+        var sql = "SELECT COUNT(*) FROM documents WHERE 1=1 AND uuid <> @exclude_journal_anchor";
         using var cmd = conn.CreateCommand();
+        cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
 
         if (!string.IsNullOrEmpty(section))
         {
@@ -1186,7 +1199,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
             using var conn = new OracleConnection(_connectionString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM documents";
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE uuid <> @exclude_journal_anchor";
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             PrepCmd(cmd); return Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }, nameof(GetTotalDocumentCount), 0);
     }
@@ -1202,7 +1216,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         // Total count
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE 1=1" + branchFilter;
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE 1=1 AND uuid <> @exclude_journal_anchor" + branchFilter;
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.TotalDocuments = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
@@ -1227,24 +1242,27 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
 
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date AND uuid <> @exclude_journal_anchor" + branchFilter;
             cmd.Parameters.AddWithValue("p_date", todayStart);
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.TodayCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date AND uuid <> @exclude_journal_anchor" + branchFilter;
             cmd.Parameters.AddWithValue("p_date", weekStart);
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.ThisWeekCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
 
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date" + branchFilter;
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE capture_time >= @p_date AND uuid <> @exclude_journal_anchor" + branchFilter;
             cmd.Parameters.AddWithValue("p_date", monthStart);
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.ThisMonthCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
@@ -1252,7 +1270,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         // Count by document type
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT document_type, COUNT(*) as cnt FROM documents WHERE document_type IS NOT NULL" + branchFilter + " GROUP BY document_type";
+            cmd.CommandText = "SELECT document_type, COUNT(*) as cnt FROM documents WHERE document_type IS NOT NULL AND uuid <> @exclude_journal_anchor" + branchFilter + " GROUP BY document_type";
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -1267,17 +1286,19 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         stats.ArchivedCount = Count(status: Enums.Status.Archived, branch: branch);
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE status = @status AND legal_hold = 1" + branchFilter;
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE status = @status AND legal_hold = 1 AND uuid <> @exclude_journal_anchor" + branchFilter;
             cmd.Parameters.AddWithValue("status", Enums.Status.Archived);
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.ArchivedLegalHoldCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
         using (var cmd = conn.CreateCommand())
         {
             var expiry90 = DateTime.UtcNow.AddDays(90).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE status = @status AND retention_expiry_date IS NOT NULL AND retention_expiry_date <= @expiry" + branchFilter;
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE status = @status AND retention_expiry_date IS NOT NULL AND retention_expiry_date <= @expiry AND uuid <> @exclude_journal_anchor" + branchFilter;
             cmd.Parameters.AddWithValue("status", Enums.Status.Archived);
             cmd.Parameters.AddWithValue("expiry", expiry90);
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.ArchivedExpiringWithin90DaysCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }
@@ -1285,7 +1306,8 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         try
         {
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE disposal_status = 'Pending'" + branchFilter;
+            cmd.CommandText = "SELECT COUNT(*) FROM documents WHERE disposal_status = 'Pending' AND uuid <> @exclude_journal_anchor" + branchFilter;
+            cmd.Parameters.AddWithValue("exclude_journal_anchor", NoteAnchors.JournalDocumentUuid);
             if (!string.IsNullOrEmpty(branch)) cmd.Parameters.AddWithValue("branch", branch);
             PrepCmd(cmd); stats.DisposalPendingCount = Convert.ToInt32(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
         }

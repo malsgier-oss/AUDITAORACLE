@@ -1,6 +1,5 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
-using System.Globalization;
 using System.Data;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -53,7 +52,7 @@ public class ReportDistributionStore : IReportDistributionStore
         cmd.CommandText += " RETURNING id INTO @rid";
         Prep(cmd);
         cmd.ExecuteNonQuery();
-        return Convert.ToInt64(idParam.Value, CultureInfo.InvariantCulture);
+        return OracleValueConversion.ScalarToInt64(idParam.Value);
     }
 
     public List<ReportDistribution> List(string? reportPath = null, string? userId = null, DateTime? from = null, DateTime? rangeEnd = null, int limit = 500)
@@ -86,7 +85,7 @@ public class ReportDistributionStore : IReportDistributionStore
     {
         return new ReportDistribution
         {
-            Id = r.GetInt64(r.GetOrdinal("id")),
+            Id = OracleDataReaderNumeric.GetInt64(r, "id"),
             Uuid = r.GetString(r.GetOrdinal("uuid")),
             ReportPath = r.GetString(r.GetOrdinal("report_path")),
             ReportType = r.GetString(r.GetOrdinal("report_type")),

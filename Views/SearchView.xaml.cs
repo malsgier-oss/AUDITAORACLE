@@ -352,6 +352,12 @@ public partial class SearchView : UserControl
 
     private void RefreshDetailText(Document doc)
     {
+        if (NoteAnchors.IsJournalAnchorDocument(doc.Uuid))
+        {
+            DetailText.Text =
+                "This is an internal system record used for daily journal notes. It is not an audit document.";
+            return;
+        }
         var confidenceStr = doc.ClassificationConfidence.HasValue ? $"{doc.ClassificationConfidence.Value:P0}" : "-";
         var lines = new List<string>
         {

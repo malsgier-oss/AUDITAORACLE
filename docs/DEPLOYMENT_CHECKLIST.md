@@ -97,7 +97,7 @@
   ```
 - [ ] Create deployment package
   ```powershell
-  .\scripts\Create-DeploymentPackage.ps1 -Version "1.0.0"
+  .\scripts\Create-DeploymentPackage.ps1 -Version "1.0.2"
   ```
 - [ ] Sign installer with code signing certificate
 - [ ] Test on multiple machines (Windows 10, Windows 11)
@@ -221,10 +221,11 @@ Write-Host "  4. Configure branch settings"
 - [ ] Basic workflow tested at each branch
 - [ ] No critical errors in logs
 - [ ] No startup Oracle error codes (`BOOT_ORACLE_MISSING`, `BOOT_ORACLE_MALFORMED`, `BOOT_ORACLE_UNREACHABLE`, `BOOT_ORACLE_ENV_REQUIRED`)
-- [ ] Migration version validated from `WORKAUDIT_MIGRATIONS`
+- [ ] Migration version 58 confirmed (query: `SELECT MAX(version) FROM workaudit_migrations;`)
 - [ ] Backup jobs configured and scheduled
 - [ ] Users can login successfully
 - [ ] Network connectivity verified (if using sync)
+- [ ] **Verify migration version 58 applied** (check `workaudit_migrations` table)
 
 ### Week 1: Monitoring
 
@@ -377,4 +378,4 @@ When hybrid sync is implemented, this checklist will include:
 **Reviewed by**: IT Manager, Compliance Officer  
 **Approved by**: CTO / CIO  
 **Deployment Date**: TBD  
-**Version**: 1.0.0
+**Version**: 1.0.2

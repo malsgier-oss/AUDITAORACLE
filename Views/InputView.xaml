@@ -56,7 +56,7 @@
         <TabItem x:Name="ImportTab" Header="Import">
             <ContentControl x:Name="ImportHost"/>
         </TabItem>
-        <TabItem x:Name="WebcamTab" Header="Webcam">
+        <TabItem x:Name="WebcamTab" Header="Scan">
             <ContentControl x:Name="WebcamHost"/>
         </TabItem>
     </TabControl>

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -177,16 +176,10 @@ public partial class ReportEditorView : UserControl
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
 
-            if (result == MessageBoxResult.Yes && File.Exists(path))
+            if (result == MessageBoxResult.Yes)
             {
-                try
-                {
-                    Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-                }
-                catch
-                {
-                    // Ignore if we can't open
-                }
+                if (!ReportOutputLauncher.TryOpen(path, out var openError) && !string.IsNullOrEmpty(openError))
+                    MessageBox.Show(openError, "Open report", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
             Log.Information("Draft {DraftId} exported to {Format} at {Path}", _currentDraft.Id, format, path);

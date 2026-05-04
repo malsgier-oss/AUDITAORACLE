@@ -345,7 +345,7 @@ internal static class OracleBaselineInstaller
               username VARCHAR2(256) NOT NULL,
               report_type VARCHAR2(128) NOT NULL,
               file_path VARCHAR2(4000) NOT NULL,
-              generated_at VARCHAR2(64) NOT NULL,
+              generated_at TIMESTAMP(6) NOT NULL,
               config_json CLOB,
               tags VARCHAR2(4000),
               purpose VARCHAR2(512),
