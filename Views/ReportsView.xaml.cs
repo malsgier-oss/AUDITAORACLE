@@ -751,6 +751,12 @@ public partial class ReportsView : UserControl, IDisposable
     private void ReportHistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ReportHistoryList.SelectedItem is not ReportHistoryEntry entry) return;
+        RefreshAttestationPanel(entry.FilePath, entry.ReportType);
+    }
+
+    private void ReportHistoryList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (ReportHistoryList.SelectedItem is not ReportHistoryEntry entry) return;
 
         Log.Information("Attempting to open report: Type={ReportType}, Path={Path}", entry.ReportType, entry.FilePath);
 
@@ -767,8 +773,6 @@ public partial class ReportsView : UserControl, IDisposable
             else
                 MessageBox.Show("Could not open the report file. The file may have been moved or deleted.", "Open report", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
-
-        RefreshAttestationPanel(entry.FilePath, entry.ReportType);
     }
 
     private sealed record ReportHistoryEntry(string Timestamp, string ReportType, string FilePath)

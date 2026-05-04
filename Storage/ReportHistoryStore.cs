@@ -1,6 +1,7 @@
 using Oracle.ManagedDataAccess.Client;
 using Serilog;
 using System.Data;
+using System.IO;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
 using WorkAudit.Storage.Oracle;
@@ -68,7 +69,10 @@ public class ReportHistoryStore : IReportHistoryStore
             Prep(cmd);
             cmd.ExecuteNonQuery();
             entry.Id = OracleValueConversion.ScalarToInt32(idParam.Value);
-            _log.Information("Recorded report history id={Id} type={Type} path={Path}", entry.Id, entry.ReportType, entry.FilePath);
+            var fileExists = File.Exists(entry.FilePath);
+            var dirExists = Directory.Exists(entry.FilePath);
+            _log.Information("Recorded report history id={Id} type={Type} path={Path} fileExists={FileExists} dirExists={DirExists}", 
+                entry.Id, entry.ReportType, entry.FilePath, fileExists, dirExists);
             return entry.Id;
         }
         catch (Exception ex)
@@ -102,7 +106,14 @@ public class ReportHistoryStore : IReportHistoryStore
 
             Prep(cmd); using var r = cmd.ExecuteReader();
             while (r.Read())
-                list.Add(ReadRow(r));
+            {
+                var entry = ReadRow(r);
+                var fileExists = File.Exists(entry.FilePath);
+                var dirExists = Directory.Exists(entry.FilePath);
+                _log.Debug("Retrieved report history id={Id} type={Type} path={Path} fileExists={FileExists} dirExists={DirExists}",
+                    entry.Id, entry.ReportType, entry.FilePath, fileExists, dirExists);
+                list.Add(entry);
+            }
             return list;
         }
         catch (Exception ex)
