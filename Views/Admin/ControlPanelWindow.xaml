@@ -570,6 +570,236 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <!-- Diagnostics (admin) -->
+            <TabItem x:Name="DiagnosticsTab" Header="Diagnostics">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <WrapPanel Grid.Row="0" Margin="0,0,0,12">
+                        <Border x:Name="OverallHealthCard" Background="#28A745" CornerRadius="4" Padding="12,8" Margin="0,0,8,8" MinWidth="140">
+                            <StackPanel>
+                                <TextBlock x:Name="DiagOverallHealthLabel" Text="Overall Health" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="OverallHealthText" Text="—" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#DC3545" CornerRadius="4" Padding="12,8" Margin="0,0,8,8" MinWidth="120">
+                            <StackPanel>
+                                <TextBlock x:Name="DiagErrors24Label" Text="Errors (24h)" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="ErrorCount24hText" Text="0" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#FFC107" CornerRadius="4" Padding="12,8" Margin="0,0,8,8" MinWidth="140">
+                            <StackPanel>
+                                <TextBlock x:Name="DiagWarnings24Label" Text="Warnings (24h)" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="WarningCount24hText" Text="0" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#E83E8C" CornerRadius="4" Padding="12,8" Margin="0,0,8,8" MinWidth="140">
+                            <StackPanel>
+                                <TextBlock x:Name="DiagWorkflowLabel" Text="Workflow Issues" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="WorkflowIssuesText" Text="0" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#17A2B8" CornerRadius="4" Padding="12,8" Margin="0,0,8,8" MinWidth="120">
+                            <StackPanel>
+                                <TextBlock x:Name="DiagActiveUsersLabel" Text="Active Sessions" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="ActiveUsersText" Text="0" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#6C757D" CornerRadius="4" Padding="12,8" Margin="0,0,8,8" MinWidth="140">
+                            <StackPanel>
+                                <TextBlock x:Name="DiagLastRefreshLabel" Text="Last Updated (UTC)" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="LastRefreshText" Text="—" Foreground="White" FontSize="14"/>
+                            </StackPanel>
+                        </Border>
+                    </WrapPanel>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button x:Name="RefreshDiagnosticsBtn" Content="Refresh Now" Padding="12,6" Margin="0,0,8,0" Click="RefreshDiagnostics_Click"
+                                Background="#0E639C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="RunHealthCheckBtn" Content="Run Health Check" Padding="12,6" Margin="0,0,8,0" Click="RunHealthCheck_Click"
+                                Background="#28A745" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="ExportDiagnosticsBtn" Content="Export Report..." Padding="12,6" Margin="0,0,8,0" Click="ExportDiagnostics_Click"
+                                Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand"/>
+                        <CheckBox x:Name="AutoRefreshCheck" Content="Auto-refresh (30s)" VerticalAlignment="Center" Margin="16,0,0,0"
+                                  Checked="AutoRefreshDiagnostics_Changed" Unchecked="AutoRefreshDiagnostics_Changed"/>
+                    </StackPanel>
+                    <TabControl Grid.Row="2" x:Name="DiagnosticsDetailsTab">
+                        <TabItem x:Name="DiagOverviewTab" Header="Overview">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                                <StackPanel>
+                                    <TextBlock x:Name="DiagOverviewTitle" Text="System Overview" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                    <DataGrid x:Name="SystemOverviewGrid" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="120" MaxHeight="220"
+                                              Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Metric" Binding="{Binding Metric}" Width="*"/>
+                                            <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="280"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock x:Name="DiagErrorTrendTitle" Text="Error trend (24h, UTC hours)" FontSize="14" FontWeight="SemiBold" Margin="0,12,0,8"/>
+                                    <DataGrid x:Name="ErrorTrendGrid" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="100" MaxHeight="200"
+                                              Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Hour (UTC)" Binding="{Binding HourLabel}" Width="170"/>
+                                            <DataGridTextColumn Header="Errors" Binding="{Binding ErrorCount}" Width="80"/>
+                                            <DataGridTextColumn Header="Warnings" Binding="{Binding WarningCount}" Width="80"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock x:Name="DiagRecentActivityTitle" Text="Recent Activity" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,8"/>
+                                    <DataGrid x:Name="RecentActivityGrid" AutoGenerateColumns="False" IsReadOnly="True" Height="160"
+                                              Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Activity" Binding="{Binding Activity}" Width="*"/>
+                                            <DataGridTextColumn Header="Last Occurrence" Binding="{Binding LastOccurrence}" Width="200"/>
+                                            <DataGridTextColumn Header="Count Today" Binding="{Binding CountToday}" Width="100"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem x:Name="DiagHealthTab" Header="Health Checks">
+                            <DataGrid x:Name="HealthChecksGrid" Margin="8" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Component" Binding="{Binding Name}" Width="200"/>
+                                    <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80"/>
+                                    <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </TabItem>
+                        <TabItem x:Name="DiagErrorLogTab" Header="Error Log">
+                            <DockPanel Margin="8">
+                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock x:Name="DiagLogLevelLabel" Text="Level:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <ComboBox x:Name="LogLevelFilter" Width="100" Margin="0,0,8,0" SelectionChanged="DiagnosticsLogFilter_Changed">
+                                        <ComboBoxItem Content="All" Tag="ALL" IsSelected="True"/>
+                                        <ComboBoxItem Content="Error+" Tag="ERR"/>
+                                        <ComboBoxItem Content="Warning+" Tag="WRN"/>
+                                    </ComboBox>
+                                    <TextBlock x:Name="DiagLogPeriodLabel" Text="Period:" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                                    <ComboBox x:Name="LogPeriodFilter" Width="120" Margin="0,0,8,0" SelectionChanged="DiagnosticsLogFilter_Changed">
+                                        <ComboBoxItem Content="Last 1 hour" Tag="1h"/>
+                                        <ComboBoxItem Content="Last 6 hours" Tag="6h" IsSelected="True"/>
+                                        <ComboBoxItem Content="Last 24 hours" Tag="24h"/>
+                                        <ComboBoxItem Content="Last 7 days" Tag="7d"/>
+                                    </ComboBox>
+                                    <TextBlock x:Name="DiagLogComponentLabel" Text="Component:" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                                    <ComboBox x:Name="LogComponentFilter" Width="220" Margin="0,0,8,0" SelectionChanged="DiagnosticsLogComponent_Changed">
+                                        <ComboBoxItem Content="All" Tag="" IsSelected="True"/>
+                                    </ComboBox>
+                                    <TextBox x:Name="LogSearchBox" Width="200" Padding="4" Margin="0,0,4,0"
+                                             TextChanged="DiagnosticsLogSearch_Changed" ToolTip="Search message"/>
+                                    <Button x:Name="DiagClearLogFiltersBtn" Content="Clear" Padding="8,4" Click="ClearDiagnosticsLogFilters_Click" Margin="0,0,0,0"/>
+                                </StackPanel>
+                                <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" LastChildFill="True" MinHeight="100">
+                                    <Button x:Name="DiagCopyLogDetailsBtn" Content="Copy details" DockPanel.Dock="Right" VerticalAlignment="Top" Padding="8,4" Margin="8,0,0,0" Click="CopyLogDetails_Click"/>
+                                    <TextBox x:Name="ErrorLogDetailBox" MinHeight="100" Height="100"
+                                         IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                         FontFamily="Consolas" FontSize="11"
+                                         Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}"/>
+                                </DockPanel>
+                                <DataGrid x:Name="ErrorLogGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                                          Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}"
+                                          SelectionChanged="ErrorLogGrid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Timestamp (UTC)" Binding="{Binding TimestampUtc}" Width="160"/>
+                                        <DataGridTextColumn Header="Level" Binding="{Binding Level}" Width="56"/>
+                                        <DataGridTextColumn Header="Component" Binding="{Binding Component}" Width="220"/>
+                                        <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </TabItem>
+                        <TabItem x:Name="DiagWorkflowTab" Header="Workflow Issues">
+                            <DataGrid x:Name="WorkflowIssuesGrid" Margin="8" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="80"/>
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="160"/>
+                                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                                    <DataGridTextColumn Header="Recommended Action" Binding="{Binding RecommendedAction}" Width="220"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </TabItem>
+                        <TabItem x:Name="DiagServicesTab" Header="Services">
+                            <DataGrid x:Name="ServicesGrid" Margin="8" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Service" Binding="{Binding ServiceName}" Width="240"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                                    <DataGridTextColumn Header="Last Activity (UTC)" Binding="{Binding LastActivityUtc}" Width="180"/>
+                                    <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </TabItem>
+                        <TabItem x:Name="DiagDatabaseTab" Header="Database">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                                <StackPanel>
+                                    <DataGrid x:Name="DatabaseMetricsGrid" Height="200" AutoGenerateColumns="False" IsReadOnly="True"
+                                              Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Metric" Binding="{Binding Metric}" Width="*"/>
+                                            <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="220"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock x:Name="DiagTableSizesTitle" Text="Table row counts" Margin="0,16,0,8" FontWeight="SemiBold"/>
+                                    <DataGrid x:Name="TableSizesGrid" Height="180" AutoGenerateColumns="False" IsReadOnly="True"
+                                              Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Table" Binding="{Binding TableName}" Width="200"/>
+                                            <DataGridTextColumn Header="Rows" Binding="{Binding RowCount}" Width="120"/>
+                                            <DataGridTextColumn Header="Notes" Binding="{Binding Growth}" Width="*"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem x:Name="DiagConfigTab" Header="Configuration">
+                            <DataGrid x:Name="ConfigValidationGrid" Margin="8" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120"/>
+                                    <DataGridTextColumn Header="Setting" Binding="{Binding ConfigKey}" Width="220"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                                    <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </TabItem>
+                        <TabItem x:Name="DiagPerfTab" Header="Performance">
+                            <DockPanel Margin="8">
+                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock x:Name="DiagPerfThresholdLabel" Text="Min duration (ms):" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <ComboBox x:Name="PerfThresholdFilter" Width="100" SelectionChanged="DiagnosticsPerfFilter_Changed">
+                                        <ComboBoxItem Content="500" Tag="500"/>
+                                        <ComboBoxItem Content="1000" Tag="1000" IsSelected="True"/>
+                                        <ComboBoxItem Content="2000" Tag="2000"/>
+                                        <ComboBoxItem Content="All" Tag="0"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <DataGrid x:Name="PerformanceGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                                          Background="{DynamicResource ContentBackground}" BorderBrush="{DynamicResource BorderBrush}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Timestamp (UTC)" Binding="{Binding TimestampUtc}" Width="160"/>
+                                        <DataGridTextColumn Header="Operation" Binding="{Binding Operation}" Width="*"/>
+                                        <DataGridTextColumn Header="Ms" Binding="{Binding DurationMs}" Width="72"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </TabItem>
+                    </TabControl>
+                    <Border Grid.Row="3" Background="{DynamicResource ActivityBarBackground}" Padding="8,6" Margin="0,8,0,0">
+                        <Grid>
+                            <TextBlock x:Name="DiagnosticsStatusText" Text="" Foreground="{DynamicResource DimForeground}" FontSize="11"/>
+                            <TextBlock x:Name="DiagnosticsInfoText" Text="" Foreground="{DynamicResource DimForeground}" FontSize="11" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
         </TabControl>
 
         <!-- Footer -->

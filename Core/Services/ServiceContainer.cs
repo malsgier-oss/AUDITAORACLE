@@ -149,6 +149,7 @@ public static class ServiceContainer
         services.AddSingleton<ICurrentDocumentContextService, CurrentDocumentContextService>();
         services.AddSingleton<IProcessingProgressService, ProcessingProgressService>();
         services.AddSingleton<IProcessingMergeQueueService, ProcessingMergeQueueService>();
+        services.AddWorkAuditDiagnosticsModule();
         services.AddSingleton<IKeyboardShortcutService, KeyboardShortcutService>();
         services.AddSingleton<IEnvironmentService, EnvironmentService>();
         services.AddSingleton<IDashboardCacheService, DashboardCacheService>();

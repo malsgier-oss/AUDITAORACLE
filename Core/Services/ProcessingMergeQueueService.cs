@@ -35,8 +35,27 @@ public sealed class ProcessingMergeQueueService : IProcessingMergeQueueService
 
     private readonly Channel<MergeJob> _channel;
     private int _pendingJobs;
+    private readonly object _mergeTimingLock = new();
+    private readonly Queue<DateTime> _mergeJobsWaitingSince = new();
+    private DateTime? _currentMergeJobEnqueuedUtc;
 
     public int PendingCount => Volatile.Read(ref _pendingJobs);
+
+    /// <inheritdoc />
+    public DateTime? OldestPendingMergeEnqueueUtc
+    {
+        get
+        {
+            lock (_mergeTimingLock)
+            {
+                var oldestWait = _mergeJobsWaitingSince.Count > 0 ? _mergeJobsWaitingSince.Peek() : (DateTime?)null;
+                var cur = _currentMergeJobEnqueuedUtc;
+                if (!oldestWait.HasValue) return cur;
+                if (!cur.HasValue) return oldestWait;
+                return oldestWait.Value <= cur.Value ? oldestWait : cur;
+            }
+        }
+    }
 
     public event EventHandler<ProcessingMergeCompletedEventArgs>? MergeCompleted;
     public event EventHandler<ProcessingMergeFailedEventArgs>? MergeFailed;
@@ -80,12 +99,18 @@ public sealed class ProcessingMergeQueueService : IProcessingMergeQueueService
         if (orderedDocumentIds == null || orderedDocumentIds.Count < 2)
             throw new ArgumentException("At least two document IDs are required.", nameof(orderedDocumentIds));
 
-        Interlocked.Increment(ref _pendingJobs);
-        var written = _channel.Writer.TryWrite(new MergeJob(orderedDocumentIds.ToArray(), nextSelectionDocumentId, allowLossyPdfFallback));
-        if (!written)
+        var enqueuedUtc = DateTime.UtcNow;
+        lock (_mergeTimingLock)
         {
-            Interlocked.Decrement(ref _pendingJobs);
-            throw new InvalidOperationException("Merge queue is not accepting jobs.");
+            Interlocked.Increment(ref _pendingJobs);
+            var written = _channel.Writer.TryWrite(new MergeJob(orderedDocumentIds.ToArray(), nextSelectionDocumentId, allowLossyPdfFallback, enqueuedUtc));
+            if (!written)
+            {
+                Interlocked.Decrement(ref _pendingJobs);
+                throw new InvalidOperationException("Merge queue is not accepting jobs.");
+            }
+
+            _mergeJobsWaitingSince.Enqueue(enqueuedUtc);
         }
     }
 
@@ -93,6 +118,15 @@ public sealed class ProcessingMergeQueueService : IProcessingMergeQueueService
     {
         await foreach (var job in _channel.Reader.ReadAllAsync())
         {
+            DateTime jobEnqueuedUtc;
+            lock (_mergeTimingLock)
+            {
+                jobEnqueuedUtc = _mergeJobsWaitingSince.Count > 0
+                    ? _mergeJobsWaitingSince.Dequeue()
+                    : job.EnqueuedAtUtc;
+                _currentMergeJobEnqueuedUtc = jobEnqueuedUtc;
+            }
+
             var n = Volatile.Read(ref _pendingJobs);
             var progressMsg = ReportLocalizationService.GetString("MergeToPdfProgress", _configStore);
             if (n > 1)
@@ -117,6 +151,8 @@ public sealed class ProcessingMergeQueueService : IProcessingMergeQueueService
             }
             finally
             {
+                lock (_mergeTimingLock)
+                    _currentMergeJobEnqueuedUtc = null;
                 if (Interlocked.Decrement(ref _pendingJobs) == 0)
                     _progressService.Complete();
             }
@@ -283,7 +319,7 @@ public sealed class ProcessingMergeQueueService : IProcessingMergeQueueService
         }
     }
 
-    private readonly record struct MergeJob(int[] Ids, int? NextSelectionDocumentId, bool AllowLossyPdfFallback);
+    private readonly record struct MergeJob(int[] Ids, int? NextSelectionDocumentId, bool AllowLossyPdfFallback, DateTime EnqueuedAtUtc);
 
     private sealed class MergeQueueUserMessageException : Exception
     {

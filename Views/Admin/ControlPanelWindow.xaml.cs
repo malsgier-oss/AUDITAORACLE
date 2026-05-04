@@ -2,10 +2,12 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using Serilog;
 using WorkAudit.Config;
@@ -56,6 +58,10 @@ public partial class ControlPanelWindow : Window
 
     private bool _isDirty;
     private string _initialLanguage = "en";
+    private readonly IDiagnosticsService _diagnostics;
+    private readonly DispatcherTimer _diagnosticsAutoRefresh = new() { Interval = TimeSpan.FromSeconds(30) };
+    private DiagnosticsSnapshot? _lastDiagnosticsSnapshot;
+    private bool _populatingLogComponents;
     private readonly IKeyboardShortcutService _keyboardShortcutService;
     private readonly Dictionary<string, string> _keyboardShortcutDraft = new();
     private readonly Dictionary<string, System.Windows.Controls.TextBox> _shortcutValueBoxes = new();
@@ -73,6 +79,8 @@ public partial class ControlPanelWindow : Window
         _migrationService = ServiceContainer.GetService<IMigrationService>();
         _permissionService = ServiceContainer.GetService<IPermissionService>();
         _isFullControlPanel = _permissionService.HasMinimumRole(Roles.Manager);
+        _diagnostics = ServiceContainer.GetService<IDiagnosticsService>();
+        _diagnosticsAutoRefresh.Tick += (_, _) => _ = LoadDiagnosticsAsync(silent: true, bypassCache: true);
 
         Loaded += OnLoaded;
     }
@@ -94,6 +102,8 @@ public partial class ControlPanelWindow : Window
         }
         LoadKeyboardShortcuts();
         LoadOcrSettings();
+        if (_isFullControlPanel)
+            _ = LoadDiagnosticsAsync(silent: false, bypassCache: false);
     }
 
     private void ApplyControlPanelAccess()
@@ -103,7 +113,7 @@ public partial class ControlPanelWindow : Window
             foreach (var tab in new TabItem?[]
                      {
                          GeneralTab, ShortcutsTab, DocTypesTab, BranchesTab, SecurityTab, WorkflowTab, OcrTab,
-                         BackupTab, SystemTab
+                         BackupTab, SystemTab, DiagnosticsTab
                      })
             {
                 if (tab != null) tab.Visibility = Visibility.Visible;
@@ -113,7 +123,7 @@ public partial class ControlPanelWindow : Window
             return;
         }
 
-        foreach (var tab in new[] { DocTypesTab, BranchesTab, SecurityTab, WorkflowTab, BackupTab, SystemTab })
+        foreach (var tab in new[] { DocTypesTab, BranchesTab, SecurityTab, WorkflowTab, BackupTab, SystemTab, DiagnosticsTab })
         {
             if (tab != null) tab.Visibility = Visibility.Collapsed;
         }
@@ -183,6 +193,60 @@ public partial class ControlPanelWindow : Window
             ShortcutsIntroText.Text = ReportLocalizationService.GetString(
                 _isFullControlPanel ? "ShortcutsIntro" : "ShortcutsIntroPreferences", _configStore);
         if (ResetKeyboardShortcutsBtn != null) ResetKeyboardShortcutsBtn.Content = ReportLocalizationService.GetString("ShortcutsResetAll", _configStore);
+        if (DiagnosticsTab != null) DiagnosticsTab.Header = ReportLocalizationService.GetString("DiagnosticsTab", _configStore);
+        if (DiagOverviewTab != null) DiagOverviewTab.Header = ReportLocalizationService.GetString("DiagnosticsSubOverview", _configStore);
+        if (DiagHealthTab != null) DiagHealthTab.Header = ReportLocalizationService.GetString("DiagnosticsSubHealth", _configStore);
+        if (DiagErrorLogTab != null) DiagErrorLogTab.Header = ReportLocalizationService.GetString("DiagnosticsSubErrorLog", _configStore);
+        if (DiagWorkflowTab != null) DiagWorkflowTab.Header = ReportLocalizationService.GetString("DiagnosticsSubWorkflow", _configStore);
+        if (DiagServicesTab != null) DiagServicesTab.Header = ReportLocalizationService.GetString("DiagnosticsSubServices", _configStore);
+        if (DiagDatabaseTab != null) DiagDatabaseTab.Header = ReportLocalizationService.GetString("DiagnosticsSubDatabase", _configStore);
+        if (DiagConfigTab != null) DiagConfigTab.Header = ReportLocalizationService.GetString("DiagnosticsSubConfiguration", _configStore);
+        if (DiagPerfTab != null) DiagPerfTab.Header = ReportLocalizationService.GetString("DiagnosticsSubPerformance", _configStore);
+        if (RefreshDiagnosticsBtn != null) RefreshDiagnosticsBtn.Content = ReportLocalizationService.GetString("DiagnosticsRefreshNow", _configStore);
+        if (RunHealthCheckBtn != null) RunHealthCheckBtn.Content = ReportLocalizationService.GetString("DiagnosticsRunHealthCheck", _configStore);
+        if (ExportDiagnosticsBtn != null) ExportDiagnosticsBtn.Content = ReportLocalizationService.GetString("DiagnosticsExportReport", _configStore);
+        if (AutoRefreshCheck != null) AutoRefreshCheck.Content = ReportLocalizationService.GetString("DiagnosticsAutoRefresh", _configStore);
+        if (DiagOverallHealthLabel != null) DiagOverallHealthLabel.Text = ReportLocalizationService.GetString("DiagnosticsOverallHealth", _configStore);
+        if (DiagErrors24Label != null) DiagErrors24Label.Text = ReportLocalizationService.GetString("DiagnosticsErrors24h", _configStore);
+        if (DiagWarnings24Label != null) DiagWarnings24Label.Text = ReportLocalizationService.GetString("DiagnosticsWarnings24h", _configStore);
+        if (DiagWorkflowLabel != null) DiagWorkflowLabel.Text = ReportLocalizationService.GetString("DiagnosticsWorkflowIssues", _configStore);
+        if (DiagActiveUsersLabel != null) DiagActiveUsersLabel.Text = ReportLocalizationService.GetString("DiagnosticsActiveSessions", _configStore);
+        if (DiagLastRefreshLabel != null) DiagLastRefreshLabel.Text = ReportLocalizationService.GetString("DiagnosticsLastUpdatedUtc", _configStore);
+        if (DiagOverviewTitle != null) DiagOverviewTitle.Text = ReportLocalizationService.GetString("DiagnosticsSystemOverview", _configStore);
+        if (DiagRecentActivityTitle != null) DiagRecentActivityTitle.Text = ReportLocalizationService.GetString("DiagnosticsRecentActivity", _configStore);
+        if (DiagTableSizesTitle != null) DiagTableSizesTitle.Text = ReportLocalizationService.GetString("DiagnosticsTableRowCounts", _configStore);
+        if (DiagClearLogFiltersBtn != null) DiagClearLogFiltersBtn.Content = ReportLocalizationService.GetString("DiagnosticsClearFilters", _configStore);
+        if (DiagLogLevelLabel != null) DiagLogLevelLabel.Text = ReportLocalizationService.GetString("DiagnosticsLevel", _configStore);
+        if (DiagLogPeriodLabel != null) DiagLogPeriodLabel.Text = ReportLocalizationService.GetString("DiagnosticsPeriod", _configStore);
+        if (DiagPerfThresholdLabel != null) DiagPerfThresholdLabel.Text = ReportLocalizationService.GetString("DiagnosticsMinDurationMs", _configStore);
+        if (DiagErrorTrendTitle != null) DiagErrorTrendTitle.Text = ReportLocalizationService.GetString("DiagnosticsErrorTrendTitle", _configStore);
+        if (DiagLogComponentLabel != null) DiagLogComponentLabel.Text = ReportLocalizationService.GetString("DiagnosticsComponentLabel", _configStore);
+        if (DiagCopyLogDetailsBtn != null) DiagCopyLogDetailsBtn.Content = ReportLocalizationService.GetString("DiagnosticsCopyLogDetails", _configStore);
+        ApplyDiagnosticsDataGridHeaders();
+    }
+
+    private void ApplyDiagnosticsDataGridHeaders()
+    {
+        if (_configStore == null) return;
+        if (SystemOverviewGrid?.Columns.Count >= 2)
+        {
+            SystemOverviewGrid.Columns[0].Header = ReportLocalizationService.GetString("DiagnosticsColumnMetric", _configStore);
+            SystemOverviewGrid.Columns[1].Header = ReportLocalizationService.GetString("DiagnosticsColumnValue", _configStore);
+        }
+
+        if (RecentActivityGrid?.Columns.Count >= 3)
+        {
+            RecentActivityGrid.Columns[0].Header = ReportLocalizationService.GetString("DiagnosticsColumnActivity", _configStore);
+            RecentActivityGrid.Columns[1].Header = ReportLocalizationService.GetString("DiagnosticsColumnLastOccurrence", _configStore);
+            RecentActivityGrid.Columns[2].Header = ReportLocalizationService.GetString("DiagnosticsColumnCountToday", _configStore);
+        }
+
+        if (ErrorTrendGrid?.Columns.Count >= 3)
+        {
+            ErrorTrendGrid.Columns[0].Header = ReportLocalizationService.GetString("DiagnosticsTrendHourUtc", _configStore);
+            ErrorTrendGrid.Columns[1].Header = ReportLocalizationService.GetString("DiagnosticsTrendErrors", _configStore);
+            ErrorTrendGrid.Columns[2].Header = ReportLocalizationService.GetString("DiagnosticsTrendWarnings", _configStore);
+        }
     }
 
     private void LoadThemeSettings()
@@ -908,6 +972,389 @@ public partial class ControlPanelWindow : Window
         var err = _keyboardShortcutService.TrySaveOverrides(_keyboardShortcutDraft);
         if (err != null)
             throw new InvalidOperationException(err);
+    }
+
+    #endregion
+
+    #region Diagnostics
+
+    private async System.Threading.Tasks.Task LoadDiagnosticsAsync(bool silent, bool bypassCache)
+    {
+        if (!_isFullControlPanel || DiagnosticsTab == null) return;
+        try
+        {
+            if (!silent)
+            {
+                if (DiagnosticsStatusText != null)
+                    DiagnosticsStatusText.Text = ReportLocalizationService.GetString("DiagnosticsLoading", _configStore);
+            }
+
+            var snap = await _diagnostics.GetSnapshotAsync(bypassCache).ConfigureAwait(true);
+            _lastDiagnosticsSnapshot = snap;
+            ApplyDiagnosticsSnapshot(snap);
+            if (DiagnosticsStatusText != null)
+                DiagnosticsStatusText.Text = ReportLocalizationService.GetString("Ready", _configStore);
+        }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "Diagnostics load failed");
+            if (DiagnosticsStatusText != null)
+                DiagnosticsStatusText.Text = ex.Message;
+            if (!silent)
+                MessageBox.Show(ex.Message, "Diagnostics", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ApplyDiagnosticsSnapshot(DiagnosticsSnapshot snap)
+    {
+        if (OverallHealthText != null)
+            OverallHealthText.Text = snap.OverallHealthStatus;
+        SetHealthCardColor(OverallHealthCard, snap.OverallHealthStatus);
+        if (ErrorCount24hText != null)
+            ErrorCount24hText.Text = snap.ErrorSummary.ErrorCount24h.ToString(CultureInfo.InvariantCulture);
+        if (WarningCount24hText != null)
+            WarningCount24hText.Text = snap.ErrorSummary.WarningCount24h.ToString(CultureInfo.InvariantCulture);
+        if (WorkflowIssuesText != null)
+            WorkflowIssuesText.Text = snap.WorkflowIssues.Count.ToString(CultureInfo.InvariantCulture);
+        if (ActiveUsersText != null)
+            ActiveUsersText.Text = snap.SessionMetrics.ActiveSessions.ToString(CultureInfo.InvariantCulture);
+        if (LastRefreshText != null)
+            LastRefreshText.Text = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + " UTC";
+
+        if (DiagnosticsInfoText != null)
+            DiagnosticsInfoText.Text = $"DB: {(snap.DatabaseMetrics.IsConnected ? "OK" : "fail")} · Schema {snap.DatabaseMetrics.SchemaVersion}";
+
+        var overview = new List<DiagnosticMetricRow>
+        {
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricOverall", _configStore), Value = snap.OverallHealthStatus },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricDocuments", _configStore), Value = snap.SystemStats.TotalDocuments.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricUsers", _configStore), Value = snap.SystemStats.TotalUsers.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricPendingAssignments", _configStore), Value = snap.SystemStats.PendingAssignments.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricOverdueAssignments", _configStore), Value = snap.SystemStats.OverdueAssignments.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricMissingFiles", _configStore), Value = snap.SystemStats.MissingFiles.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricOrphanFiles", _configStore), Value = snap.SystemStats.OrphanedFiles.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricFailedOcrLogs", _configStore), Value = snap.SystemStats.FailedOcrCount.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricImportErrors24h", _configStore), Value = snap.ErrorSummary.ImportRelatedErrorCount24h.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsMetricFailedLogins24h", _configStore), Value = snap.SessionMetrics.FailedLoginsLast24h.ToString(CultureInfo.InvariantCulture) }
+        };
+        if (SystemOverviewGrid != null)
+            SystemOverviewGrid.ItemsSource = overview;
+
+        if (ErrorTrendGrid != null)
+            ErrorTrendGrid.ItemsSource = snap.ErrorSummary.TrendData;
+
+        var activity = new List<DiagnosticActivityRow>
+        {
+            new()
+            {
+                Activity = ReportLocalizationService.GetString("DiagnosticsActivityLastImport", _configStore),
+                LastOccurrence = FormatUtc(snap.RecentActivity.LastDocumentImportUtc),
+                CountToday = snap.RecentActivity.DocumentsImportedToday.ToString(CultureInfo.InvariantCulture)
+            },
+            new()
+            {
+                Activity = ReportLocalizationService.GetString("DiagnosticsActivityLastOcr", _configStore),
+                LastOccurrence = FormatUtc(snap.RecentActivity.LastOcrCompletionUtc),
+                CountToday = "—"
+            },
+            new()
+            {
+                Activity = ReportLocalizationService.GetString("DiagnosticsActivityLastBackup", _configStore),
+                LastOccurrence = FormatUtc(snap.RecentActivity.LastBackupUtc),
+                CountToday = snap.RecentActivity.LastBackupStatus ?? "—"
+            },
+            new()
+            {
+                Activity = ReportLocalizationService.GetString("DiagnosticsActivityLastReport", _configStore),
+                LastOccurrence = FormatUtc(snap.RecentActivity.LastReportGeneratedUtc),
+                CountToday = snap.RecentActivity.LastReportType ?? "—"
+            },
+            new()
+            {
+                Activity = ReportLocalizationService.GetString("DiagnosticsActivityLoginsToday", _configStore),
+                LastOccurrence = "—",
+                CountToday = snap.RecentActivity.ActiveUsersToday.ToString(CultureInfo.InvariantCulture)
+            }
+        };
+        if (RecentActivityGrid != null)
+            RecentActivityGrid.ItemsSource = activity;
+
+        if (HealthChecksGrid != null)
+            HealthChecksGrid.ItemsSource = snap.HealthChecks?.Checks ?? new List<HealthCheckSummary>();
+
+        if (WorkflowIssuesGrid != null)
+            WorkflowIssuesGrid.ItemsSource = snap.WorkflowIssues;
+
+        if (ServicesGrid != null)
+            ServicesGrid.ItemsSource = snap.ServiceStatuses;
+
+        var dbRows = new List<DatabaseMetricRow>
+        {
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsDbConnected", _configStore), Value = snap.DatabaseMetrics.IsConnected.ToString() },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsDbSchemaVersion", _configStore), Value = snap.DatabaseMetrics.SchemaVersion },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsDbProbeMs", _configStore), Value = snap.DatabaseMetrics.AvgQueryTimeMs.ToString(CultureInfo.InvariantCulture) },
+            new() { Metric = ReportLocalizationService.GetString("DiagnosticsDbLogIssues24h", _configStore), Value = snap.DatabaseMetrics.LogDatabaseIssueCount24h.ToString(CultureInfo.InvariantCulture) },
+            new()
+            {
+                Metric = ReportLocalizationService.GetString("DiagnosticsDbOracleVSessionTotal", _configStore),
+                Value = snap.DatabaseMetrics.OracleVSessionTotal?.ToString(CultureInfo.InvariantCulture) ?? "—"
+            },
+            new()
+            {
+                Metric = ReportLocalizationService.GetString("DiagnosticsDbOracleVSessionActive", _configStore),
+                Value = snap.DatabaseMetrics.OracleVSessionActive?.ToString(CultureInfo.InvariantCulture) ?? "—"
+            }
+        };
+        if (DatabaseMetricsGrid != null)
+            DatabaseMetricsGrid.ItemsSource = dbRows;
+
+        var tableRows = snap.DatabaseMetrics.TableRowCounts
+            .Select(kv => new TableSizeRow { TableName = kv.Key, RowCount = kv.Value, Growth = kv.Value < 0 ? "n/a" : "—" })
+            .ToList();
+        if (TableSizesGrid != null)
+            TableSizesGrid.ItemsSource = tableRows;
+
+        if (ConfigValidationGrid != null)
+            ConfigValidationGrid.ItemsSource = snap.ConfigValidations;
+
+        PopulateLogComponentFilter();
+        RefreshDiagnosticsLogGrid();
+        RefreshDiagnosticsPerformanceGrid();
+    }
+
+    private static string FormatUtc(DateTime? utc)
+    {
+        if (!utc.HasValue) return "—";
+        return utc.Value.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + " UTC";
+    }
+
+    private static void SetHealthCardColor(System.Windows.Controls.Border? card, string status)
+    {
+        if (card == null) return;
+        var brush = status switch
+        {
+            "Healthy" => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x28, 0xA7, 0x45)),
+            "Warning" => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0xC1, 0x07)),
+            _ => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xDC, 0x35, 0x45))
+        };
+        card.Background = brush;
+    }
+
+    private void RefreshDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        _ = LoadDiagnosticsAsync(silent: false, bypassCache: true);
+    }
+
+    private async void RunHealthCheck_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (RunHealthCheckBtn != null) RunHealthCheckBtn.IsEnabled = false;
+            var h = await _diagnostics.RunFullHealthCheckAsync().ConfigureAwait(true);
+            if (HealthChecksGrid != null && h != null)
+                HealthChecksGrid.ItemsSource = h.Checks;
+            if (DiagnosticsStatusText != null)
+                DiagnosticsStatusText.Text = ReportLocalizationService.GetString("DiagnosticsHealthCheckDone", _configStore);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Health Check", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            if (RunHealthCheckBtn != null) RunHealthCheckBtn.IsEnabled = true;
+        }
+    }
+
+    private void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastDiagnosticsSnapshot == null)
+        {
+            MessageBox.Show(ReportLocalizationService.GetString("DiagnosticsExportNoData", _configStore), "Export",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dlg = new SaveFileDialog
+        {
+            Filter = "Text report (*.txt)|*.txt|JSON (*.json)|*.json",
+            FileName = $"audita-diagnostics-{DateTime.UtcNow:yyyyMMdd-HHmmss}"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        try
+        {
+            var path = dlg.FileName;
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            var content = ext == ".json"
+                ? _diagnostics.ExportReportJson(_lastDiagnosticsSnapshot)
+                : _diagnostics.ExportReportText(_lastDiagnosticsSnapshot);
+            File.WriteAllText(path, content, Encoding.UTF8);
+            if (DiagnosticsStatusText != null)
+                DiagnosticsStatusText.Text = ReportLocalizationService.GetString("DiagnosticsExportSaved", _configStore);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Export", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void AutoRefreshDiagnostics_Changed(object sender, RoutedEventArgs e)
+    {
+        if (AutoRefreshCheck?.IsChecked == true)
+            _diagnosticsAutoRefresh.Start();
+        else
+            _diagnosticsAutoRefresh.Stop();
+    }
+
+    private void DiagnosticsLogFilter_Changed(object sender, SelectionChangedEventArgs e) => RefreshDiagnosticsLogGrid();
+
+    private void DiagnosticsLogSearch_Changed(object sender, TextChangedEventArgs e) => RefreshDiagnosticsLogGrid();
+
+    private void ClearDiagnosticsLogFilters_Click(object sender, RoutedEventArgs e)
+    {
+        if (LogSearchBox != null) LogSearchBox.Text = "";
+        if (LogLevelFilter != null) LogLevelFilter.SelectedIndex = 0;
+        if (LogPeriodFilter != null) LogPeriodFilter.SelectedIndex = 1;
+        if (LogComponentFilter != null && LogComponentFilter.Items.Count > 0)
+            LogComponentFilter.SelectedIndex = 0;
+        RefreshDiagnosticsLogGrid();
+    }
+
+    private void RefreshDiagnosticsLogGrid()
+    {
+        try
+        {
+            var since = GetLogSinceUtc();
+            var filter = new LogFilter { SinceUtc = since, MaxLines = 4000 };
+            var levelTag = (LogLevelFilter?.SelectedItem as ComboBoxItem)?.Tag as string ?? "ALL";
+            if (levelTag == "ERR")
+                filter.MinLevel = "ERR";
+            else if (levelTag == "WRN")
+                filter.MinLevel = "WRN";
+
+            var componentTag = (LogComponentFilter?.SelectedItem as ComboBoxItem)?.Tag as string;
+            if (!string.IsNullOrEmpty(componentTag))
+                filter.ComponentContains = componentTag;
+
+            var search = LogSearchBox?.Text?.Trim();
+            if (!string.IsNullOrEmpty(search))
+                filter.MessageContains = search;
+
+            var rows = _diagnostics.GetFilteredLogs(filter);
+            if (ErrorLogGrid != null)
+                ErrorLogGrid.ItemsSource = rows;
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Log grid refresh failed");
+        }
+    }
+
+    private void PopulateLogComponentFilter()
+    {
+        if (LogComponentFilter == null) return;
+        _populatingLogComponents = true;
+        try
+        {
+            var prev = (LogComponentFilter.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+            LogComponentFilter.Items.Clear();
+            var allItem = new ComboBoxItem
+            {
+                Content = ReportLocalizationService.GetString("DiagnosticsComponentAll", _configStore),
+                Tag = ""
+            };
+            LogComponentFilter.Items.Add(allItem);
+            if (_lastDiagnosticsSnapshot?.ErrorSummary.ErrorsByComponent != null)
+            {
+                foreach (var key in _lastDiagnosticsSnapshot.ErrorSummary.ErrorsByComponent.Keys
+                             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).Take(50))
+                {
+                    LogComponentFilter.Items.Add(new ComboBoxItem { Content = key, Tag = key });
+                }
+            }
+
+            var match = LogComponentFilter.Items.Cast<ComboBoxItem>()
+                .FirstOrDefault(i => string.Equals(i.Tag as string ?? "", prev, StringComparison.Ordinal));
+            LogComponentFilter.SelectedItem = match ?? allItem;
+        }
+        finally
+        {
+            _populatingLogComponents = false;
+        }
+    }
+
+    private void DiagnosticsLogComponent_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_populatingLogComponents) return;
+        RefreshDiagnosticsLogGrid();
+    }
+
+    private void CopyLogDetails_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var t = ErrorLogDetailBox?.Text;
+            if (string.IsNullOrEmpty(t)) return;
+            System.Windows.Clipboard.SetText(t);
+            if (DiagnosticsStatusText != null)
+                DiagnosticsStatusText.Text = ReportLocalizationService.GetString("DiagnosticsCopyDone", _configStore);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Clipboard", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private DateTime GetLogSinceUtc()
+    {
+        var tag = (LogPeriodFilter?.SelectedItem as ComboBoxItem)?.Tag as string ?? "6h";
+        return tag switch
+        {
+            "1h" => DateTime.UtcNow.AddHours(-1),
+            "24h" => DateTime.UtcNow.AddHours(-24),
+            "7d" => DateTime.UtcNow.AddDays(-7),
+            _ => DateTime.UtcNow.AddHours(-6)
+        };
+    }
+
+    private void ErrorLogGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ErrorLogDetailBox == null) return;
+        if (ErrorLogGrid?.SelectedItem is not LogEntryModel row)
+        {
+            ErrorLogDetailBox.Text = "";
+            return;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine(row.Message);
+        if (!string.IsNullOrWhiteSpace(row.ExceptionBlock))
+        {
+            sb.AppendLine();
+            sb.AppendLine(row.ExceptionBlock);
+        }
+
+        ErrorLogDetailBox.Text = sb.ToString();
+    }
+
+    private void DiagnosticsPerfFilter_Changed(object sender, SelectionChangedEventArgs e) => RefreshDiagnosticsPerformanceGrid();
+
+    private void RefreshDiagnosticsPerformanceGrid()
+    {
+        try
+        {
+            var tag = (PerfThresholdFilter?.SelectedItem as ComboBoxItem)?.Tag as string ?? "1000";
+            var minMs = tag == "0" ? 0L : long.TryParse(tag, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : 1000L;
+            var since = DateTime.UtcNow.AddDays(-7);
+            var rows = _diagnostics.GetPerformanceMetrics(since, minMs);
+            if (PerformanceGrid != null)
+                PerformanceGrid.ItemsSource = rows;
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Performance grid refresh failed");
+        }
     }
 
     #endregion

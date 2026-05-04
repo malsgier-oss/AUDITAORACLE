@@ -12,6 +12,11 @@ public interface IProcessingMergeQueueService
     int PendingCount { get; }
 
     /// <summary>
+    /// UTC time the oldest not-yet-finished merge job was enqueued (includes the job currently executing), or null when the queue is idle.
+    /// </summary>
+    DateTime? OldestPendingMergeEnqueueUtc { get; }
+
+    /// <summary>
     /// Enqueues a merge job. <paramref name="orderedDocumentIds"/> must be in grid order and already validated (≥2 mergeable, deletable).
     /// <paramref name="nextSelectionDocumentId"/> is the document row below the merged block (for selection after merge); merged row is only tinted, not selected.
     /// <paramref name="allowLossyPdfFallback"/> when false, PDFs that cannot be imported losslessly cause merge failure instead of raster fallback (Processing preflight).
