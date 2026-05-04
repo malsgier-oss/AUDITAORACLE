@@ -22,7 +22,7 @@ public sealed class SharedOracleConcurrencyTests : IClassFixture<OracleTestFixtu
         Skip.IfNot(_fx.IsAvailable);
         var migrationService = new MigrationService(_fx.ConnectionString!);
         migrationService.Migrate();
-        migrationService.GetCurrentVersion().Should().BeGreaterThanOrEqualTo(53);
+        migrationService.GetCurrentVersion().Should().BeGreaterThanOrEqualTo(55);
     }
 
     [SkippableFact]

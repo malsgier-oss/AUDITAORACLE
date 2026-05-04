@@ -362,7 +362,7 @@ public partial class ArchiveView : UserControl
         }
 
         var stats = _store.GetStats();
-        ArchiveStatsText.Text = $"{stats.ArchivedCount} total | {stats.ArchivedLegalHoldCount} legal hold | {stats.ArchivedExpiringWithin90DaysCount} expiring within 90 days";
+        ArchiveStatsText.Text = $"{_currentResults.Count} total | {stats.ArchivedLegalHoldCount} legal hold | {stats.ArchivedExpiringWithin90DaysCount} expiring within 90 days";
     }
 
     private void RunSearch()
@@ -395,24 +395,35 @@ public partial class ArchiveView : UserControl
             custodianId = cfi.Id;
         var dispItem = DisposalFilter.SelectedItem as ComboBoxItem;
         var disposalStatus = dispItem?.Tag as string;
-        var list = _store.ListDocuments(
+        var rawList = _store.ListDocuments(
             branch: branch,
             section: section,
             documentType: docType,
-            status: Enums.Status.Archived,
+            status: null,
             dateFrom: dateFrom,
             dateTo: dateTo,
             textSearch: string.IsNullOrEmpty(textQuery) ? null : textQuery,
-            limit: 5000,
+            limit: 20000,
             legalHoldOnly: legalHoldOnly,
             retentionExpiryBefore: retentionExpiryBefore,
             tagFilter: tagFilter,
             custodianId: custodianId,
             disposalStatus: disposalStatus);
 
+        // Archive view shows every document that has reached Workspace at any point.
+        // Draft / Reviewed remain in Processing and are excluded here.
+        var allowedStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            Enums.Status.ReadyForAudit,
+            Enums.Status.Issue,
+            Enums.Status.Cleared,
+            Enums.Status.Archived,
+        };
+        var list = rawList.Where(d => allowedStatuses.Contains(d.Status ?? string.Empty)).ToList();
+
         _currentResults = list;
         ResultsGrid.ItemsSource = list;
-        ResultCountText.Text = $"{list.Count} archived document(s)";
+        ResultCountText.Text = $"{list.Count} document(s)";
         SaveFilterPersistence();
         RefreshArchiveStats();
         UpdateBulkLabel();

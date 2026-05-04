@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -489,6 +490,11 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
         var auditTrail = ServiceContainer.GetService<IAuditTrailService>();
         var changeHistory = ServiceContainer.GetService<IChangeHistoryService>();
         var ocrService = ServiceContainer.GetService<IOcrService>();
+        var sessionService = ServiceContainer.GetService<ISessionService>();
+        var currentUserId = sessionService?.CurrentSession?.UserId;
+        var retentionYears = config?.GetSettingInt("archive_retention_years", 7) ?? 7;
+        var stampNowIso = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        var stampExpiryDate = DateTime.UtcNow.AddYears(retentionYears).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var updated = 0;
         var statusUpdatedDocs = new List<Document>();
         try
@@ -503,6 +509,23 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
                 updated++;
                 statusUpdatedDocs.Add(doc);
                 doc.Status = targetStatus;
+
+                // Stamp retention metadata so the doc shows ArchivedAt + RetentionExpiry
+                // in the Archive view from the moment it lands in Workspace.
+                try
+                {
+                    if (_store.UpdateRetentionMetadata(doc.Id, stampNowIso, currentUserId, stampExpiryDate))
+                    {
+                        doc.ArchivedAt = stampNowIso;
+                        doc.ArchivedBy = currentUserId;
+                        doc.RetentionExpiryDate = stampExpiryDate;
+                    }
+                }
+                catch (Exception stampEx)
+                {
+                    _log.Warning(stampEx, "MoveToWorkspace: failed to stamp retention metadata for doc {DocId}; status change kept", doc.Id);
+                }
+
                 changeHistory.RecordFieldChange(doc.Uuid, doc.Id, "status", oldStatus, targetStatus);
                 _ = auditTrail.LogDocumentActionAsync(AuditAction.DocumentStatusChanged, doc,
                     $"Status set to {targetStatus}", oldValue: oldStatus, newValue: targetStatus);

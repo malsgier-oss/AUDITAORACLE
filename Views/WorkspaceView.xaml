@@ -308,7 +308,6 @@
                                                         <MenuItem Header="Issue" Click="SetStatusOption_Click" Tag="Issue"/>
                                                         <MenuItem Header="Cleared" Click="SetStatusOption_Click" Tag="Cleared"/>
                                                     </MenuItem>
-                                                    <MenuItem x:Name="ContextMoveToArchiveItem" Header="Move to Archive" Click="MoveToArchive_Click"/>
                                                     <MenuItem x:Name="ContextAssignItem" Header="Assign..." Click="ContextAssign_Click"/>
                                                     <MenuItem x:Name="ContextFlagFollowUpItem" Header="Flag for Follow-up" Click="ContextFlagFollowUp_Click"/>
                                                     <MenuItem Header="Correct Classification..." Click="ContextCorrectClassification_Click"/>
@@ -545,11 +544,6 @@
                                             HorizontalAlignment="Left"
                                             Style="{StaticResource WorkspaceToolButton}"
                                             ToolTip="Correct classification"/>
-                                    <Button x:Name="MoveToArchiveBtn" Content="🗄" Width="32" Height="28" Margin="0,0,0,3"
-                                            IsEnabled="False" Click="MoveToArchive_Click"
-                                            HorizontalAlignment="Left"
-                                            Style="{StaticResource WorkspaceToolButton}"
-                                            ToolTip="Move to Archive"/>
                                     <Border x:Name="AssignmentGroupBox" Background="Transparent" Margin="0,0,0,3" HorizontalAlignment="Left">
                                         <Button x:Name="AssignBtn" Content="👤" Width="32" Height="28"
                                                 IsEnabled="False" Click="AssignBtn_Click"

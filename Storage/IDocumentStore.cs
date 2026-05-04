@@ -60,6 +60,8 @@ public interface IDocumentStore
     /// <summary>Deletes a document by ID. Returns Result with error details on failure.</summary>
     Result DeleteResult(int id);
     bool UpdateStatus(int id, string status);
+    /// <summary>Stamps archived_at, archived_by, retention_expiry_date in one targeted UPDATE. Used when moving Processing -&gt; Workspace so the Archive view has retention metadata.</summary>
+    bool UpdateRetentionMetadata(int id, string archivedAt, int? archivedBy, string retentionExpiryDate);
     bool UpdateNotes(int id, string notes);
     /// <summary>Updates OCR-related columns only (does not touch classification/path/status fields).</summary>
     bool UpdateOcrFields(Document doc);

@@ -900,6 +900,26 @@ TO_CHAR(id) LIKE @txt" + idExactClause + ")";
         PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
     }
 
+    public bool UpdateRetentionMetadata(int id, string archivedAt, int? archivedBy, string retentionExpiryDate)
+    {
+        using var conn = new OracleConnection(_connectionString);
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"UPDATE documents
+                              SET archived_at = @archived_at,
+                                  archived_by = @archived_by,
+                                  retention_expiry_date = @retention_expiry_date,
+                                  updated_at = @ua
+                            WHERE id = @id";
+        cmd.Parameters.AddWithValue("archived_at", archivedAt ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("archived_by", archivedBy.HasValue ? archivedBy.Value : (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("retention_expiry_date", retentionExpiryDate ?? (object)DBNull.Value);
+        var now = DateTime.UtcNow;
+        cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = now });
+        cmd.Parameters.AddWithValue("id", id);
+        PrepCmd(cmd); return cmd.ExecuteNonQuery() > 0;
+    }
+
     [Obsolete("Use INotesStore instead for structured notes")]
     public bool UpdateNotes(int id, string notes)
     {

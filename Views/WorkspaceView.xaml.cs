@@ -1214,7 +1214,6 @@ public partial class WorkspaceView : UserControl, IDisposable
         if (MarkCompleteBtn != null) MarkCompleteBtn.ToolTip = _localization.GetLocalizedString(config, "MarkComplete");
         if (ViewDocumentBtn != null) ViewDocumentBtn.ToolTip = _localization.GetLocalizedString(config, "ViewDocument");
         if (CancelAssignmentBtn != null) CancelAssignmentBtn.ToolTip = _localization.GetLocalizedString(config, "CancelAssignment");
-        if (MoveToArchiveBtn != null) MoveToArchiveBtn.ToolTip = _localization.GetLocalizedString(config, "MoveToArchiveTooltip");
     }
 
     private void AssignmentFilter_Changed(object sender, RoutedEventArgs e)
@@ -1345,16 +1344,8 @@ public partial class WorkspaceView : UserControl, IDisposable
         var hasSelection = selected.Count > 0;
         var permissionService = ServiceContainer.GetService<IPermissionService>();
         var canAssign = permissionService.HasMinimumRole(Roles.Manager);
-        var canArchive = permissionService.HasPermission(Permissions.ArchiveCreate);
         if (ContextAssignItem != null) ContextAssignItem.Visibility = canAssign ? Visibility.Visible : Visibility.Collapsed;
         if (ContextFlagFollowUpItem != null) ContextFlagFollowUpItem.IsEnabled = hasSelection;
-        if (ContextMoveToArchiveItem != null)
-        {
-            var cfg = ServiceContainer.IsInitialized ? ServiceContainer.GetService<IConfigStore>() : null;
-            if (cfg != null) ContextMoveToArchiveItem.Header = ReportLocalizationService.GetString("MoveToArchive", cfg);
-            ContextMoveToArchiveItem.Visibility = canArchive ? Visibility.Visible : Visibility.Collapsed;
-            ContextMoveToArchiveItem.IsEnabled = hasSelection && selected.Any(d => d.Status != Enums.Status.Archived);
-        }
     }
 
     private void DocumentList_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
@@ -1436,63 +1427,6 @@ public partial class WorkspaceView : UserControl, IDisposable
     }
     private void FlagFollowUpBtn_Click(object sender, RoutedEventArgs e) => FlagFollowUpForSelection();
     private void CorrectClassificationBtn_Click(object sender, RoutedEventArgs e) => CorrectClassificationForSelection();
-
-    private async void MoveToArchive_Click(object sender, RoutedEventArgs e)
-    {
-        var config = ServiceContainer.GetService<IConfigStore>();
-        var permissionService = ServiceContainer.GetService<IPermissionService>();
-        if (!permissionService.HasPermission(Permissions.ArchiveCreate))
-        {
-            var deny = config != null ? ReportLocalizationService.GetString("MoveToArchiveNoPermission", config) : "You do not have permission to archive documents.";
-            MessageBox.Show(deny, config != null ? ReportLocalizationService.GetString("MoveToArchive", config) : "Move to Archive", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var selected = DocumentList?.SelectedItems?.Cast<Document>().ToList() ?? new List<Document>();
-        if (selected.Count == 0)
-        {
-            MessageBox.Show("Select documents first.", config != null ? ReportLocalizationService.GetString("MoveToArchive", config) : "Move to Archive", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        var toArchive = selected.Where(d => d.Status != Enums.Status.Archived).ToList();
-        if (toArchive.Count == 0)
-        {
-            MessageBox.Show("Selected documents are already archived.", config != null ? ReportLocalizationService.GetString("MoveToArchive", config) : "Move to Archive", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        var confirmMsg = config != null
-            ? ReportLocalizationService.GetString("MoveToArchiveConfirm", config, toArchive.Count)
-            : $"Move {toArchive.Count} document(s) to Archive? They will leave the Workspace list.";
-        var title = config != null ? ReportLocalizationService.GetString("MoveToArchive", config) : "Move to Archive";
-        if (MessageBox.Show(confirmMsg, title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
-            return;
-
-        try
-        {
-            var archiveService = ServiceContainer.GetService<IArchiveService>();
-            var n = await archiveService.ArchiveDocumentsAsync(toArchive);
-            if (n > 0)
-            {
-                DocumentsArchivedRequested.Raise(n);
-                var doneMsg = config != null ? ReportLocalizationService.GetString("DocumentsArchived", config, n) : $"{n} document(s) archived.";
-                MessageBox.Show(doneMsg, title, MessageBoxButton.OK, MessageBoxImage.Information);
-                if (_isMyAssignmentsView)
-                    LoadMyAssignments();
-                else
-                    RunFilteredSearch();
-            }
-            else
-            {
-                MessageBox.Show("No documents were archived.", title, MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(ex.Message, title, MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 
     private void MarkCompleteBtn_Click(object sender, RoutedEventArgs e)
     {
@@ -2222,12 +2156,6 @@ public partial class WorkspaceView : UserControl, IDisposable
         if (SetStatusBtn != null) SetStatusBtn.IsEnabled = selected.Count > 0;
         if (FlagFollowUpBtn != null) FlagFollowUpBtn.IsEnabled = selected.Count > 0;
         if (CorrectClassificationBtn != null) CorrectClassificationBtn.IsEnabled = selected.Count > 0;
-        var canArchive = permissionService.HasPermission(Permissions.ArchiveCreate);
-        if (MoveToArchiveBtn != null)
-        {
-            MoveToArchiveBtn.Visibility = canArchive ? Visibility.Visible : Visibility.Collapsed;
-            MoveToArchiveBtn.IsEnabled = selected.Count > 0 && canArchive && selected.Any(d => d.Status != Enums.Status.Archived);
-        }
     }
 
     private void UpdateFlagFollowUpButtonState(IEnumerable<Document> selected)
