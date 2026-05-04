@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using WorkAudit.Core.Helpers;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
 using WorkAudit.Storage;
@@ -35,7 +36,6 @@ public partial class DailyJournalHistoryDialog : Window
         if (journalEntry != null)
         {
             EntryDateText.Text = $"Journal Entry for {date:dddd, MMMM dd, yyyy}";
-            EntryContentText.Text = journalEntry.Content;
 
             if (!string.IsNullOrEmpty(journalEntry.UpdatedAt))
             {
@@ -44,11 +44,14 @@ public partial class DailyJournalHistoryDialog : Window
                     EntryDateText.Text += $" (Last updated: {updated:g})";
                 }
             }
+
+            JournalRtfSerializer.LoadInto(EntryContentRichTextBox, journalEntry.Content);
         }
         else
         {
             EntryDateText.Text = $"No journal entry for {date:dddd, MMMM dd, yyyy}";
-            EntryContentText.Text = "You did not write a journal entry on this date.";
+            JournalRtfSerializer.LoadInto(EntryContentRichTextBox,
+                "You did not write a journal entry on this date.");
         }
     }
 

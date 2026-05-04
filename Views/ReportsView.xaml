@@ -9,6 +9,7 @@
                 <RowDefinition Height="Auto"/> <!-- KPI Cards -->
                 <RowDefinition Height="Auto"/> <!-- Executive Summary Card -->
                 <RowDefinition Height="Auto"/> <!-- Smart Recommendations Card -->
+                <RowDefinition Height="Auto"/> <!-- Auditor daily journals (Manager/Admin) -->
                 <RowDefinition Height="Auto"/> <!-- Report Configuration Section Header -->
                 <RowDefinition Height="Auto"/> <!-- Report Configuration Cards Grid -->
                 <RowDefinition Height="Auto"/> <!-- Export Actions Bar -->
@@ -112,12 +113,55 @@
                 </StackPanel>
             </Border>
 
+            <!-- ========== AUDITOR DAILY JOURNALS (Manager / Administrator) ========== -->
+            <Border x:Name="JournalViewerPanel" Grid.Row="4" Visibility="Collapsed" Margin="0,0,0,16"
+                    Background="{DynamicResource ContentBackground}" Padding="20"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                <StackPanel>
+                    <TextBlock x:Name="JournalViewerTitle" Text="Auditor daily journals" FontSize="15" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="JournalViewerSubtitle" Text="Read-only. Select a user and date, then Load."
+                               FontSize="12" Foreground="{DynamicResource DimForeground}" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="JournalUserLabel" Grid.Column="0" Text="User:" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" Foreground="{DynamicResource PrimaryForeground}"/>
+                        <ComboBox x:Name="JournalUserCombo" Grid.Column="1" MinWidth="200"
+                                  VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <TextBlock x:Name="JournalDateLabel" Grid.Column="2" Text="Date:" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" Foreground="{DynamicResource PrimaryForeground}"/>
+                        <DatePicker x:Name="JournalDatePicker" Grid.Column="3" VerticalAlignment="Center"
+                                    Margin="0,0,12,0"/>
+                        <Button x:Name="JournalLoadBtn" Grid.Column="4" Content="Load" Padding="14,8"
+                                Background="#17A2B8" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                Click="JournalLoadBtn_Click" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    </Grid>
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                            Background="{DynamicResource PanelBackground}" Padding="12">
+                        <StackPanel>
+                            <TextBlock x:Name="JournalEntryStatusText" Text="" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                            <RichTextBox x:Name="JournalReadOnlyRichTextBox" IsReadOnly="True" IsDocumentEnabled="True"
+                                         BorderThickness="0" Background="Transparent"
+                                         VerticalScrollBarVisibility="Auto" MinHeight="160" MaxHeight="360"
+                                         Foreground="{DynamicResource PrimaryForeground}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <!-- ========== REPORT CONFIGURATION SECTION HEADER ========== -->
-            <TextBlock Grid.Row="4" x:Name="ReportConfigTitle" Text="Report Configuration" FontSize="18" FontWeight="SemiBold"
+            <TextBlock Grid.Row="5" x:Name="ReportConfigTitle" Text="Report Configuration" FontSize="18" FontWeight="SemiBold"
                        Foreground="{DynamicResource PrimaryForeground}" Margin="0,4,0,16"/>
 
             <!-- ========== REPORT CONFIGURATION CARDS GRID ========== -->
-            <Grid Grid.Row="5" Margin="0,0,0,16">
+            <Grid Grid.Row="6" Margin="0,0,0,16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="12"/>
@@ -305,7 +349,7 @@
             </Grid>
 
             <!-- ========== EXPORT ACTIONS BAR ========== -->
-            <Border Grid.Row="6" Background="{DynamicResource ContentBackground}" Padding="20" Margin="0,0,0,16"
+            <Border Grid.Row="7" Background="{DynamicResource ContentBackground}" Padding="20" Margin="0,0,0,16"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                 <StackPanel>
                     <TextBlock Text="Export &amp; Actions" FontSize="15" FontWeight="SemiBold"
@@ -359,7 +403,7 @@
             </Border>
 
             <!-- ========== RECENT REPORTS SECTION ========== -->
-            <Border Grid.Row="7" Background="{DynamicResource ContentBackground}" Padding="20" Margin="0,0,0,16"
+            <Border Grid.Row="8" Background="{DynamicResource ContentBackground}" Padding="20" Margin="0,0,0,16"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                 <StackPanel>
                     <Grid Margin="0,0,0,12">
@@ -393,12 +437,12 @@
             </Border>
 
             <!-- ========== EXECUTIVE DASHBOARD (shown when Executive Dashboard selected) ========== -->
-            <Border x:Name="DashboardPanel" Grid.Row="8" Visibility="Collapsed" Margin="0,0,0,16">
+            <Border x:Name="DashboardPanel" Grid.Row="9" Visibility="Collapsed" Margin="0,0,0,16">
                 <views:ExecutiveDashboardView x:Name="ExecutiveDashboardControl"/>
             </Border>
 
             <!-- ========== ATTESTATION PANEL ========== -->
-            <Border x:Name="AttestationPanel" Grid.Row="9" Background="{DynamicResource ContentBackground}" Padding="20" Margin="0,0,0,16"
+            <Border x:Name="AttestationPanel" Grid.Row="10" Background="{DynamicResource ContentBackground}" Padding="20" Margin="0,0,0,16"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Visibility="Collapsed">
                 <StackPanel>
                     <TextBlock Text="📋 Report Attestation" FontSize="15" FontWeight="SemiBold" 
@@ -415,7 +459,7 @@
             </Border>
 
             <!-- ========== STATUS / MESSAGE AREA ========== -->
-            <TextBlock x:Name="MessageText" Grid.Row="10" Text="" Foreground="#28A745" FontSize="12" 
+            <TextBlock x:Name="MessageText" Grid.Row="11" Text="" Foreground="#28A745" FontSize="12" 
                        Margin="0,8,0,0" TextWrapping="Wrap"/>
         </Grid>
     </ScrollViewer>

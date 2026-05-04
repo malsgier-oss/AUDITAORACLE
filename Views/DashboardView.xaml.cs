@@ -502,7 +502,7 @@ public partial class DashboardView : UserControl
             activities.Add(new ActivityItem
             {
                 Icon = icon,
-                Message = $"{note.CreatedBy} added {note.Type.ToLower()} to {Path.GetFileName(doc.FilePath)}",
+                Message = $"{note.CreatedBy} added {note.Type.ToLowerInvariant()} to {Path.GetFileName(doc.FilePath)}",
                 TimeAgo = GetTimeAgo(note.CreatedAt),
                 Timestamp = note.CreatedAt
             });

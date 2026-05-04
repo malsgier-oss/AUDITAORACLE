@@ -79,7 +79,7 @@ public class SecureConfigService : ISecureConfigService
         if (string.IsNullOrEmpty(encryptedValue))
             return null;
 
-        if (!encryptedValue.StartsWith(EncryptedPrefix))
+        if (!encryptedValue.StartsWith(EncryptedPrefix, StringComparison.Ordinal))
             return encryptedValue;
 
         try
@@ -119,7 +119,7 @@ public class SecureConfigService : ISecureConfigService
 
     public bool IsEncrypted(string? value)
     {
-        return !string.IsNullOrEmpty(value) && value.StartsWith(EncryptedPrefix);
+        return !string.IsNullOrEmpty(value) && value.StartsWith(EncryptedPrefix, StringComparison.Ordinal);
     }
 
     private byte[] DeriveKey(byte[] salt)

@@ -41,6 +41,10 @@ public class NotesStore : INotesStore
                 @createdAt, @createdBy, @createdByUserId, @status, @attachments, @tags)";
 
         note.Uuid = string.IsNullOrEmpty(note.Uuid) ? Guid.NewGuid().ToString() : note.Uuid;
+        if (string.Equals(note.Type, NoteType.Journal, StringComparison.Ordinal)
+            && string.IsNullOrWhiteSpace(note.DocumentUuid))
+            note.DocumentUuid = NoteAnchors.JournalDocumentUuid;
+
         var now = DateTime.UtcNow;
         note.CreatedAt = now.ToString("O");
 

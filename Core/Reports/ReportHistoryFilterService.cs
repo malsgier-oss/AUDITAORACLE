@@ -83,14 +83,13 @@ public class ReportHistoryFilterService : IReportHistoryFilterService
     {
         if (string.IsNullOrEmpty(searchText)) return reports;
 
-        var searchLower = searchText.ToLowerInvariant();
         return reports.Where(r =>
-            r.ReportType.ToLowerInvariant().Contains(searchLower) ||
-            r.Username.ToLowerInvariant().Contains(searchLower) ||
-            (r.FilePath?.ToLowerInvariant().Contains(searchLower) ?? false) ||
-            (r.Tags?.ToLowerInvariant().Contains(searchLower) ?? false) ||
-            (r.Purpose?.ToLowerInvariant().Contains(searchLower) ?? false) ||
-            (r.Description?.ToLowerInvariant().Contains(searchLower) ?? false)
+            r.ReportType.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+            r.Username.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+            (r.FilePath?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (r.Tags?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (r.Purpose?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (r.Description?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
         ).ToList();
     }
 

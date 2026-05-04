@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using Newtonsoft.Json;
 using Serilog;
 using WorkAudit.Config;
 using WorkAudit.Core;
@@ -89,6 +90,7 @@ public partial class ControlPanelWindow : Window
     {
         ApplyLocalization();
         ApplyControlPanelAccess();
+        ConfigureAuditorWebcamSection();
         LoadThemeSettings();
         LoadReportLanguageSetting();
         if (_isFullControlPanel)
@@ -141,6 +143,63 @@ public partial class ControlPanelWindow : Window
         if (SaveBtn != null)
             SaveBtn.Content = ReportLocalizationService.GetString("SavePreferences", _configStore);
     }
+
+    private void ConfigureAuditorWebcamSection()
+    {
+        if (AuditorWebcamSection == null) return;
+        var cfg = ServiceContainer.GetService<AppConfiguration>();
+        var show = !_isFullControlPanel && AuditorUiEffectiveSettings.IsAuditorScoped(cfg.CurrentUserRole);
+        AuditorWebcamSection.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (show)
+            LoadAuditorWebcamPreferences();
+    }
+
+    private void LoadAuditorWebcamPreferences()
+    {
+        if (AuditorEnableAutoCaptureCheck == null) return;
+        var cfg = ServiceContainer.GetService<AppConfiguration>();
+        if (!AuditorUiEffectiveSettings.IsAuditorScoped(cfg.CurrentUserRole) || string.IsNullOrWhiteSpace(cfg.CurrentUserId))
+            return;
+        var store = ServiceContainer.GetService<IUserAuditorUiPreferencesStore>();
+        var raw = store.TryGetPreferencesJson(cfg.CurrentUserId!, Roles.Auditor);
+        var partial = AuditorUiPreferencesJson.ParseRootOrEmpty(raw);
+        AuditorEnableAutoCaptureCheck.IsChecked = AuditorUiEffectiveSettings.GetWebcamBool(cfg.CurrentUserRole, partial, _configStore,
+            AuditorUiPreferencesJson.EnableAutoCapture, false);
+        AuditorShowAutoCaptureTimerCheck.IsChecked = AuditorUiEffectiveSettings.GetWebcamBool(cfg.CurrentUserRole, partial, _configStore,
+            AuditorUiPreferencesJson.EnableAutoCaptureCooldownTimer, true);
+        var cd = AuditorUiEffectiveSettings.GetWebcamInt(cfg.CurrentUserRole, partial, _configStore,
+            AuditorUiPreferencesJson.AutoCaptureCooldownSeconds, 8);
+        AuditorAutoCaptureCooldownSecondsBox.Text = cd.ToString(CultureInfo.InvariantCulture);
+        AuditorDefaultScanAreaModeCheck.IsChecked = AuditorUiEffectiveSettings.GetWebcamBool(cfg.CurrentUserRole, partial, _configStore,
+            AuditorUiPreferencesJson.WebcamDefaultScanAreaMode, false);
+        AuditorScanAreaAutoDefaultCheck.IsChecked = AuditorUiEffectiveSettings.GetWebcamBool(cfg.CurrentUserRole, partial, _configStore,
+            AuditorUiPreferencesJson.WebcamScanAreaAutoCapture, false);
+    }
+
+    private void SaveAuditorWebcamPreferences()
+    {
+        if (AuditorEnableAutoCaptureCheck == null) return;
+        var cfg = ServiceContainer.GetService<AppConfiguration>();
+        if (_isFullControlPanel || !AuditorUiEffectiveSettings.IsAuditorScoped(cfg.CurrentUserRole) || string.IsNullOrWhiteSpace(cfg.CurrentUserId))
+            return;
+        var store = ServiceContainer.GetService<IUserAuditorUiPreferencesStore>();
+        var existingJson = store.TryGetPreferencesJson(cfg.CurrentUserId!, Roles.Auditor);
+        var root = AuditorUiPreferencesJson.ParseRootOrEmpty(existingJson);
+        var cd = 8;
+        if (int.TryParse(AuditorAutoCaptureCooldownSecondsBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+            cd = Math.Clamp(parsed, 1, 30);
+        AuditorUiPreferencesJson.MergeWebcamFields(root,
+            AuditorEnableAutoCaptureCheck.IsChecked == true,
+            AuditorShowAutoCaptureTimerCheck.IsChecked == true,
+            cd,
+            AuditorDefaultScanAreaModeCheck.IsChecked == true,
+            AuditorScanAreaAutoDefaultCheck.IsChecked == true);
+        store.UpsertPreferencesJson(cfg.CurrentUserId!, Roles.Auditor, root.ToString(Formatting.Indented));
+    }
+
+    private void AuditorWebcamField_Changed(object sender, RoutedEventArgs e) => _isDirty = true;
+
+    private void AuditorWebcamCooldown_TextChanged(object sender, TextChangedEventArgs e) => _isDirty = true;
 
     private void ApplyLocalization()
     {
@@ -1368,6 +1427,7 @@ public partial class ControlPanelWindow : Window
             SaveThemeSettings();
             SaveReportLanguageSetting();
             SaveKeyboardShortcuts();
+            SaveAuditorWebcamPreferences();
             SaveOcrSettings();
 
             if (_isFullControlPanel)

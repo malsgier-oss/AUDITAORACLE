@@ -2,7 +2,7 @@ using System.Windows.Input;
 
 namespace WorkAudit.Core.Services;
 
-/// <summary>User-configurable keyboard shortcuts loaded from <see cref="Config.UserSettings"/>.</summary>
+/// <summary>User-configurable Processing keyboard shortcuts (Oracle for Auditors, <see cref="Config.UserSettings"/> for other roles).</summary>
 public interface IKeyboardShortcutService
 {
     /// <summary>Reload bindings from user settings (call after Control Panel save).</summary>

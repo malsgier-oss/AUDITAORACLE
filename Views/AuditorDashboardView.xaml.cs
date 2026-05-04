@@ -4,9 +4,11 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Serilog;
+using WorkAudit.Core.Helpers;
 using WorkAudit.Core.Notes;
 using WorkAudit.Core.Reports;
 using WorkAudit.Core.Services;
@@ -36,6 +38,7 @@ public partial class AuditorDashboardView : UserControl
     private string _userEffectiveBranch = Branches.Default;
     private bool _isUserContextReady;
     private bool _journalModified;
+    private bool _suppressJournalDirty;
 
     public AuditorDashboardView()
     {
@@ -74,9 +77,7 @@ public partial class AuditorDashboardView : UserControl
         {
             Interval = TimeSpan.FromSeconds(30)
         };
-        _journalAutoSaveTimer.Tick += (s, e) => SaveJournalEntry();
-
-        JournalTextBox.TextChanged += (s, e) => { _journalModified = true; JournalSaveStatus.Visibility = Visibility.Collapsed; };
+        _journalAutoSaveTimer.Tick += (s, e) => SaveJournalEntry(userInitiated: false);
 
         Loaded += AuditorDashboardView_Loaded;
         Unloaded += AuditorDashboardView_Unloaded;
@@ -125,7 +126,7 @@ public partial class AuditorDashboardView : UserControl
         _journalAutoSaveTimer.Stop();
         if (_journalModified)
         {
-            SaveJournalEntry();
+            SaveJournalEntry(userInitiated: false);
         }
     }
 
@@ -567,30 +568,69 @@ public partial class AuditorDashboardView : UserControl
             .FirstOrDefault(n => n.CreatedByUserId == _currentUserId &&
                                 n.Category == todayString);
 
-        if (todayJournal != null)
+        _suppressJournalDirty = true;
+        try
         {
-            JournalTextBox.Text = todayJournal.Content;
+            if (todayJournal != null)
+            {
+                JournalRtfSerializer.LoadInto(JournalRichTextBox, todayJournal.Content);
+            }
+            else
+            {
+                JournalRtfSerializer.LoadInto(JournalRichTextBox, null);
+            }
             _journalModified = false;
         }
-        else
+        finally
         {
-            JournalTextBox.Text = "";
-            _journalModified = false;
+            _suppressJournalDirty = false;
         }
 
         JournalHeader.Text = $"📝 Daily Journal - {today:dddd, MMMM dd, yyyy}";
     }
 
-    private void SaveJournalEntry()
+    private void SaveJournalEntry(bool userInitiated)
     {
-        if (!_journalModified || string.IsNullOrWhiteSpace(JournalTextBox.Text))
+        if (!userInitiated && !_journalModified)
             return;
+
+        if (userInitiated && !_journalModified)
+        {
+            JournalSaveStatus.Text = "No changes to save";
+            JournalSaveStatus.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (JournalRtfSerializer.IsDocumentEffectivelyEmpty(JournalRichTextBox))
+        {
+            if (userInitiated)
+            {
+                JournalSaveStatus.Text = "Nothing to save";
+                JournalSaveStatus.Visibility = Visibility.Visible;
+            }
+            return;
+        }
+
+        string journalPayload;
+        try
+        {
+            journalPayload = JournalRtfSerializer.SaveToRtfString(JournalRichTextBox);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Journal RTF serialization failed");
+            if (userInitiated)
+            {
+                MessageBox.Show($"Could not prepare journal for saving:\n{ex.Message}", "Save Journal",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            return;
+        }
 
         try
         {
             var today = DateTime.Today;
             var todayString = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            var journalText = JournalTextBox.Text.Trim();
 
             var existingJournal = _notesStore.Search(type: NoteType.Journal, limit: 100)
                 .FirstOrDefault(n => n.CreatedByUserId == _currentUserId &&
@@ -598,14 +638,29 @@ public partial class AuditorDashboardView : UserControl
 
             if (existingJournal == null)
             {
-                // Create new journal entry
+                var anchorDoc = _store.GetByUuid(NoteAnchors.JournalDocumentUuid);
+                if (anchorDoc == null)
+                {
+                    _log.Warning("Journal anchor document missing (uuid {Uuid})", NoteAnchors.JournalDocumentUuid);
+                    if (userInitiated)
+                    {
+                        MessageBox.Show(
+                            "Daily journal storage is not set up on this database yet.\n\n" +
+                            "Ask an administrator to run database migrations (journal anchor document), then try again.",
+                            "Save Journal",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
+                    return;
+                }
+
                 var note = _notesStore.Add(new Note
                 {
                     Type = NoteType.Journal,
-                    Content = journalText,
+                    Content = journalPayload,
                     Category = todayString,
-                    DocumentId = 0, // Sentinel for day-level note
-                    DocumentUuid = "", 
+                    DocumentId = anchorDoc.Id,
+                    DocumentUuid = anchorDoc.Uuid,
                     CreatedByUserId = _currentUserId,
                     CreatedBy = _currentUsername,
                     Severity = NoteSeverity.Info,
@@ -615,21 +670,29 @@ public partial class AuditorDashboardView : UserControl
             }
             else
             {
-                // Update existing journal entry
-                existingJournal.Content = journalText;
+                existingJournal.Content = journalPayload;
                 existingJournal.UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 existingJournal.UpdatedBy = _currentUsername;
                 _notesStore.Update(existingJournal);
             }
 
             _journalModified = false;
-            JournalSaveStatus.Text = $"Auto-saved at {DateTime.Now:HH:mm}";
+            var statusPrefix = userInitiated ? "Saved" : "Auto-saved";
+            JournalSaveStatus.Text = $"{statusPrefix} at {DateTime.Now:HH:mm}";
             JournalSaveStatus.Visibility = Visibility.Visible;
         }
         catch (Exception ex)
         {
-            // Silent fail for auto-save
-            System.Diagnostics.Debug.WriteLine($"Journal auto-save failed: {ex.Message}");
+            _log.Warning(ex, "Journal save failed");
+            if (userInitiated)
+            {
+                MessageBox.Show($"Could not save journal:\n{ex.Message}", "Save Journal",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"Journal auto-save failed: {ex.Message}");
+            }
         }
     }
 
@@ -997,12 +1060,83 @@ public partial class AuditorDashboardView : UserControl
         }
     }
 
-    private void JournalTextBox_LostFocus(object sender, RoutedEventArgs e)
+    private void JournalRichTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_suppressJournalDirty)
+            return;
+        _journalModified = true;
+        JournalSaveStatus.Visibility = Visibility.Collapsed;
+    }
+
+    private void JournalRichTextBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_journalModified)
         {
-            SaveJournalEntry();
+            SaveJournalEntry(userInitiated: false);
         }
+    }
+
+    private void BtnSaveJournal_Click(object sender, RoutedEventArgs e)
+    {
+        SaveJournalEntry(userInitiated: true);
+    }
+
+    private void JournalToolbar_Ltr_Click(object sender, RoutedEventArgs e)
+    {
+        JournalRichTextBox.FlowDirection = System.Windows.FlowDirection.LeftToRight;
+        _journalModified = true;
+        JournalSaveStatus.Visibility = Visibility.Collapsed;
+    }
+
+    private void JournalToolbar_Rtl_Click(object sender, RoutedEventArgs e)
+    {
+        JournalRichTextBox.FlowDirection = System.Windows.FlowDirection.RightToLeft;
+        _journalModified = true;
+        JournalSaveStatus.Visibility = Visibility.Collapsed;
+    }
+
+    private void JournalToolbar_MatchApp_Click(object sender, RoutedEventArgs e)
+    {
+        JournalRichTextBox.FlowDirection = ReportLocalizationService.ShellFlowDirection;
+        _journalModified = true;
+        JournalSaveStatus.Visibility = Visibility.Collapsed;
+    }
+
+    private void JournalToolbar_FontSmaller_Click(object sender, RoutedEventArgs e)
+    {
+        AdjustJournalFontSize(-2);
+    }
+
+    private void JournalToolbar_FontLarger_Click(object sender, RoutedEventArgs e)
+    {
+        AdjustJournalFontSize(2);
+    }
+
+    private void AdjustJournalFontSize(double delta)
+    {
+        JournalRichTextBox.Focus();
+        var selection = JournalRichTextBox.Selection;
+        object? sizeObj = selection.GetPropertyValue(TextElement.FontSizeProperty);
+        double size;
+        if (sizeObj is double d && !double.IsNaN(d))
+            size = d;
+        else
+            size = JournalRichTextBox.FontSize > 0 ? JournalRichTextBox.FontSize : 12;
+
+        var newSize = Math.Clamp(size + delta, 8, 36);
+        selection.ApplyPropertyValue(TextElement.FontSizeProperty, newSize);
+    }
+
+    private void JournalToolbar_InsertTime_Click(object sender, RoutedEventArgs e)
+    {
+        JournalRichTextBox.Focus();
+        var stamp = DateTime.Now.ToString("g", CultureInfo.CurrentCulture);
+        var caret = JournalRichTextBox.CaretPosition;
+        var tr = new TextRange(caret, caret);
+        var existing = new TextRange(JournalRichTextBox.Document.ContentStart, JournalRichTextBox.Document.ContentEnd).Text;
+        var atDocStart = caret.CompareTo(JournalRichTextBox.Document.ContentStart) == 0;
+        var docEmpty = string.IsNullOrWhiteSpace(existing);
+        tr.Text = docEmpty || atDocStart ? stamp : Environment.NewLine + stamp;
     }
 
     private void BtnViewJournalHistory_Click(object sender, RoutedEventArgs e)

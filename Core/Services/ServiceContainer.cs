@@ -88,6 +88,11 @@ public static class ServiceContainer
             var secureConfig = sp.GetRequiredService<ISecureConfigService>();
             return new ConfigStore(config.OracleConnectionString, secureConfig);
         });
+        services.AddSingleton<IUserAuditorUiPreferencesStore>(sp =>
+        {
+            var config = sp.GetRequiredService<AppConfiguration>();
+            return new UserAuditorUiPreferencesStore(config.OracleConnectionString);
+        });
         services.AddSingleton<IDocumentTypeService>(sp =>
         {
             var configStore = sp.GetRequiredService<IConfigStore>();
@@ -150,7 +155,10 @@ public static class ServiceContainer
         services.AddSingleton<IProcessingProgressService, ProcessingProgressService>();
         services.AddSingleton<IProcessingMergeQueueService, ProcessingMergeQueueService>();
         services.AddWorkAuditDiagnosticsModule();
-        services.AddSingleton<IKeyboardShortcutService, KeyboardShortcutService>();
+        services.AddSingleton<IKeyboardShortcutService>(sp =>
+            new KeyboardShortcutService(
+                sp.GetRequiredService<AppConfiguration>(),
+                sp.GetRequiredService<IUserAuditorUiPreferencesStore>()));
         services.AddSingleton<IEnvironmentService, EnvironmentService>();
         services.AddSingleton<IDashboardCacheService, DashboardCacheService>();
         services.AddSingleton<IErrorMessageService, ErrorMessageService>();
@@ -350,6 +358,7 @@ public static class ServiceContainer
         config.CurrentUserName = user.Username;
         config.CurrentUserRole = user.Role;
         config.CurrentUserBranch = Domain.Branches.ToConcreteBranchOrDefault(user.Branch);
+        Provider.GetService<IKeyboardShortcutService>()?.Reload();
     }
 
     public static void Dispose()

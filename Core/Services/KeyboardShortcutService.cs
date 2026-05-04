@@ -1,10 +1,16 @@
 using System.Text;
 using System.Windows.Input;
+using Newtonsoft.Json;
 using WorkAudit.Config;
+using WorkAudit.Domain;
+using WorkAudit.Storage;
 
 namespace WorkAudit.Core.Services;
 
-/// <summary>Persists shortcuts under UserSettings key <c>keyboard_shortcuts</c> as commandId -> <c>Mods|KeyName</c>.</summary>
+/// <summary>
+/// Processing keyboard shortcuts: <b>Auditor</b> users persist in Oracle (<see cref="IUserAuditorUiPreferencesStore"/>);
+/// other roles use machine-local <see cref="UserSettings"/> key <c>keyboard_shortcuts</c> (commandId -> <c>Mods|KeyName</c>).
+/// </summary>
 public sealed class KeyboardShortcutService : IKeyboardShortcutService
 {
     private const string UserSettingsKey = "keyboard_shortcuts";
@@ -22,18 +28,48 @@ public sealed class KeyboardShortcutService : IKeyboardShortcutService
         [KeyboardShortcutIds.ProcessingDeleteSelected] = (Key.Delete, ModifierKeys.None),
     };
 
+    private readonly AppConfiguration _appConfig;
+    private readonly IUserAuditorUiPreferencesStore _auditorPrefsStore;
+
     private Dictionary<string, (Key Key, ModifierKeys Mods)> _effective = new();
 
-    public KeyboardShortcutService()
+    public KeyboardShortcutService(AppConfiguration appConfig, IUserAuditorUiPreferencesStore auditorPrefsStore)
     {
+        _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
+        _auditorPrefsStore = auditorPrefsStore ?? throw new ArgumentNullException(nameof(auditorPrefsStore));
         Reload();
     }
 
     public void Reload()
     {
         _effective = new Dictionary<string, (Key, ModifierKeys)>(Defaults);
-        var raw = UserSettings.Get<Dictionary<string, string>>(UserSettingsKey, null);
-        if (raw == null) return;
+
+        if (AuditorUiEffectiveSettings.IsAuditorScoped(_appConfig.CurrentUserRole) &&
+            !string.IsNullOrWhiteSpace(_appConfig.CurrentUserId))
+        {
+            var json = _auditorPrefsStore.TryGetPreferencesJson(_appConfig.CurrentUserId!, Roles.Auditor);
+            var root = AuditorUiPreferencesJson.ParseRootOrEmpty(json);
+            var map = AuditorUiPreferencesJson.TryGetShortcutMap(root);
+            if (map != null)
+            {
+                ApplyRawMap(map);
+                return;
+            }
+
+            // One-time migration path: use machine-local UserSettings if Oracle row has no shortcuts yet.
+            var raw = UserSettings.Get<Dictionary<string, string>>(UserSettingsKey, null);
+            if (raw != null)
+                ApplyRawMap(raw);
+            return;
+        }
+
+        var legacy = UserSettings.Get<Dictionary<string, string>>(UserSettingsKey, null);
+        if (legacy == null) return;
+        ApplyRawMap(legacy);
+    }
+
+    private void ApplyRawMap(Dictionary<string, string> raw)
+    {
         foreach (var kv in raw)
         {
             if (!Defaults.ContainsKey(kv.Key)) continue;
@@ -75,6 +111,17 @@ public sealed class KeyboardShortcutService : IKeyboardShortcutService
     public string? GetSerializedOrDefault(string commandId)
     {
         if (!Defaults.TryGetValue(commandId, out var def)) return null;
+
+        if (AuditorUiEffectiveSettings.IsAuditorScoped(_appConfig.CurrentUserRole))
+        {
+            if (_effective.TryGetValue(commandId, out var b))
+            {
+                if (b.Key == def.Key && NormalizeMods(b.Mods) == NormalizeMods(def.Mods))
+                    return Serialize(def.Key, def.Mods);
+                return Serialize(b.Key, b.Mods);
+            }
+        }
+
         var raw = UserSettings.Get<Dictionary<string, string>>(UserSettingsKey, null);
         if (raw != null && raw.TryGetValue(commandId, out var s) && !string.IsNullOrWhiteSpace(s))
             return s;
@@ -93,6 +140,21 @@ public sealed class KeyboardShortcutService : IKeyboardShortcutService
     {
         var err = ValidateSerializedMap(serializedByCommandId);
         if (err != null) return err;
+
+        if (AuditorUiEffectiveSettings.IsAuditorScoped(_appConfig.CurrentUserRole))
+        {
+            if (string.IsNullOrWhiteSpace(_appConfig.CurrentUserId))
+                return "Cannot save shortcuts: user session is not available.";
+
+            var existingJson = _auditorPrefsStore.TryGetPreferencesJson(_appConfig.CurrentUserId!, Roles.Auditor);
+            var root = AuditorUiPreferencesJson.ParseRootOrEmpty(existingJson);
+            AuditorUiPreferencesJson.SetShortcutMap(root, serializedByCommandId.ToDictionary(kv => kv.Key, kv => kv.Value));
+            _auditorPrefsStore.UpsertPreferencesJson(_appConfig.CurrentUserId!, Roles.Auditor,
+                root.ToString(Formatting.None));
+            Reload();
+            return null;
+        }
+
         UserSettings.Set(UserSettingsKey, serializedByCommandId.ToDictionary(kv => kv.Key, kv => kv.Value));
         Reload();
         return null;

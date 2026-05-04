@@ -3,7 +3,7 @@
 
   <!--
     UpgradeCode is fixed. Package version comes from build/WorkAudit.Version.props via PackageVersion define at build time.
-    UI: WixUI_Minimal — welcome + license agreement, then ready/progress/exit (no DB or path configuration in the MSI).
+    UI: WixUI_InstallDir — welcome, license agreement, install destination folder, ready/progress/exit (default under Program Files\Audita; no DB path in the MSI).
     License RTF: WixUILicenseRtf bind variable in WorkAudit.Installer.wixproj → License.rtf
   -->
   <Package Name="AUDITA"
@@ -28,7 +28,7 @@
 
     <MediaTemplate EmbedCab="yes" />
 
-    <ui:WixUI Id="WixUI_Minimal" />
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
     <Feature Id="Main" Title="AUDITA" Level="1">
       <ComponentGroupRef Id="AppFiles" />

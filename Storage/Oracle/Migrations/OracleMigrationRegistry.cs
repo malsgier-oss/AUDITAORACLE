@@ -12,7 +12,9 @@ internal static class OracleMigrationRegistry
             new Migration_052_OracleBackupAppSettings(),
             new Migration_053_SchedulerLeaderElection(),
             new Migration_054_RemoveObsoleteAiSettings(),
-            new Migration_055_CleanupObsoleteAiSettings()
+            new Migration_055_CleanupObsoleteAiSettings(),
+            new Migration_056_UserAuditorUiPreferences(),
+            new Migration_057_JournalAnchorDocument()
         ];
     }
 }

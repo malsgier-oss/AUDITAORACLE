@@ -179,7 +179,7 @@ Unauthorized distribution of this document is prohibited. If received in error, 
     private static bool IsValidHexColor(string color)
     {
         if (string.IsNullOrEmpty(color)) return false;
-        if (!color.StartsWith("#")) return false;
+        if (!color.StartsWith('#')) return false;
         if (color.Length != 7) return false;
         return color[1..].All(c => char.IsDigit(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'));
     }

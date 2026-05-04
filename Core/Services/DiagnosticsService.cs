@@ -170,39 +170,40 @@ public sealed class DiagnosticsService : IDiagnosticsService
 
     public string ExportReportText(DiagnosticsSnapshot snapshot)
     {
+        var ic = CultureInfo.InvariantCulture;
         var sb = new StringBuilder();
         sb.AppendLine("AUDITA Diagnostics Report");
-        sb.AppendLine($"Generated (UTC): {DateTime.UtcNow:O}");
-        sb.AppendLine($"Overall: {snapshot.OverallHealthStatus}");
+        sb.AppendLine(ic, $"Generated (UTC): {DateTime.UtcNow:O}");
+        sb.AppendLine(ic, $"Overall: {snapshot.OverallHealthStatus}");
         sb.AppendLine();
         sb.AppendLine("=== Health ===");
         if (snapshot.HealthChecks != null)
         {
             foreach (var c in snapshot.HealthChecks.Checks)
-                sb.AppendLine($"[{c.Category}] {c.Name}: {(c.IsHealthy ? "OK" : "ISSUE")} — {c.Details}");
+                sb.AppendLine(ic, $"[{c.Category}] {c.Name}: {(c.IsHealthy ? "OK" : "ISSUE")} — {c.Details}");
         }
 
         sb.AppendLine();
         sb.AppendLine("=== Errors (24h) ===");
-        sb.AppendLine($"Errors: {snapshot.ErrorSummary.ErrorCount24h}, Warnings: {snapshot.ErrorSummary.WarningCount24h}");
-        sb.AppendLine($"Import-related (24h, heuristic): {snapshot.ErrorSummary.ImportRelatedErrorCount24h}");
+        sb.AppendLine(ic, $"Errors: {snapshot.ErrorSummary.ErrorCount24h}, Warnings: {snapshot.ErrorSummary.WarningCount24h}");
+        sb.AppendLine(ic, $"Import-related (24h, heuristic): {snapshot.ErrorSummary.ImportRelatedErrorCount24h}");
 
         sb.AppendLine();
         sb.AppendLine("=== Workflow issues ===");
         foreach (var w in snapshot.WorkflowIssues.Take(200))
-            sb.AppendLine($"[{w.Severity}] {w.Type}: {w.Description}");
+            sb.AppendLine(ic, $"[{w.Severity}] {w.Type}: {w.Description}");
 
         sb.AppendLine();
         sb.AppendLine("=== Services ===");
         foreach (var s in snapshot.ServiceStatuses)
-            sb.AppendLine($"{s.ServiceName}: {s.Status} — {s.Details}");
+            sb.AppendLine(ic, $"{s.ServiceName}: {s.Status} — {s.Details}");
 
         sb.AppendLine();
         sb.AppendLine("=== Database ===");
-        sb.AppendLine($"Connected: {snapshot.DatabaseMetrics.IsConnected}; Schema: {snapshot.DatabaseMetrics.SchemaVersion}");
-        sb.AppendLine($"Log hints (DB-related ERR in 24h): {snapshot.DatabaseMetrics.LogDatabaseIssueCount24h}");
-        sb.AppendLine($"v$session total (if available): {snapshot.DatabaseMetrics.OracleVSessionTotal?.ToString() ?? "n/a"}");
-        sb.AppendLine($"v$session ACTIVE (if available): {snapshot.DatabaseMetrics.OracleVSessionActive?.ToString() ?? "n/a"}");
+        sb.AppendLine(ic, $"Connected: {snapshot.DatabaseMetrics.IsConnected}; Schema: {snapshot.DatabaseMetrics.SchemaVersion}");
+        sb.AppendLine(ic, $"Log hints (DB-related ERR in 24h): {snapshot.DatabaseMetrics.LogDatabaseIssueCount24h}");
+        sb.AppendLine(ic, $"v$session total (if available): {snapshot.DatabaseMetrics.OracleVSessionTotal?.ToString(ic) ?? "n/a"}");
+        sb.AppendLine(ic, $"v$session ACTIVE (if available): {snapshot.DatabaseMetrics.OracleVSessionActive?.ToString(ic) ?? "n/a"}");
 
         return sb.ToString();
     }

@@ -17,7 +17,7 @@ public static class OracleParameterCollectionExtensions
             return name;
 
         var n = name.Trim();
-        if (n.StartsWith("@", StringComparison.Ordinal) || n.StartsWith(":", StringComparison.Ordinal))
+        if (n.StartsWith('@') || n.StartsWith(':'))
             return n[1..];
         return n;
     }

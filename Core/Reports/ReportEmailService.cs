@@ -17,6 +17,8 @@ public interface IReportEmailService
 
 public class ReportEmailService : IReportEmailService
 {
+    private static readonly char[] RecipientSeparators = { ',', ';' };
+
     private readonly ILogger _log = LoggingService.ForContext<ReportEmailService>();
     private readonly IConfigStore _configStore;
 
@@ -64,7 +66,7 @@ public class ReportEmailService : IReportEmailService
                 Body = $"Please find attached the {reportType} report generated on {DateTime.Now:yyyy-MM-dd HH:mm}."
             };
 
-            foreach (var addr in recipients.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (var addr in recipients.Split(RecipientSeparators, StringSplitOptions.RemoveEmptyEntries))
             {
                 var trimmed = addr.Trim();
                 if (!string.IsNullOrEmpty(trimmed))

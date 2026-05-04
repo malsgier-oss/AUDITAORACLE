@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using Newtonsoft.Json.Linq;
 using OpenCvSharp;
 using OpenCvSharp.WpfExtensions;
 using Serilog;
@@ -219,10 +220,24 @@ public partial class WebcamView : UserControl
         }
     }
 
+    private JObject? GetAuditorWebcamOverrideRoot()
+    {
+        var cfg = ServiceContainer.GetService<AppConfiguration>();
+        if (!AuditorUiEffectiveSettings.IsAuditorScoped(cfg.CurrentUserRole) || string.IsNullOrWhiteSpace(cfg.CurrentUserId))
+            return null;
+        var store = ServiceContainer.GetService<IUserAuditorUiPreferencesStore>();
+        return AuditorUiPreferencesJson.ParseRootOrEmpty(store.TryGetPreferencesJson(cfg.CurrentUserId!, Roles.Auditor));
+    }
+
     private void PopulateModeControls()
     {
-        var defaultScanArea = _configStore?.GetSettingBool("webcam_default_scan_area_mode", false) ?? false;
-        var defaultAuto = _configStore?.GetSettingBool("enable_auto_capture", false) ?? false;
+        if (_configStore == null) return;
+        var cfg = ServiceContainer.GetService<AppConfiguration>();
+        var partial = GetAuditorWebcamOverrideRoot();
+        var defaultScanArea = AuditorUiEffectiveSettings.GetWebcamBool(cfg.CurrentUserRole, partial, _configStore,
+            AuditorUiPreferencesJson.WebcamDefaultScanAreaMode, false);
+        var defaultAuto = AuditorUiEffectiveSettings.GetWebcamBool(cfg.CurrentUserRole, partial, _configStore,
+            AuditorUiPreferencesJson.EnableAutoCapture, false);
         CaptureModeCombo.Items.Clear();
         CaptureModeCombo.Items.Add("Manual");
         CaptureModeCombo.Items.Add("Auto");
@@ -233,7 +248,8 @@ public partial class WebcamView : UserControl
             CaptureModeCombo.SelectedIndex = defaultAuto ? ModeAuto : ModeManual;
 
         if (ScanAreaAutoCaptureCheck != null)
-            ScanAreaAutoCaptureCheck.IsChecked = _configStore?.GetSettingBool("webcam_scan_area_auto_capture", false) ?? false;
+            ScanAreaAutoCaptureCheck.IsChecked = AuditorUiEffectiveSettings.GetWebcamBool(cfg.CurrentUserRole, partial, _configStore,
+                AuditorUiPreferencesJson.WebcamScanAreaAutoCapture, false);
 
         ApplyScanAreaUiState();
     }
@@ -1488,8 +1504,13 @@ public partial class WebcamView : UserControl
 
     private int GetAutoCooldownMs()
     {
+        var cfg = ServiceContainer.GetService<AppConfiguration>();
+        var partial = GetAuditorWebcamOverrideRoot();
         var defaultSeconds = DefaultAutoCooldownMs / 1000;
-        var seconds = _configStore?.GetSettingInt("auto_capture_cooldown_seconds", defaultSeconds) ?? defaultSeconds;
+        var seconds = _configStore != null
+            ? AuditorUiEffectiveSettings.GetWebcamInt(cfg.CurrentUserRole, partial, _configStore,
+                AuditorUiPreferencesJson.AutoCaptureCooldownSeconds, defaultSeconds)
+            : defaultSeconds;
         seconds = Math.Clamp(seconds, 1, 30);
         return seconds * 1000;
     }

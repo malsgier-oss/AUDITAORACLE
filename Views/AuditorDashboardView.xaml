@@ -1,7 +1,8 @@
 <UserControl x:Class="WorkAudit.Views.AuditorDashboardView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:views="clr-namespace:WorkAudit.Views">
+             xmlns:views="clr-namespace:WorkAudit.Views"
+             xmlns:documents="clr-namespace:System.Windows.Documents;assembly=PresentationFramework">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <Grid x:Name="RootGrid" Background="{DynamicResource PanelBackground}" Margin="16">
             <Grid.RowDefinitions>
@@ -441,20 +442,59 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="JournalHeader" Text="📝 Daily Journal - Today" FontSize="15" FontWeight="SemiBold"
                                    Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center"/>
-                        <Button x:Name="BtnViewJournalHistory" Grid.Column="1" Content="View History" Padding="10,6"
-                                Background="#6C757D" Foreground="White" BorderThickness="0" Cursor="Hand"
-                                Click="BtnViewJournalHistory_Click" ToolTip="View past journal entries"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button x:Name="BtnSaveJournal" Content="Save" Padding="10,6" Margin="0,0,8,0"
+                                    Background="#28A745" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    Click="BtnSaveJournal_Click" ToolTip="Save journal now"/>
+                            <Button x:Name="BtnViewJournalHistory" Content="View History" Padding="10,6"
+                                    Background="#6C757D" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    Click="BtnViewJournalHistory_Click" ToolTip="View past journal entries"/>
+                        </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Notes and observations for today (auto-saves)" FontSize="11"
-                               Foreground="{DynamicResource DimForeground}" Margin="0,0,0,8"/>
+                    <TextBlock Text="Notes and observations for today. Auto-saves periodically; use Save to persist immediately."
+                               FontSize="11" Foreground="{DynamicResource DimForeground}" Margin="0,0,0,8" TextWrapping="Wrap"/>
 
-                    <TextBox x:Name="JournalTextBox" Height="100" TextWrapping="Wrap" AcceptsReturn="True"
-                             Padding="8,6" VerticalScrollBarVisibility="Auto"
-                             LostFocus="JournalTextBox_LostFocus"
-                             ToolTip="Your personal notes for today - saved automatically"/>
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                            Background="{DynamicResource PanelBackground}" Padding="6,4" Margin="0,0,0,8">
+                        <WrapPanel>
+                            <Button Content="LTR" Padding="8,4" Margin="0,0,4,4" Cursor="Hand"
+                                    Click="JournalToolbar_Ltr_Click" ToolTip="Left-to-right text direction"/>
+                            <Button Content="RTL" Padding="8,4" Margin="0,0,4,4" Cursor="Hand"
+                                    Click="JournalToolbar_Rtl_Click" ToolTip="Right-to-left text direction"/>
+                            <Button Content="Match app" Padding="8,4" Margin="0,0,8,4" Cursor="Hand"
+                                    Click="JournalToolbar_MatchApp_Click" ToolTip="Match shell text direction"/>
+                            <Button Content="B" FontWeight="Bold" Padding="10,4" Margin="0,0,4,4" Cursor="Hand"
+                                    Command="documents:EditingCommands.ToggleBold"
+                                    CommandTarget="{Binding ElementName=JournalRichTextBox}" ToolTip="Bold"/>
+                            <Button Content="I" FontStyle="Italic" Padding="10,4" Margin="0,0,4,4" Cursor="Hand"
+                                    Command="documents:EditingCommands.ToggleItalic"
+                                    CommandTarget="{Binding ElementName=JournalRichTextBox}" ToolTip="Italic"/>
+                            <Button Content="U" Padding="10,4" Margin="0,0,4,4" Cursor="Hand"
+                                    Command="documents:EditingCommands.ToggleUnderline"
+                                    CommandTarget="{Binding ElementName=JournalRichTextBox}" ToolTip="Underline"/>
+                            <Button Content="• List" Padding="8,4" Margin="0,0,4,4" Cursor="Hand"
+                                    Command="documents:EditingCommands.ToggleBullets"
+                                    CommandTarget="{Binding ElementName=JournalRichTextBox}" ToolTip="Bullets"/>
+                            <Button Content="1. List" Padding="8,4" Margin="0,0,8,4" Cursor="Hand"
+                                    Command="documents:EditingCommands.ToggleNumbering"
+                                    CommandTarget="{Binding ElementName=JournalRichTextBox}" ToolTip="Numbered list"/>
+                            <Button Content="A−" Padding="8,4" Margin="0,0,4,4" Cursor="Hand"
+                                    Click="JournalToolbar_FontSmaller_Click" ToolTip="Smaller font"/>
+                            <Button Content="A+" Padding="8,4" Margin="0,0,8,4" Cursor="Hand"
+                                    Click="JournalToolbar_FontLarger_Click" ToolTip="Larger font"/>
+                            <Button Content="Insert time" Padding="8,4" Margin="0,0,4,4" Cursor="Hand"
+                                    Click="JournalToolbar_InsertTime_Click" ToolTip="Insert date and time at caret"/>
+                        </WrapPanel>
+                    </Border>
 
-                    <TextBlock x:Name="JournalSaveStatus" Text="Auto-saved" FontSize="10"
+                    <RichTextBox x:Name="JournalRichTextBox" MinHeight="120" VerticalScrollBarVisibility="Auto"
+                                 Padding="8,6" AcceptsReturn="True"
+                                 LostFocus="JournalRichTextBox_LostFocus"
+                                 TextChanged="JournalRichTextBox_TextChanged"
+                                 ToolTip="Your personal notes for today"/>
+
+                    <TextBlock x:Name="JournalSaveStatus" Text="Saved" FontSize="10"
                                Foreground="{DynamicResource DimForeground}" Margin="0,4,0,0"
                                HorizontalAlignment="Right" Visibility="Collapsed"/>
                 </StackPanel>

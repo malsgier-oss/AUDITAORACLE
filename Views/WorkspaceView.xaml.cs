@@ -1142,7 +1142,7 @@ public partial class WorkspaceView : UserControl, IDisposable
             foreach (var subDir in Directory.GetDirectories(dirPath).OrderBy(Path.GetFileName))
             {
                 var name = Path.GetFileName(subDir);
-                if (string.IsNullOrEmpty(name) || name.StartsWith(".", StringComparison.Ordinal)) continue;
+                if (string.IsNullOrEmpty(name) || name.StartsWith('.')) continue;
                 if (HiddenFolders.Contains(name)) continue;
                 var item = new TreeViewItem { Header = name, Tag = subDir };
                 parent.Items.Add(item);

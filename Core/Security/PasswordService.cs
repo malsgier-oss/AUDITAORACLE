@@ -95,9 +95,8 @@ public class PasswordService : IPasswordService
         }
 
         // Check for common weak patterns
-        var lowerPassword = password.ToLower();
         var weakPatterns = new[] { "password", "123456", "qwerty", "admin", "letmein", "welcome" };
-        if (weakPatterns.Any(p => lowerPassword.Contains(p)))
+        if (weakPatterns.Any(p => password.Contains(p, StringComparison.OrdinalIgnoreCase)))
         {
             errors.Add("Password contains a common weak pattern.");
         }

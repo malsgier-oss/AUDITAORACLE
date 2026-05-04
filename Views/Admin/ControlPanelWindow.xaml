@@ -54,6 +54,48 @@
                             <TextBlock x:Name="ThemeDescription" Grid.Column="1" Text="Light or Dark Midnight color theme. Changes apply immediately." 
                                        Foreground="{DynamicResource DimForeground}" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap"/>
                         </Grid>
+
+                        <StackPanel x:Name="AuditorWebcamSection" Visibility="Collapsed" Margin="0,8,0,0">
+                            <TextBlock x:Name="AuditorWebcamSectionTitle" Text="Webcam Document Scan (your preferences)" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource DimForeground}" Margin="0,16,0,12"/>
+                            <TextBlock x:Name="AuditorWebcamSectionIntro" TextWrapping="Wrap" Foreground="{DynamicResource DimForeground}" FontSize="11" Margin="0,0,0,12"
+                                       Text="These settings apply only to your account. If you have not customized a value, the organization default from the server is used."/>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="270" MinWidth="270"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <CheckBox x:Name="AuditorEnableAutoCaptureCheck" Content="Default to Auto mode in webcam" VerticalAlignment="Center"
+                                          Checked="AuditorWebcamField_Changed" Unchecked="AuditorWebcamField_Changed"/>
+                                <TextBlock Grid.Column="1" Text="When checked, Webcam opens with Auto selected (Manual, Auto, and Scan Area are always selectable). Ignored if &quot;Default to Scan Area mode&quot; is checked." 
+                                           Foreground="{DynamicResource DimForeground}" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap"/>
+                                <CheckBox x:Name="AuditorShowAutoCaptureTimerCheck" Grid.Row="1" Content="Show auto-capture cooldown timer in webcam status" VerticalAlignment="Center" Margin="0,8,0,0"
+                                          Checked="AuditorWebcamField_Changed" Unchecked="AuditorWebcamField_Changed"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="When checked, Webcam shows countdown text (e.g. next capture in 7.9s) during cooldown." 
+                                           Foreground="{DynamicResource DimForeground}" FontSize="11" VerticalAlignment="Center" Margin="8,8,0,0" TextWrapping="Wrap"/>
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                                    <TextBlock Text="Auto-capture cooldown (seconds):" VerticalAlignment="Center" Width="190"/>
+                                    <TextBox x:Name="AuditorAutoCaptureCooldownSecondsBox" Width="60" MinWidth="56" Padding="6,4" Margin="4,0,0,0" ToolTip="Valid range: 1 to 30 seconds"
+                                             TextChanged="AuditorWebcamCooldown_TextChanged"/>
+                                </StackPanel>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Delay before next auto-capture attempt. Use higher values to reduce accidental consecutive captures." 
+                                           Foreground="{DynamicResource DimForeground}" FontSize="11" VerticalAlignment="Center" Margin="8,8,0,0" TextWrapping="Wrap"/>
+                                <CheckBox x:Name="AuditorDefaultScanAreaModeCheck" Grid.Row="3" Content="Default to Scan Area mode in webcam" VerticalAlignment="Center" Margin="0,8,0,0"
+                                          Checked="AuditorWebcamField_Changed" Unchecked="AuditorWebcamField_Changed"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="When checked, Webcam opens in Scan Area mode so you can draw a capture region on the preview. Takes precedence over Default to Auto." 
+                                           Foreground="{DynamicResource DimForeground}" FontSize="11" VerticalAlignment="Center" Margin="8,8,0,0" TextWrapping="Wrap"/>
+                                <CheckBox x:Name="AuditorScanAreaAutoDefaultCheck" Grid.Row="4" Content="Enable Area auto-capture by default" VerticalAlignment="Center" Margin="0,8,0,0"
+                                          Checked="AuditorWebcamField_Changed" Unchecked="AuditorWebcamField_Changed"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="When checked, the webcam &quot;Area auto&quot; option is on by default in Scan Area mode (steady-frame detection, same cooldown as Auto)." 
+                                           Foreground="{DynamicResource DimForeground}" FontSize="11" VerticalAlignment="Center" Margin="8,8,0,0" TextWrapping="Wrap"/>
+                            </Grid>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

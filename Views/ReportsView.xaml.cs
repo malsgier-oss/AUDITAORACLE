@@ -1,10 +1,13 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using Serilog;
+using WorkAudit.Core.Helpers;
 using WorkAudit;
 using WorkAudit.Config;
 using WorkAudit.Core.Reports;
@@ -97,6 +100,7 @@ public partial class ReportsView : UserControl, IDisposable
         LoadReportHistory();
         ApplyPeriodPreset(ReportPeriod.Monthly);
         UpdateFavoriteButtonState();
+        ApplyJournalViewerPanel();
     }
 
     private void ApplyLocalization()
@@ -112,6 +116,96 @@ public partial class ReportsView : UserControl, IDisposable
                 : "Generate reports and analyze document intelligence";
         if (ReportConfigTitle != null) ReportConfigTitle.Text = ReportLocalizationService.GetString("ReportConfiguration", config);
         if (PeriodLabel != null) PeriodLabel.Text = ReportLocalizationService.GetString("Period", config);
+        if (JournalViewerTitle != null)
+            JournalViewerTitle.Text = ReportLocalizationService.GetString("ReportsAuditorDailyJournals", config);
+        if (JournalViewerSubtitle != null)
+            JournalViewerSubtitle.Text = ReportLocalizationService.GetString("ReportsAuditorDailyJournalsHint", config);
+        if (JournalUserLabel != null)
+            JournalUserLabel.Text = ReportLocalizationService.GetString("ReportsJournalUser", config);
+        if (JournalDateLabel != null)
+            JournalDateLabel.Text = ReportLocalizationService.GetString("ReportsJournalDate", config);
+        if (JournalLoadBtn != null)
+            JournalLoadBtn.Content = ReportLocalizationService.GetString("ReportsJournalLoad", config);
+    }
+
+    private void ApplyJournalViewerPanel()
+    {
+        if (JournalViewerPanel == null)
+            return;
+
+        if (_scopedReportsMode)
+        {
+            JournalViewerPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        JournalViewerPanel.Visibility = Visibility.Visible;
+        LoadJournalViewerUsers();
+        if (JournalDatePicker != null)
+            JournalDatePicker.SelectedDate = DateTime.Today;
+    }
+
+    private void LoadJournalViewerUsers()
+    {
+        if (_userStore == null || JournalUserCombo == null)
+            return;
+
+        JournalUserCombo.Items.Clear();
+        foreach (var u in _userStore.ListUsers(isActive: true).OrderBy(x => x.Username, StringComparer.OrdinalIgnoreCase))
+            JournalUserCombo.Items.Add(new ComboBoxItem { Content = u.Username, Tag = u.Id });
+
+        JournalUserCombo.SelectedIndex = JournalUserCombo.Items.Count > 0 ? 0 : -1;
+        if (JournalLoadBtn != null)
+            JournalLoadBtn.IsEnabled = JournalUserCombo.Items.Count > 0;
+    }
+
+    private void JournalLoadBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_notesStore == null)
+            return;
+
+        var config = ServiceContainer.GetService<IConfigStore>();
+        if (JournalUserCombo?.SelectedItem is not ComboBoxItem selected || selected.Tag is not int userId)
+        {
+            MessageBox.Show(
+                ReportLocalizationService.GetString("ReportsJournalSelectUser", config),
+                ReportLocalizationService.GetString("ReportsAuditorDailyJournals", config),
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var date = JournalDatePicker?.SelectedDate ?? DateTime.Today;
+        var dateString = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        var entry = _notesStore.Search(type: NoteType.Journal, limit: 5000)
+            .FirstOrDefault(n => n.CreatedByUserId == userId && n.Category == dateString);
+
+        if (JournalEntryStatusText != null)
+        {
+            if (entry != null)
+            {
+                JournalEntryStatusText.Text = string.Format(CultureInfo.CurrentCulture,
+                    "Journal entry for {0:dddd, MMMM dd, yyyy}", date);
+                if (!string.IsNullOrEmpty(entry.UpdatedAt) && DateTime.TryParse(entry.UpdatedAt, out var updated))
+                    JournalEntryStatusText.Text += string.Format(CultureInfo.CurrentCulture, " ({0:g})", updated);
+            }
+            else
+            {
+                JournalEntryStatusText.Text = ReportLocalizationService.GetString("ReportsJournalNoEntry", config);
+            }
+        }
+
+        if (JournalReadOnlyRichTextBox != null)
+        {
+            if (entry != null)
+                JournalRtfSerializer.LoadInto(JournalReadOnlyRichTextBox, entry.Content);
+            else
+                JournalRtfSerializer.LoadInto(JournalReadOnlyRichTextBox,
+                    ReportLocalizationService.GetString("ReportsJournalEmptyBody", config));
+        }
+
+        Log.Information("Reports journal viewer: loaded journal for userId {UserId} date {Date}", userId, dateString);
     }
 
     private void ApplyScopedNonManagerVisibility()
@@ -592,7 +686,7 @@ public partial class ReportsView : UserControl, IDisposable
         {
             var ts = DateTime.TryParse(e.Timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) : e.Timestamp;
             var reportType = "Report";
-            if (!string.IsNullOrEmpty(e.Details) && e.Details.StartsWith("Report type: "))
+            if (!string.IsNullOrEmpty(e.Details) && e.Details.StartsWith("Report type: ", StringComparison.Ordinal))
                 reportType = e.Details.Split(',')[0].Replace("Report type: ", "").Trim();
             _reportHistoryAll.Add(new ReportHistoryEntry(ts, reportType, e.NewValue!));
         }
@@ -610,7 +704,7 @@ public partial class ReportsView : UserControl, IDisposable
         if (string.IsNullOrEmpty(filter))
             ReportHistoryList.ItemsSource = _reportHistoryAll;
         else
-            ReportHistoryList.ItemsSource = _reportHistoryAll.Where(h => h.DisplayText.ToLowerInvariant().Contains(filter) || h.ReportType.ToLowerInvariant().Contains(filter)).ToList();
+            ReportHistoryList.ItemsSource = _reportHistoryAll.Where(h => h.DisplayText.Contains(filter, StringComparison.OrdinalIgnoreCase) || h.ReportType.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     private void ReportHistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
