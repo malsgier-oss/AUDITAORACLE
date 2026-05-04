@@ -248,5 +248,18 @@ public class DocumentStoreTests : IClassFixture<OracleTestFixture>
         byFullId.Should().ContainSingle(d => d.Id == idA);
         byFullId.Should().NotContain(d => d.Id == idB);
     }
+
+    [SkippableFact]
+    public void ListDocuments_CreatedBy_ShouldRestrictRows()
+    {
+        Skip.IfNot(_fx.IsAvailable);
+        var br = "Cb_" + Guid.NewGuid().ToString("N");
+        var idA = (int)_store.Insert(new Document { FilePath = "a.pdf", Branch = br, Section = "S", CreatedBy = "user_a" });
+        var idB = (int)_store.Insert(new Document { FilePath = "b.pdf", Branch = br, Section = "S", CreatedBy = "user_b" });
+
+        var forA = _store.ListDocuments(branch: br, createdBy: "user_a");
+        forA.Should().Contain(d => d.Id == idA);
+        forA.Should().NotContain(d => d.Id == idB);
+    }
 }
 

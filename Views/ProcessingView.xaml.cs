@@ -99,6 +99,12 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
     /// <summary>Row index for Shift+click range checkbox selection; reset when the queue reloads.</summary>
     private int _selectionAnchorIndex = -1;
 
+    private const string ConfigKeyProcessingScope = "processing_queue_scope";
+    private const string ConfigKeyProcessingScopeUser = "processing_queue_scope_username";
+    private IUserStore? _userStore;
+    private bool _suppressProcessingScopeEvents;
+    private bool _processingScopeUiReady;
+
     public ProcessingView()
     {
         _store = ServiceContainer.GetService<IDocumentStore>();
@@ -136,6 +142,7 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
                 FilterType.Items.Add(new ComboBoxItem { Content = t });
             FilterType.SelectedIndex = 0;
         }
+        InitializeProcessingScopeUi();
         RefreshData();
         _mergeQueue.MergeCompleted += OnMergeQueueCompleted;
         _mergeQueue.MergeFailed += OnMergeQueueFailed;
@@ -326,6 +333,155 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
         if (PreviewPlaceholderText != null) PreviewPlaceholderText.Text = ReportLocalizationService.GetString("SelectDocumentToPreview", config);
         if (SummaryLabel != null) SummaryLabel.Text = ReportLocalizationService.GetString("Summary", config);
         if (FinishBtn != null) FinishBtn.Content = ReportLocalizationService.GetString("MoveToWorkspace", config);
+        if (ProcessingScopeLabel != null)
+            ProcessingScopeLabel.Text = ReportLocalizationService.GetString("ProcessingQueueScope", config);
+        if (ProcessingScopeUserLabel != null)
+            ProcessingScopeUserLabel.Text = ReportLocalizationService.GetString("ProcessingQueueScopeUser", config);
+    }
+
+    private void InitializeProcessingScopeUi()
+    {
+        if (ProcessingScopeModeCombo == null) return;
+        var config = ServiceContainer.GetService<IConfigStore>();
+
+        if (!_permissionService.HasMinimumRole(Roles.Manager))
+        {
+            if (ProcessingScopeLabel != null) ProcessingScopeLabel.Visibility = Visibility.Collapsed;
+            ProcessingScopeModeCombo.Visibility = Visibility.Collapsed;
+            if (ProcessingScopeUserLabel != null) ProcessingScopeUserLabel.Visibility = Visibility.Collapsed;
+            if (ProcessingScopeUserCombo != null) ProcessingScopeUserCombo.Visibility = Visibility.Collapsed;
+            _processingScopeUiReady = false;
+            return;
+        }
+
+        if (ProcessingScopeLabel != null)
+        {
+            ProcessingScopeLabel.Text = ReportLocalizationService.GetString("ProcessingQueueScope", config);
+            ProcessingScopeLabel.Visibility = Visibility.Visible;
+        }
+        ProcessingScopeModeCombo.Visibility = Visibility.Visible;
+
+        _userStore = ServiceContainer.GetService<IUserStore>();
+        _suppressProcessingScopeEvents = true;
+        ProcessingScopeModeCombo.Items.Clear();
+        ProcessingScopeModeCombo.Items.Add(new ComboBoxItem { Content = ReportLocalizationService.GetString("ProcessingQueueScopeAll", config), Tag = "All" });
+        ProcessingScopeModeCombo.Items.Add(new ComboBoxItem { Content = ReportLocalizationService.GetString("ProcessingQueueScopeMyWork", config), Tag = "MyWork" });
+        ProcessingScopeModeCombo.Items.Add(new ComboBoxItem { Content = ReportLocalizationService.GetString("ProcessingQueueScopePerUser", config), Tag = "PerUser" });
+
+        LoadProcessingScopeUserPicker();
+
+        var savedMode = config.GetSettingValue(ConfigKeyProcessingScope, "All") ?? "All";
+        ComboBoxItem? modePick = null;
+        foreach (ComboBoxItem item in ProcessingScopeModeCombo.Items)
+        {
+            if (item.Tag is string t && string.Equals(t, savedMode, StringComparison.OrdinalIgnoreCase))
+            {
+                modePick = item;
+                break;
+            }
+        }
+        ProcessingScopeModeCombo.SelectedItem = modePick ?? ProcessingScopeModeCombo.Items[0];
+
+        RestoreProcessingScopeUserSelection(config);
+
+        _suppressProcessingScopeEvents = false;
+        UpdateProcessingScopeUserPickerVisibility();
+        _processingScopeUiReady = true;
+    }
+
+    private void LoadProcessingScopeUserPicker()
+    {
+        if (ProcessingScopeUserCombo == null || _userStore == null) return;
+        _suppressProcessingScopeEvents = true;
+        ProcessingScopeUserCombo.Items.Clear();
+        foreach (var u in _userStore.ListUsers(isActive: true).OrderBy(x => x.DisplayName ?? x.Username, StringComparer.OrdinalIgnoreCase))
+        {
+            var label = string.IsNullOrWhiteSpace(u.DisplayName) ? u.Username : $"{u.DisplayName} ({u.Username})";
+            ProcessingScopeUserCombo.Items.Add(new ComboBoxItem { Content = label, Tag = DocumentCreatedBy.ForUser(u) });
+        }
+        _suppressProcessingScopeEvents = false;
+    }
+
+    private void RestoreProcessingScopeUserSelection(IConfigStore configStore)
+    {
+        if (ProcessingScopeUserCombo == null || ProcessingScopeUserCombo.Items.Count == 0) return;
+        var savedUser = configStore.GetSettingValue(ConfigKeyProcessingScopeUser);
+        ComboBoxItem? pick = null;
+        if (!string.IsNullOrEmpty(savedUser))
+        {
+            foreach (ComboBoxItem item in ProcessingScopeUserCombo.Items)
+            {
+                if (item.Tag is string un && string.Equals(un, savedUser, StringComparison.OrdinalIgnoreCase))
+                {
+                    pick = item;
+                    break;
+                }
+            }
+        }
+        ProcessingScopeUserCombo.SelectedItem = pick ?? ProcessingScopeUserCombo.Items[0];
+    }
+
+    private void UpdateProcessingScopeUserPickerVisibility()
+    {
+        var perUser = ProcessingScopeModeCombo?.SelectedItem is ComboBoxItem it && it.Tag is string tag && tag == "PerUser";
+        if (ProcessingScopeUserLabel != null)
+        {
+            ProcessingScopeUserLabel.Text = ReportLocalizationService.GetString("ProcessingQueueScopeUser", ServiceContainer.GetService<IConfigStore>());
+            ProcessingScopeUserLabel.Visibility = perUser ? Visibility.Visible : Visibility.Collapsed;
+        }
+        if (ProcessingScopeUserCombo != null)
+            ProcessingScopeUserCombo.Visibility = perUser ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void PersistProcessingScopeSettings()
+    {
+        if (!_permissionService.HasMinimumRole(Roles.Manager)) return;
+        var configStore = ServiceContainer.GetService<IConfigStore>();
+        var session = ServiceContainer.GetService<ISessionService>();
+        var updatedBy = session?.CurrentUser?.Username;
+        if (ProcessingScopeModeCombo?.SelectedItem is ComboBoxItem modeItem && modeItem.Tag is string mode)
+            configStore.SetSetting(ConfigKeyProcessingScope, mode, updatedBy);
+        if (ProcessingScopeUserCombo?.SelectedItem is ComboBoxItem uItem && uItem.Tag is string un)
+            configStore.SetSetting(ConfigKeyProcessingScopeUser, un, updatedBy);
+    }
+
+    /// <summary>Creator filter for Manager+ Processing list; <see langword="null"/> means no creator filter (All).</summary>
+    private string? GetProcessingListCreatedByFilter(out bool skipQuery)
+    {
+        skipQuery = false;
+        if (!_permissionService.HasMinimumRole(Roles.Manager))
+            return null;
+        if (!_processingScopeUiReady || ProcessingScopeModeCombo?.SelectedItem is not ComboBoxItem modeItem || modeItem.Tag is not string mode)
+            return null;
+        switch (mode)
+        {
+            case "All":
+                return null;
+            case "MyWork":
+                return DocumentCreatedBy.FromAppConfiguration(_appConfig);
+            case "PerUser":
+                if (ProcessingScopeUserCombo?.SelectedItem is ComboBoxItem u && u.Tag is string username && !string.IsNullOrEmpty(username))
+                    return username;
+                skipQuery = true;
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    private void ProcessingScopeMode_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_viewLoaded || _suppressProcessingScopeEvents) return;
+        UpdateProcessingScopeUserPickerVisibility();
+        PersistProcessingScopeSettings();
+        RefreshData();
+    }
+
+    private void ProcessingScopeUser_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_viewLoaded || _suppressProcessingScopeEvents) return;
+        PersistProcessingScopeSettings();
+        RefreshData();
     }
 
     private void RefreshBtn_Click(object sender, RoutedEventArgs e)
@@ -345,15 +501,24 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
         if (FilterType?.SelectedItem is ComboBoxItem typeItem && typeItem.Content is string typeStr && typeStr != allTypesStr)
             filterType = typeStr;
 
-        var documents = _store.ListDocuments(branch: branch, status: null, documentType: filterType, limit: 5000)
-            .Where(d => d.Status != Enums.Status.ReadyForAudit && d.Status != Enums.Status.Cleared && d.Status != Enums.Status.Archived)
-            .OrderByDescending(d => d.Id)
-            .Take(200)
-            .ToList();
+        var createdByFilter = GetProcessingListCreatedByFilter(out var skipCreatorQuery);
+        List<Document> documents;
+        if (skipCreatorQuery)
+        {
+            documents = new List<Document>();
+        }
+        else
+        {
+            documents = _store.ListDocuments(branch: branch, status: null, documentType: filterType, limit: 5000, createdBy: createdByFilter)
+                .Where(d => d.Status != Enums.Status.ReadyForAudit && d.Status != Enums.Status.Cleared && d.Status != Enums.Status.Archived)
+                .OrderByDescending(d => d.Id)
+                .Take(200)
+                .ToList();
+        }
 
         var session = ServiceContainer.GetService<ISessionService>();
-        _log.Debug("ProcessingView RefreshData: branch={Branch}, documentType={DocType}, count={Count}",
-            branch ?? "(all)", filterType ?? "(all)", documents.Count);
+        _log.Debug("ProcessingView RefreshData: branch={Branch}, documentType={DocType}, createdBy={CreatedBy}, count={Count}",
+            branch ?? "(all)", filterType ?? "(all)", createdByFilter ?? "(all creators)", documents.Count);
         if (session?.CurrentUser == null)
             _log.Debug("ProcessingView: CurrentUser is null, branch filter uses fallback {Branch}", branch ?? Domain.Branches.Default);
         else if (branch != null && branch != session.CurrentUser.Branch)

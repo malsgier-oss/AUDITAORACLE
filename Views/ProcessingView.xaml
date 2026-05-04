@@ -41,6 +41,13 @@
                         <ComboBox x:Name="FilterType" Padding="6,4" Margin="0,0,0,6" SelectionChanged="Filter_Changed"/>
                         <Button x:Name="ClearFiltersBtn" Content="Clear filter" Padding="8,4" Margin="0,0,0,12" Click="ClearFiltersBtn_Click"
                                 Background="{DynamicResource ButtonSecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderThickness="0" Cursor="Hand" HorizontalAlignment="Stretch"/>
+                        <!-- Queue scope (Manager+): All / My work / Per user -->
+                        <TextBlock x:Name="ProcessingScopeLabel" Text="Queue scope" Foreground="{DynamicResource SecondaryForeground}" FontSize="10" Margin="0,0,0,4" Visibility="Collapsed"/>
+                        <ComboBox x:Name="ProcessingScopeModeCombo" Padding="6,4" Margin="0,0,0,6" Visibility="Collapsed"
+                                  SelectionChanged="ProcessingScopeMode_Changed"/>
+                        <TextBlock x:Name="ProcessingScopeUserLabel" Text="User" Foreground="{DynamicResource SecondaryForeground}" FontSize="10" Margin="0,0,0,4" Visibility="Collapsed"/>
+                        <ComboBox x:Name="ProcessingScopeUserCombo" Padding="6,4" Margin="0,0,0,12" Visibility="Collapsed"
+                                  SelectionChanged="ProcessingScopeUser_Changed"/>
                         <!-- Summary -->
                         <TextBlock x:Name="SummaryLabel" Text="Summary" Foreground="{DynamicResource SecondaryForeground}" FontSize="10" Margin="0,0,0,6"/>
                         <TextBlock x:Name="CompletedCountLabel" Text="0 completed (last 7 days)" Foreground="{DynamicResource PrimaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,4"/>

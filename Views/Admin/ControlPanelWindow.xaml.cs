@@ -225,7 +225,7 @@ public partial class ControlPanelWindow : Window
 
     private void AddDocType_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new EditDocumentTypeDialog(null) { Owner = this };
+        var dialog = new EditDocumentTypeDialog(null, _configStore.GetBranches(true)) { Owner = this };
         if (dialog.ShowDialog() == true && dialog.Result != null)
         {
             _configStore.InsertDocumentType(dialog.Result);
@@ -239,7 +239,7 @@ public partial class ControlPanelWindow : Window
     private void EditDocType_Click(object sender, RoutedEventArgs e)
     {
         if (DocTypesGrid.SelectedItem is not ConfigDocumentType selected) return;
-        var dialog = new EditDocumentTypeDialog(selected) { Owner = this };
+        var dialog = new EditDocumentTypeDialog(selected, _configStore.GetBranches(true)) { Owner = this };
         if (dialog.ShowDialog() == true && dialog.Result != null)
         {
             _configStore.UpdateDocumentType(dialog.Result);
@@ -764,10 +764,13 @@ public partial class ControlPanelWindow : Window
     private void BrowseDbPath_Click(object sender, RoutedEventArgs e)
     {
         MessageBox.Show(
-            "AUDITA now uses Oracle connection strings, not local .db files.\n\n" +
-            "Paste a value such as:\n" +
+            "AUDITA connects to Oracle using an ODP.NET-style connection string, not a local database file. " +
+            "This button does not open a file dialog.\n\n" +
+            "Enter or paste the full connection string in the field beside this button. " +
+            "Use the host, service name, and credentials provided by your administrator.\n\n" +
+            "Example:\n" +
             "User Id=workaudit;Password=***;Data Source=//localhost:1521/FREEPDB1",
-            "Oracle Connection",
+            "Oracle connection string",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }

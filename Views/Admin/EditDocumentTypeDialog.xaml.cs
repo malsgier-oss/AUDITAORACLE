@@ -1,19 +1,19 @@
-using System.Linq;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
-using WorkAudit.Core.Services;
 using WorkAudit.Domain;
-using WorkAudit.Storage;
 
 namespace WorkAudit.Views.Admin;
 
 public partial class EditDocumentTypeDialog : Window
 {
+    private const string AllBranchesLabel = "All branches";
+
     private readonly ConfigDocumentType? _existing;
     public ConfigDocumentType? Result { get; private set; }
 
-    public EditDocumentTypeDialog(ConfigDocumentType? existing)
+    public EditDocumentTypeDialog(ConfigDocumentType? existing, IReadOnlyList<ConfigBranch> branches)
     {
         InitializeComponent();
         _existing = existing;
@@ -22,6 +22,8 @@ public partial class EditDocumentTypeDialog : Window
         SectionCombo.Items.Add("");
         foreach (var s in Enums.SectionValues)
             SectionCombo.Items.Add(s);
+
+        PopulateBranchCombo(branches);
 
         if (existing != null)
         {
@@ -44,7 +46,44 @@ public partial class EditDocumentTypeDialog : Window
             Title = "Add Document Type";
             SectionCombo.SelectedIndex = 0;
             OrderBox.Text = "0";
+            BranchCombo.SelectedIndex = 0;
         }
+    }
+
+    private void PopulateBranchCombo(IReadOnlyList<ConfigBranch> branches)
+    {
+        BranchCombo.Items.Clear();
+        BranchCombo.Items.Add(AllBranchesLabel);
+        var namesAdded = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { AllBranchesLabel };
+        foreach (var b in branches)
+        {
+            if (string.IsNullOrWhiteSpace(b.Name)) continue;
+            var n = b.Name.Trim();
+            if (namesAdded.Add(n))
+                BranchCombo.Items.Add(n);
+        }
+
+        var existingBranch = _existing?.Branch?.Trim();
+        if (!string.IsNullOrEmpty(existingBranch))
+        {
+            var present = BranchCombo.Items.Cast<object>()
+                .Any(x => string.Equals(x?.ToString()?.Trim(), existingBranch, StringComparison.OrdinalIgnoreCase));
+            if (!present)
+                BranchCombo.Items.Add(existingBranch);
+        }
+
+        if (string.IsNullOrEmpty(existingBranch))
+        {
+            BranchCombo.SelectedIndex = 0;
+            return;
+        }
+
+        var match = BranchCombo.Items.Cast<object>().FirstOrDefault(x =>
+            string.Equals(x?.ToString()?.Trim(), existingBranch, StringComparison.OrdinalIgnoreCase));
+        if (match != null)
+            BranchCombo.SelectedItem = match;
+        else
+            BranchCombo.SelectedIndex = 0;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -57,7 +96,12 @@ public partial class EditDocumentTypeDialog : Window
 
         var section = string.IsNullOrWhiteSpace(SectionCombo.Text) ? null : SectionCombo.Text.Trim();
 
-        // Document types are applied to all branches (Branch = null)
+        var branchText = (BranchCombo.SelectedItem ?? BranchCombo.Text)?.ToString()?.Trim();
+        var branch = string.IsNullOrEmpty(branchText) ||
+                     string.Equals(branchText, AllBranchesLabel, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : branchText;
+
         Result = new ConfigDocumentType
         {
             Id = _existing?.Id ?? 0,
@@ -67,7 +111,7 @@ public partial class EditDocumentTypeDialog : Window
             DisplayOrder = int.TryParse(OrderBox.Text, out var order) ? order : 0,
             IsActive = ActiveCheck.IsChecked == true,
             CreatedAt = _existing?.CreatedAt ?? DateTime.UtcNow.ToString("O"),
-            Branch = null,
+            Branch = branch,
             Section = section
         };
 

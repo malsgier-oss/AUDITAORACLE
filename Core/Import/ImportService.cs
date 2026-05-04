@@ -67,6 +67,14 @@ public class ImportService : IImportService
         _ocrService = ocrService;
     }
 
+    /// <summary>Sets <see cref="Document.CreatedBy"/> from the logged-in user so Processing queue filters match imports.</summary>
+    private void StampImportCreator(Document doc)
+    {
+        var u = DocumentCreatedBy.FromAppConfiguration(_appConfig);
+        if (!string.IsNullOrEmpty(u))
+            doc.CreatedBy = u;
+    }
+
     public string[] GetSupportedExtensions()
     {
         return SupportedImageExtensions.Concat(SupportedPdfExtensions).ToArray();
@@ -409,6 +417,7 @@ public class ImportService : IImportService
                     doc.FilePath = destPath;
                 }
 
+                StampImportCreator(doc);
                 var insertResult = _documentStore.InsertResult(doc);
                 if (!insertResult.IsSuccess)
                 {
@@ -517,6 +526,7 @@ public class ImportService : IImportService
             doc.FilePath = destPath;
         }
 
+        StampImportCreator(doc);
         var insertResult = _documentStore.InsertResult(doc);
         if (!insertResult.IsSuccess)
         {
@@ -587,6 +597,7 @@ public class ImportService : IImportService
         // No text extraction from images (AI/OCR removed)
 
         // Save to database
+        StampImportCreator(doc);
         var insertResult = _documentStore.InsertResult(doc);
         if (!insertResult.IsSuccess)
         {
