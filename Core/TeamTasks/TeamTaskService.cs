@@ -1,5 +1,6 @@
 using Serilog;
 using System.Globalization;
+using Oracle.ManagedDataAccess.Client;
 using WorkAudit.Core.Security;
 using WorkAudit.Core.Services;
 using WorkAudit.Domain;
@@ -53,6 +54,8 @@ public class TeamTaskService : ITeamTaskService
             throw new ArgumentException("Title is required.", nameof(title));
         if (!TeamTaskRecurrence.All.Contains(recurrence))
             throw new ArgumentException("Invalid recurrence.", nameof(recurrence));
+        if (endDateLocal.HasValue && endDateLocal.Value.Date < startDateLocal.Date)
+            throw new ArgumentException("End date cannot be before start date.", nameof(endDateLocal));
 
         var current = GetCurrentUser();
         if (current == null)
@@ -78,7 +81,21 @@ public class TeamTaskService : ITeamTaskService
             IsActive = isActive
         };
 
-        var id = _store.Insert(t);
+        _log.Information("Creating team task '{Title}' for user {AssigneeId} by {AssignerId} with recurrence {Recurrence}",
+            t.Title, t.AssignedToUserId, t.AssignedByUserId, t.Recurrence);
+
+        int id;
+        try
+        {
+            id = _store.Insert(t);
+        }
+        catch (OracleException ex)
+        {
+            _log.Error(ex, "Failed to create team task '{Title}' for user {AssigneeId} (ORA-{Code})",
+                t.Title, t.AssignedToUserId, ex.Number);
+            throw new InvalidOperationException(GetCreateErrorMessage(ex), ex);
+        }
+
         if (id <= 0)
             throw new InvalidOperationException("Failed to save team task.");
 
@@ -87,6 +104,20 @@ public class TeamTaskService : ITeamTaskService
             details: $"{t.Title} → {assignTo.Username}, {recurrence}", success: true);
         _log.Information("Team task {Id} created for {User}", id, assignTo.Username);
         return t;
+    }
+
+    private static string GetCreateErrorMessage(OracleException ex)
+    {
+        return ex.Number switch
+        {
+            1 => "A team task with the same unique value already exists.",
+            904 => "Database schema is missing required team task columns. Please run database updates.",
+            942 => "Team task tables are missing in the database. Please run database setup/migrations.",
+            1017 => "Database authentication failed. Please verify database credentials.",
+            2291 => "The selected assignee or assigner no longer exists.",
+            3113 or 3114 or 12170 or 12514 or 12541 => "Database connection is unavailable. Please try again.",
+            _ => $"Failed to save team task (ORA-{ex.Number}): {ex.Message}"
+        };
     }
 
     public bool Update(TeamTask task)

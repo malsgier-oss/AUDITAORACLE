@@ -62,7 +62,7 @@ public class TeamTaskStore : ITeamTaskStore
 
     public int Insert(TeamTask t)
     {
-        return ExecuteDbOperation(() =>
+        try
         {
             var now = DateTime.UtcNow;
             t.Uuid = string.IsNullOrEmpty(t.Uuid) ? Guid.NewGuid().ToString() : t.Uuid;
@@ -75,20 +75,20 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.CommandText = @"
                 INSERT INTO team_tasks (uuid, title, description, assigned_to_user_id, assigned_to_username,
                     assigned_by_user_id, assigned_by_username, recurrence, start_date, end_date, is_active, created_at, updated_at)
-                VALUES (@uuid, @title, @desc, @to_id, @to_name, @by_id, @by_name, @rec, @start, @end, @active, @created, @updated)";
-            cmd.Parameters.AddWithValue("@uuid", t.Uuid);
-            cmd.Parameters.AddWithValue("@title", t.Title);
-            cmd.Parameters.AddWithValue("@desc", t.Description ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@to_id", t.AssignedToUserId);
-            cmd.Parameters.AddWithValue("@to_name", t.AssignedToUsername);
-            cmd.Parameters.AddWithValue("@by_id", t.AssignedByUserId);
-            cmd.Parameters.AddWithValue("@by_name", t.AssignedByUsername);
-            cmd.Parameters.AddWithValue("@rec", t.Recurrence);
-            cmd.Parameters.AddWithValue("@start", t.StartDate);
-            cmd.Parameters.AddWithValue("@end", t.EndDate ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@active", t.IsActive ? 1 : 0);
-            cmd.Parameters.Add(new OracleParameter("@created", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.CreatedAt) });
-            cmd.Parameters.Add(new OracleParameter("@updated", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.UpdatedAt) });
+                VALUES (@p_uuid, @p_title, @p_description, @p_to_id, @p_to_name, @p_by_id, @p_by_name, @p_recurrence, @p_start_date, @p_end_date, @p_active, @p_created, @p_updated)";
+            cmd.Parameters.AddWithValue("p_uuid", t.Uuid);
+            cmd.Parameters.AddWithValue("p_title", t.Title);
+            cmd.Parameters.AddWithValue("p_description", t.Description ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("p_to_id", t.AssignedToUserId);
+            cmd.Parameters.AddWithValue("p_to_name", t.AssignedToUsername);
+            cmd.Parameters.AddWithValue("p_by_id", t.AssignedByUserId);
+            cmd.Parameters.AddWithValue("p_by_name", t.AssignedByUsername);
+            cmd.Parameters.AddWithValue("p_recurrence", t.Recurrence);
+            cmd.Parameters.AddWithValue("p_start_date", t.StartDate);
+            cmd.Parameters.AddWithValue("p_end_date", t.EndDate ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("p_active", t.IsActive ? 1 : 0);
+            cmd.Parameters.Add(new OracleParameter("p_created", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.CreatedAt) ?? now });
+            cmd.Parameters.Add(new OracleParameter("p_updated", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.UpdatedAt) ?? now });
             var idParam = new OracleParameter("rid", OracleDbType.Int32, ParameterDirection.Output);
             cmd.Parameters.Add(idParam);
             cmd.CommandText += " RETURNING id INTO @rid";
@@ -96,7 +96,17 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.ExecuteNonQuery();
             t.Id = ToInt32(idParam.Value);
             return t.Id;
-        }, nameof(Insert), 0);
+        }
+        catch (OracleException ex)
+        {
+            _log.Error(ex, "Database error in Insert team task (ORA-{Code}): {Message}", ex.Number, ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "Unexpected error in Insert team task: {Message}", ex.Message);
+            throw;
+        }
     }
 
     public bool Update(TeamTask t)
@@ -108,19 +118,19 @@ public class TeamTaskStore : ITeamTaskStore
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                UPDATE team_tasks SET title=@title, description=@desc, assigned_to_user_id=@to_id, assigned_to_username=@to_name,
-                    recurrence=@rec, start_date=@start, end_date=@end, is_active=@active, updated_at=@updated
-                WHERE id=@id";
-            cmd.Parameters.AddWithValue("@id", t.Id);
-            cmd.Parameters.AddWithValue("@title", t.Title);
-            cmd.Parameters.AddWithValue("@desc", t.Description ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@to_id", t.AssignedToUserId);
-            cmd.Parameters.AddWithValue("@to_name", t.AssignedToUsername);
-            cmd.Parameters.AddWithValue("@rec", t.Recurrence);
-            cmd.Parameters.AddWithValue("@start", t.StartDate);
-            cmd.Parameters.AddWithValue("@end", t.EndDate ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@active", t.IsActive ? 1 : 0);
-            cmd.Parameters.Add(new OracleParameter("@updated", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.UpdatedAt) });
+                UPDATE team_tasks SET title=@p_title, description=@p_description, assigned_to_user_id=@p_to_id, assigned_to_username=@p_to_name,
+                    recurrence=@p_recurrence, start_date=@p_start_date, end_date=@p_end_date, is_active=@p_active, updated_at=@p_updated
+                WHERE id=@p_id";
+            cmd.Parameters.AddWithValue("p_id", t.Id);
+            cmd.Parameters.AddWithValue("p_title", t.Title);
+            cmd.Parameters.AddWithValue("p_description", t.Description ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("p_to_id", t.AssignedToUserId);
+            cmd.Parameters.AddWithValue("p_to_name", t.AssignedToUsername);
+            cmd.Parameters.AddWithValue("p_recurrence", t.Recurrence);
+            cmd.Parameters.AddWithValue("p_start_date", t.StartDate);
+            cmd.Parameters.AddWithValue("p_end_date", t.EndDate ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("p_active", t.IsActive ? 1 : 0);
+            cmd.Parameters.Add(new OracleParameter("p_updated", OracleDbType.TimeStamp) { Value = ParseDateTimeOrNow(t.UpdatedAt) ?? DateTime.UtcNow });
             Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(Update), false);
@@ -242,7 +252,7 @@ public class TeamTaskStore : ITeamTaskStore
                 "INSERT INTO team_task_completions (team_task_id, period_key, completed_at) VALUES (@tid, @pk, @at)";
             cmd.Parameters.AddWithValue("@tid", teamTaskId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
-            cmd.Parameters.Add(new OracleParameter("@at", OracleDbType.TimeStamp) { Value = now });
+            cmd.Parameters.Add(new OracleParameter("at", OracleDbType.TimeStamp) { Value = now });
             Prep(cmd);
             return cmd.ExecuteNonQuery() > 0;
         }, nameof(InsertCompletion), false);
@@ -350,7 +360,7 @@ public class TeamTaskStore : ITeamTaskStore
             cmd.Parameters.AddWithValue("@p_uid", userId);
             cmd.Parameters.AddWithValue("@pk", periodKey);
             cmd.Parameters.AddWithValue("@txt", trimmed);
-            cmd.Parameters.Add(new OracleParameter("@ua", OracleDbType.TimeStamp) { Value = now });
+            cmd.Parameters.Add(new OracleParameter("ua", OracleDbType.TimeStamp) { Value = now });
             Prep(cmd);
             cmd.ExecuteNonQuery();
             return true;

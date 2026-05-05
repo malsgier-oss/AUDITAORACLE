@@ -510,7 +510,7 @@ public partial class ProcessingView : UserControl, IDeleteKeyHandler
         else
         {
             documents = _store.ListDocuments(branch: branch, status: null, documentType: filterType, limit: 5000, createdBy: createdByFilter)
-                .Where(d => d.Status != Enums.Status.ReadyForAudit && d.Status != Enums.Status.Cleared && d.Status != Enums.Status.Archived)
+                .Where(d => d.Status != Enums.Status.ReadyForAudit && d.Status != Enums.Status.Cleared && d.Status != Enums.Status.Archived && d.Status != Enums.Status.Issue)
                 .OrderByDescending(d => d.Id)
                 .Take(200)
                 .ToList();

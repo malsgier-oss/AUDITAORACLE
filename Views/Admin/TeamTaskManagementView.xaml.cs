@@ -133,7 +133,13 @@ public partial class TeamTaskManagementView : UserControl
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Team tasks", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Log.Error(ex, "Failed to save team task for assignee {AssigneeId} with title '{Title}'",
+                    dlg.ResultTask.AssignedToUserId, dlg.ResultTask.Title);
+                MessageBox.Show(
+                    $"Failed to save team task.\n\nDetails: {ex.Message}",
+                    "Team tasks",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
     }
